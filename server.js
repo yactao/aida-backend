@@ -33,7 +33,14 @@ let classesContainer;
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors()); 
+// --- CONFIGURATION CORS FINALE ET ROBUSTE ---
+// On définit explicitement l'unique origine autorisée.
+const corsOptions = {
+  origin: 'https://ecole20.netlify.app',
+  optionsSuccessStatus: 200 // Pour la compatibilité avec certains navigateurs
+};
+app.use(cors(corsOptions)); 
+
 app.use(express.json());
 
 // --- 4. Définir les "Routes" (inchangées) ---
@@ -207,9 +214,8 @@ setupDatabase().then((containers) => {
     });
 }).catch(error => {
     // --- MODE DÉTECTIVE ACTIVÉ ---
-    // Cette modification affichera l'erreur exacte de la base de données.
     console.error("\x1b[31m%s\x1b[0m", "[ERREUR CRITIQUE] La connexion à la base de données a échoué. Le serveur ne peut pas démarrer.");
-    console.error("Détail de l'erreur Cosmos DB:", error); // Affiche l'erreur complète de Cosmos DB
+    console.error("Détail de l'erreur Cosmos DB:", error);
     process.exit(1);
 });
 
