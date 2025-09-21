@@ -216,14 +216,6 @@ setupDatabase().then((containers) => {
     console.error("\x1b[31m%s\x1b[0m", "[ERREUR CRITIQUE] Démarrage impossible.", error);
     process.exit(1);
 });
-```
 
-### Prochaines Étapes
-
-1.  **Envoyez ce changement** sur votre dépôt GitHub (`aida-backend`).
-    ```bash
-    git add server.js
-    git commit -m "Refactor: Supprime le CORS du code pour se fier à Azure"
-    git push origin main
     
 
