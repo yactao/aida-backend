@@ -209,6 +209,4 @@ setupDatabase().then((containers) => {
     console.error("\x1b[31m%s\x1b[0m", "[ERREUR CRITIQUE] Démarrage impossible.", error);
     process.exit(1);
 });
-```
-
 
