@@ -1,6 +1,6 @@
 // --- 1. Importer les outils nécessaires ---
 const express = require('express');
-const cors = require('cors');
+// const cors = require('cors'); // On désactive le CORS dans le code
 require('dotenv').config();
 const axios = require('axios');
 const { CosmosClient } = require('@azure/cosmos');
@@ -31,9 +31,16 @@ let classesContainer;
 
 // --- 3. Initialiser l'application ---
 const app = express();
-// LA CORRECTION EST ICI : On utilise le port fourni par Azure, ou 3000 par défaut.
-const PORT = process.env.PORT || 3000; 
-app.use(cors());
+const PORT = process.env.PORT || 3000;
+
+// --- CONFIGURATION CORS SUPPRIMÉE ---
+// On laisse Azure gérer le CORS via la configuration du portail.
+// const corsOptions = {
+//   origin: 'https://ecole20.netlify.app',
+//   optionsSuccessStatus: 200
+// };
+// app.use(cors(corsOptions));
+
 app.use(express.json());
 
 // --- 4. Définir les "Routes" ---
@@ -209,4 +216,14 @@ setupDatabase().then((containers) => {
     console.error("\x1b[31m%s\x1b[0m", "[ERREUR CRITIQUE] Démarrage impossible.", error);
     process.exit(1);
 });
+```
+
+### Prochaines Étapes
+
+1.  **Envoyez ce changement** sur votre dépôt GitHub (`aida-backend`).
+    ```bash
+    git add server.js
+    git commit -m "Refactor: Supprime le CORS du code pour se fier à Azure"
+    git push origin main
+    
 
