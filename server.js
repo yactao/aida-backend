@@ -1,6 +1,6 @@
 // --- 1. Importer les outils nécessaires ---
 const express = require('express');
-// const cors = require('cors'); // On désactive le CORS dans le code
+const cors = require('cors'); // On réactive le CORS
 require('dotenv').config();
 const axios = require('axios');
 const { CosmosClient } = require('@azure/cosmos');
@@ -33,13 +33,11 @@ let classesContainer;
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// --- CONFIGURATION CORS SUPPRIMÉE ---
-// On laisse Azure gérer le CORS via la configuration du portail.
-// const corsOptions = {
-//   origin: 'https://ecole20.netlify.app',
-//   optionsSuccessStatus: 200
-// };
-// app.use(cors(corsOptions));
+// --- CORRECTION FINALE CORS ---
+// On réactive le CORS avec la configuration la plus simple.
+// Cela permet de bien gérer la première requête du navigateur (preflight).
+// La sécurité est ensuite assurée par la configuration du portail Azure.
+app.use(cors()); 
 
 app.use(express.json());
 
@@ -216,6 +214,3 @@ setupDatabase().then((containers) => {
     console.error("\x1b[31m%s\x1b[0m", "[ERREUR CRITIQUE] Démarrage impossible.", error);
     process.exit(1);
 });
-
-    
-
