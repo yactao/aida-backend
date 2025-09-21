@@ -11,7 +11,7 @@ const path = require('path');
 const endpoint = process.env.COSMOS_ENDPOINT;
 const key = process.env.COSMOS_KEY;
 if (!endpoint || !key) {
-    console.error("\x1b[31m%s\x1b[0m", "[ERREUR CRITIQUE] Variables COSMOS_ENDPOINT/COSMOS_KEY non définies dans .env.");
+    console.error("\x1b[31m%s\x1b[0m", "[ERREUR CRITIQUE] Variables COSMOS_ENDPOINT/COSMOS_KEY non définies.");
     process.exit(1);
 }
 const client = new CosmosClient({ endpoint, key });
@@ -31,7 +31,8 @@ let classesContainer;
 
 // --- 3. Initialiser l'application ---
 const app = express();
-const PORT = 3000;
+// LA CORRECTION EST ICI : On utilise le port fourni par Azure, ou 3000 par défaut.
+const PORT = process.env.PORT || 3000; 
 app.use(cors());
 app.use(express.json());
 
@@ -202,10 +203,12 @@ setupDatabase().then((containers) => {
     usersContainer = containers.usersContainer;
     classesContainer = containers.classesContainer;
     app.listen(PORT, () => {
-        console.log(`\x1b[32m%s\x1b[0m`, `Serveur AIDA démarré sur http://localhost:${PORT}`);
+        console.log(`\x1b[32m%s\x1b[0m`, `Serveur AIDA démarré sur le port ${PORT}`);
     });
 }).catch(error => {
     console.error("\x1b[31m%s\x1b[0m", "[ERREUR CRITIQUE] Démarrage impossible.", error);
     process.exit(1);
 });
+```
+
 
