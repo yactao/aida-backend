@@ -1,6 +1,6 @@
 // --- 1. Importer les outils nécessaires ---
 const express = require('express');
-const cors = require('cors'); // On réactive le CORS
+const cors = require('cors'); 
 require('dotenv').config();
 const axios = require('axios');
 const { CosmosClient } = require('@azure/cosmos');
@@ -33,15 +33,10 @@ let classesContainer;
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// --- CORRECTION FINALE CORS ---
-// On réactive le CORS avec la configuration la plus simple.
-// Cela permet de bien gérer la première requête du navigateur (preflight).
-// La sécurité est ensuite assurée par la configuration du portail Azure.
 app.use(cors()); 
-
 app.use(express.json());
 
-// --- 4. Définir les "Routes" ---
+// --- 4. Définir les "Routes" (inchangées) ---
 app.get('/', (req, res) => res.send('<h1>Le serveur AIDA est en ligne !</h1>'));
 
 app.get('/api/programmes', async (req, res) => {
@@ -137,7 +132,7 @@ app.get('/api/student/classes/:studentEmail', async (req, res) => {
     const { studentEmail } = req.params;
     try {
         const { resource: studentDoc } = await usersContainer.item(studentEmail, studentEmail).read();
-        if (!studentDoc || !studentDoc.classes || studentDoc.classes.length === 0) return res.json([]);
+        if (!studentDoc || !studentDoc.classes || !studentDoc.classes.length) return res.json([]);
         const { resources: classes } = await classesContainer.items.query({ query: "SELECT * FROM c WHERE ARRAY_CONTAINS(@classIds, c.id)", parameters: [{ name: '@classIds', value: studentDoc.classes }] }).fetchAll();
         res.status(200).json(classes);
     } catch (e) { res.status(500).json({ error: "Erreur serveur." }); }
@@ -211,6 +206,11 @@ setupDatabase().then((containers) => {
         console.log(`\x1b[32m%s\x1b[0m`, `Serveur AIDA démarré sur le port ${PORT}`);
     });
 }).catch(error => {
-    console.error("\x1b[31m%s\x1b[0m", "[ERREUR CRITIQUE] Démarrage impossible.", error);
+    // --- MODE DÉTECTIVE ACTIVÉ ---
+    // Cette modification affichera l'erreur exacte de la base de données.
+    console.error("\x1b[31m%s\x1b[0m", "[ERREUR CRITIQUE] La connexion à la base de données a échoué. Le serveur ne peut pas démarrer.");
+    console.error("Détail de l'erreur Cosmos DB:", error); // Affiche l'erreur complète de Cosmos DB
     process.exit(1);
 });
+
+
