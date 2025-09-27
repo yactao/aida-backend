@@ -1,4 +1,4 @@
-// --- 1. Importer les outils nécessaires ---
+// --- 1. Importer les outils nécessaires (inchangé) ---
 const express = require('express');
 const cors = require('cors'); 
 require('dotenv').config();
@@ -43,7 +43,7 @@ app.use(express.json());
 // --- 4. Définir les "Routes" ---
 const apiRouter = express.Router();
 
-// --- NOUVELLE ROUTE POUR LE CHAT DU TERRAIN DE JEUX ---
+// --- ROUTE DU CHAT MISE À JOUR ---
 apiRouter.post('/aida/chat', async (req, res) => {
     const { history } = req.body;
     const apiKey = process.env.DEEPSEEK_API_KEY;
@@ -53,16 +53,48 @@ apiRouter.post('/aida/chat', async (req, res) => {
         return res.status(400).json({ error: "Historique de conversation invalide." });
     }
 
+    // On ajoute l'instruction de formatage dans le message système
+    const formattedHistory = [...history];
+    const systemMessage = formattedHistory.find(m => m.role === 'system');
+    if (systemMessage) {
+        systemMessage.content += " Quand tu donnes une liste ou des exercices, utilise des retours à la ligne (\\n) pour séparer chaque point. Ne numérote pas les exercices avec des étoiles. Utilise un format simple comme 'Exercice 1:'."
+    }
+
     try {
         const response = await axios.post('https://api.deepseek.com/chat/completions', {
             model: 'deepseek-chat',
-            messages: history
+            messages: formattedHistory
         }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
         
         res.json({ reply: response.data.choices[0].message.content });
     } catch (error) {
         console.error("Erreur de l'IA lors du chat:", error);
         res.status(500).json({ error: "AIDA n'a pas pu répondre." });
+    }
+});
+
+// --- NOUVELLE ROUTE POUR LE BOUTON D'AIDE ---
+apiRouter.post('/aida/playground-help', async (req, res) => {
+    const { question, context } = req.body;
+    const apiKey = process.env.DEEPSEEK_API_KEY;
+    if (!apiKey) return res.status(500).json({ error: "Clé API non configurée." });
+
+    if (!question) {
+        return res.status(400).json({ error: "Aucune question fournie pour l'indice." });
+    }
+
+    const prompt = `Tu es AIDA, une enseignante. Un élève est bloqué sur la question suivante : "${question}". En te basant sur le contexte de la conversation (${context}), donne-lui un indice simple pour le mettre sur la voie, sans jamais donner la réponse. Ta réponse doit être une seule phrase courte.`;
+
+    try {
+        const response = await axios.post('https://api.deepseek.com/chat/completions', {
+            model: 'deepseek-chat',
+            messages: [{ role: "user", content: prompt }]
+        }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
+        
+        res.json({ hint: response.data.choices[0].message.content });
+    } catch (error) {
+        console.error("Erreur de l'IA pour l'indice:", error);
+        res.status(500).json({ error: "AIDA n'a pas pu trouver d'indice." });
     }
 });
 
@@ -100,7 +132,6 @@ apiRouter.post('/generate/content', async (req, res) => {
         res.status(500).json({ error: "L'IA a donné une réponse inattendue." }); 
     }
 });
-
 apiRouter.post('/class/assign-content', async (req, res) => {
     const { contentData, classId, teacherEmail } = req.body;
     try {
@@ -112,7 +143,6 @@ apiRouter.post('/class/assign-content', async (req, res) => {
         res.status(200).json({ message: "Contenu assigné !" });
     } catch (e) { res.status(500).json({ error: "Impossible d'assigner le contenu." }); }
 });
-
 apiRouter.post('/auth/signup', async (req, res) => {
     const { email, password, role } = req.body;
     try {
@@ -123,7 +153,6 @@ apiRouter.post('/auth/signup', async (req, res) => {
         res.status(201).json({ user: { email: newUser.email, role: newUser.role } });
     } catch (e) { res.status(500).json({ error: "Erreur serveur." }); }
 });
-
 apiRouter.post('/auth/login', async (req, res) => {
     const { email, password } = req.body;
     try {
@@ -135,7 +164,6 @@ apiRouter.post('/auth/login', async (req, res) => {
         res.status(500).json({ error: "Erreur serveur." });
     }
 });
-
 apiRouter.post('/classes/create', async (req, res) => {
     const { className, teacherEmail } = req.body;
     const newClass = { id: `${className.replace(/\s+/g, '-')}-${Date.now()}`, className, teacherEmail, students: [], quizzes: [], results: [] };
@@ -144,7 +172,6 @@ apiRouter.post('/classes/create', async (req, res) => {
         res.status(201).json(created);
     } catch (e) { res.status(500).json({ error: "Impossible de créer la classe." }); }
 });
-
 apiRouter.get('/classes/:teacherEmail', async (req, res) => {
     const { teacherEmail } = req.params;
     try {
@@ -152,7 +179,6 @@ apiRouter.get('/classes/:teacherEmail', async (req, res) => {
         res.status(200).json(classes);
     } catch (e) { res.status(500).json({ error: "Impossible de récupérer les classes." }); }
 });
-
 apiRouter.post('/class/join', async (req, res) => {
     const { className, studentEmail } = req.body;
     try {
@@ -172,7 +198,6 @@ apiRouter.post('/class/join', async (req, res) => {
         res.status(200).json({ message: `Vous avez rejoint la classe ${classDoc.className} !` });
     } catch (e) { res.status(500).json({ error: "Impossible de rejoindre la classe." }); }
 });
-    
 apiRouter.get('/student/classes/:studentEmail', async (req, res) => {
     const { studentEmail } = req.params;
     try {
@@ -182,7 +207,6 @@ apiRouter.get('/student/classes/:studentEmail', async (req, res) => {
         res.status(200).json(classes);
     } catch (e) { res.status(500).json({ error: "Erreur serveur." }); }
 });
-    
 apiRouter.get('/class/details/:classId', async (req, res) => {
     const { classId } = req.params;
     try {
@@ -191,7 +215,6 @@ apiRouter.get('/class/details/:classId', async (req, res) => {
         res.status(200).json(classes[0]);
     } catch (e) { res.status(500).json({ error: "Erreur serveur." }); }
 });
-
 apiRouter.post('/quiz/submit', async (req, res) => {
     const { classId, quizId, studentEmail, score, totalQuestions, quizTitle, answers } = req.body;
     try {
@@ -207,7 +230,6 @@ apiRouter.post('/quiz/submit', async (req, res) => {
         res.status(500).json({ error: "Impossible d'enregistrer le score." }); 
     }
 });
-
 apiRouter.post('/aida/help', async (req, res) => {
     const { question } = req.body;
     const apiKey = process.env.DEEPSEEK_API_KEY;
@@ -218,7 +240,6 @@ apiRouter.post('/aida/help', async (req, res) => {
         res.json({ hint: response.data.choices[0].message.content });
     } catch (error) { res.status(500).json({ error: "AIDA n'a pas pu fournir d'indice." }); }
 });
-
 apiRouter.post('/aida/feedback', async (req, res) => {
     const { question, wrongAnswer, correctAnswer } = req.body;
     const apiKey = process.env.DEEPSEEK_API_KEY;
@@ -233,7 +254,7 @@ apiRouter.post('/aida/feedback', async (req, res) => {
 app.use('/api', apiRouter);
 app.get('/', (req, res) => res.send('<h1>Le serveur AIDA est en ligne !</h1>'));
 
-// --- 5. Démarrer le serveur (inchangée) ---
+// --- 5. Démarrer le serveur (inchangé) ---
 setupDatabase().then((containers) => {
     usersContainer = containers.usersContainer;
     classesContainer = containers.classesContainer;
