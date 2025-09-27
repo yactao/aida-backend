@@ -4,8 +4,6 @@ const cors = require('cors');
 require('dotenv').config();
 const axios = require('axios');
 const { CosmosClient } = require('@azure/cosmos');
-const fs = require('fs').promises;
-const path = require('path');
 
 // --- 2. Configuration & Initialisation ---
 const endpoint = process.env.COSMOS_ENDPOINT;
@@ -33,46 +31,67 @@ let classesContainer;
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// --- CONFIGURATION CORS FINALE ET ROBUSTE POUR AZURE ---
-// On définit explicitement l'unique origine autorisée.
 const corsOptions = {
   origin: 'https://ecole20.netlify.app',
-  methods: "GET,HEAD,PUT,PATCH,POST,DELETE", // On autorise toutes les méthodes
+  methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
   credentials: true,
   optionsSuccessStatus: 204
 };
 app.use(cors(corsOptions)); 
-
 app.use(express.json());
 
 // --- 4. Définir les "Routes" ---
-// Le préfixe "/api" est ajouté ici pour toutes les routes.
 const apiRouter = express.Router();
 
-apiRouter.get('/programmes', async (req, res) => {
-    try {
-        const filePath = path.join(__dirname, 'programmes.json');
-        const data = await fs.readFile(filePath, 'utf8');
-        res.json(JSON.parse(data));
-    } catch (error) {
-        res.status(500).json({ error: "Impossible de charger les programmes." });
-    }
-});
-
-apiRouter.post('/generate/quiz', async (req, res) => {
-    const { competences } = req.body;
+// NOUVELLE ROUTE POUR GÉNÉRER TOUS TYPES DE CONTENUS
+apiRouter.post('/generate/content', async (req, res) => {
+    const { competences, contentType } = req.body;
     const apiKey = process.env.DEEPSEEK_API_KEY;
     if (!apiKey) return res.status(500).json({ error: "Clé API non configurée." });
+
+    let prompt;
+    switch (contentType) {
+        case 'exercices':
+            prompt = `Tu es un assistant pédagogique. Crée 3 exercices d'application variés avec leur correction sur la compétence : "${competences}". Formate la réponse en JSON : {"title": "Exercices sur...", "type": "exercices", "content": [{"enonce": "...", "correction": "..."}, ...]}`;
+            break;
+        case 'questions_ouvertes':
+            prompt = `Tu es un assistant pédagogique. Crée 3 questions ouvertes qui font réfléchir un élève sur la compétence : "${competences}". Formate la réponse en JSON : {"title": "Questions sur...", "type": "questions_ouvertes", "content": ["Question 1...", "Question 2...", ...]}`;
+            break;
+        case 'fiche_revision':
+            prompt = `Tu es un assistant pédagogique. Rédige une fiche de révision très claire, concise et structurée pour un élève sur la compétence : "${competences}". Formate la réponse en JSON : {"title": "Fiche de révision sur...", "type": "fiche_revision", "content": "Texte de la fiche..."}`;
+            break;
+        case 'quiz':
+        default:
+            prompt = `Tu es un assistant pédagogique. Crée un quiz de 5 questions à 4 choix pour des élèves, basé sur la compétence : "${competences}". Formate la réponse en JSON : {"title": "Quiz sur...", "type": "quiz", "questions": [{"question_text": "...", "options": ["A", "B", "C", "D"], "correct_answer_index": 0}]}`;
+            break;
+    }
+
     try {
-        const prompt = `Tu es un assistant pédagogique. Crée un quiz de 5 questions à 4 choix pour des élèves de primaire, basé sur : "${competences}". Formate la réponse en JSON : {"title": "...", "questions": [{"question_text": "...", "options": ["A", "B", "C", "D"], "correct_answer_index": 0}]}`;
         const response = await axios.post('https://api.deepseek.com/chat/completions', { model: 'deepseek-chat', messages: [{ content: prompt, role: 'user' }] }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
-        let quizJsonString = response.data.choices[0].message.content.replace(/```json\n|\n```/g, '');
-        const quizData = JSON.parse(quizJsonString);
-        res.json(quizData);
+        let jsonString = response.data.choices[0].message.content.replace(/```json\n|\n```/g, '');
+        const data = JSON.parse(jsonString);
+        res.json(data);
     } catch (error) { 
+        console.error("Erreur de l'IA:", error);
         res.status(500).json({ error: "L'IA a donné une réponse inattendue." }); 
     }
 });
+
+// ROUTE MISE À JOUR POUR ASSIGNER TOUS TYPES DE CONTENUS
+apiRouter.post('/class/assign-content', async (req, res) => {
+    const { contentData, classId, teacherEmail } = req.body;
+    try {
+        const { resource: classDoc } = await classesContainer.item(classId, teacherEmail).read();
+        const contentWithId = { ...contentData, id: `${contentData.type}-${Date.now()}` };
+        if(!classDoc.quizzes) classDoc.quizzes = []; // On garde le nom "quizzes" pour ne pas casser la compatibilité
+        classDoc.quizzes.push(contentWithId);
+        await classesContainer.item(classId, teacherEmail).replace(classDoc);
+        res.status(200).json({ message: "Contenu assigné !" });
+    } catch (e) { res.status(500).json({ error: "Impossible d'assigner le contenu." }); }
+});
+
+
+// --- Le reste des routes (login, signup, classes, etc.) reste inchangé ---
 
 apiRouter.post('/auth/signup', async (req, res) => {
     const { email, password, role } = req.body;
@@ -143,18 +162,6 @@ apiRouter.get('/student/classes/:studentEmail', async (req, res) => {
         res.status(200).json(classes);
     } catch (e) { res.status(500).json({ error: "Erreur serveur." }); }
 });
-
-apiRouter.post('/class/assign-quiz', async (req, res) => {
-    const { quizData, classId, teacherEmail } = req.body;
-    try {
-        const { resource: classDoc } = await classesContainer.item(classId, teacherEmail).read();
-        const quizWithId = { ...quizData, id: `quiz-${Date.now()}` };
-        if(!classDoc.quizzes) classDoc.quizzes = [];
-        classDoc.quizzes.push(quizWithId);
-        await classesContainer.item(classId, teacherEmail).replace(classDoc);
-        res.status(200).json({ message: "Quiz assigné !" });
-    } catch (e) { res.status(500).json({ error: "Impossible d'assigner le quiz." }); }
-});
     
 apiRouter.get('/class/details/:classId', async (req, res) => {
     const { classId } = req.params;
@@ -203,10 +210,8 @@ apiRouter.post('/aida/feedback', async (req, res) => {
     } catch (error) { res.status(500).json({ error: "AIDA n'a pas pu fournir d'explication." }); }
 });
 
-// On utilise le routeur pour toutes les routes commençant par /api
 app.use('/api', apiRouter);
 app.get('/', (req, res) => res.send('<h1>Le serveur AIDA est en ligne !</h1>'));
-
 
 // --- 5. Démarrer le serveur ---
 setupDatabase().then((containers) => {
