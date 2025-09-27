@@ -5,7 +5,7 @@ require('dotenv').config();
 const axios = require('axios');
 const { CosmosClient } = require('@azure/cosmos');
 
-// --- 2. Configuration & Initialisation (inchangée) ---
+// --- 2. Configuration & Initialisation ---
 const endpoint = process.env.COSMOS_ENDPOINT;
 const key = process.env.COSMOS_KEY;
 if (!endpoint || !key) {
@@ -27,7 +27,7 @@ async function setupDatabase() {
 let usersContainer;
 let classesContainer;
 
-// --- 3. Initialiser l'application (inchangée) ---
+// --- 3. Initialiser l'application ---
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -43,31 +43,7 @@ app.use(express.json());
 // --- 4. Définir les "Routes" ---
 const apiRouter = express.Router();
 
-// --- NOUVELLE ROUTE POUR LE CHAT DU TERRAIN DE JEUX ---
-apiRouter.post('/aida/chat', async (req, res) => {
-    const { history } = req.body;
-    const apiKey = process.env.DEEPSEEK_API_KEY;
-    if (!apiKey) return res.status(500).json({ error: "Clé API non configurée." });
-
-    if (!history || !Array.isArray(history)) {
-        return res.status(400).json({ error: "Historique de conversation invalide." });
-    }
-
-    try {
-        const response = await axios.post('https://api.deepseek.com/chat/completions', {
-            model: 'deepseek-chat',
-            messages: history
-        }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
-        
-        res.json({ reply: response.data.choices[0].message.content });
-    } catch (error) {
-        console.error("Erreur de l'IA lors du chat:", error);
-        res.status(500).json({ error: "AIDA n'a pas pu répondre." });
-    }
-});
-
-
-// --- Les autres routes restent inchangées ---
+// NOUVELLE ROUTE POUR GÉNÉRER TOUS TYPES DE CONTENUS
 apiRouter.post('/generate/content', async (req, res) => {
     const { competences, contentType } = req.body;
     const apiKey = process.env.DEEPSEEK_API_KEY;
@@ -101,17 +77,21 @@ apiRouter.post('/generate/content', async (req, res) => {
     }
 });
 
+// ROUTE MISE À JOUR POUR ASSIGNER TOUS TYPES DE CONTENUS
 apiRouter.post('/class/assign-content', async (req, res) => {
     const { contentData, classId, teacherEmail } = req.body;
     try {
         const { resource: classDoc } = await classesContainer.item(classId, teacherEmail).read();
         const contentWithId = { ...contentData, id: `${contentData.type}-${Date.now()}` };
-        if(!classDoc.quizzes) classDoc.quizzes = [];
+        if(!classDoc.quizzes) classDoc.quizzes = []; // On garde le nom "quizzes" pour ne pas casser la compatibilité
         classDoc.quizzes.push(contentWithId);
         await classesContainer.item(classId, teacherEmail).replace(classDoc);
         res.status(200).json({ message: "Contenu assigné !" });
     } catch (e) { res.status(500).json({ error: "Impossible d'assigner le contenu." }); }
 });
+
+
+// --- Le reste des routes (login, signup, classes, etc.) reste inchangé ---
 
 apiRouter.post('/auth/signup', async (req, res) => {
     const { email, password, role } = req.body;
@@ -233,7 +213,7 @@ apiRouter.post('/aida/feedback', async (req, res) => {
 app.use('/api', apiRouter);
 app.get('/', (req, res) => res.send('<h1>Le serveur AIDA est en ligne !</h1>'));
 
-// --- 5. Démarrer le serveur (inchangée) ---
+// --- 5. Démarrer le serveur ---
 setupDatabase().then((containers) => {
     usersContainer = containers.usersContainer;
     classesContainer = containers.classesContainer;
