@@ -33,81 +33,80 @@ let classesContainer;
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// --- CONFIGURATION CORS FINALE ET ROBUSTE ---
+// --- CONFIGURATION CORS FINALE ET ROBUSTE POUR AZURE ---
 // On définit explicitement l'unique origine autorisée.
 const corsOptions = {
   origin: 'https://ecole20.netlify.app',
-  optionsSuccessStatus: 200 // Pour la compatibilité avec certains navigateurs
+  methods: "GET,HEAD,PUT,PATCH,POST,DELETE", // On autorise toutes les méthodes
+  credentials: true,
+  optionsSuccessStatus: 204
 };
 app.use(cors(corsOptions)); 
 
 app.use(express.json());
 
-// --- 4. Définir les "Routes" (inchangées) ---
-app.get('/', (req, res) => res.send('<h1>Le serveur AIDA est en ligne !</h1>'));
+// --- 4. Définir les "Routes" ---
+// Le préfixe "/api" est ajouté ici pour toutes les routes.
+const apiRouter = express.Router();
 
-app.get('/api/programmes', async (req, res) => {
+apiRouter.get('/programmes', async (req, res) => {
     try {
         const filePath = path.join(__dirname, 'programmes.json');
         const data = await fs.readFile(filePath, 'utf8');
         res.json(JSON.parse(data));
     } catch (error) {
-        console.error("Erreur de lecture du fichier programmes.json:", error);
         res.status(500).json({ error: "Impossible de charger les programmes." });
     }
 });
 
-app.post('/api/generate/quiz', async (req, res) => {
+apiRouter.post('/generate/quiz', async (req, res) => {
     const { competences } = req.body;
     const apiKey = process.env.DEEPSEEK_API_KEY;
     if (!apiKey) return res.status(500).json({ error: "Clé API non configurée." });
     try {
-        const prompt = `Tu es un assistant pédagogique pour le primaire. Crée un quiz de 5 questions à 4 choix pour des élèves de CE2, basé STRICTEMENT sur les compétences suivantes : "${competences}". Le quiz doit être simple et direct. Formate la réponse exclusivement en JSON (sans texte avant ou après) comme ceci : {"title": "Titre du Quiz", "questions": [{"question_text": "Texte de la question ?", "options": ["Option A", "Option B", "Option C", "Option D"], "correct_answer_index": 0}]}`;
+        const prompt = `Tu es un assistant pédagogique. Crée un quiz de 5 questions à 4 choix pour des élèves de primaire, basé sur : "${competences}". Formate la réponse en JSON : {"title": "...", "questions": [{"question_text": "...", "options": ["A", "B", "C", "D"], "correct_answer_index": 0}]}`;
         const response = await axios.post('https://api.deepseek.com/chat/completions', { model: 'deepseek-chat', messages: [{ content: prompt, role: 'user' }] }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
         let quizJsonString = response.data.choices[0].message.content.replace(/```json\n|\n```/g, '');
         const quizData = JSON.parse(quizJsonString);
         res.json(quizData);
     } catch (error) { 
-        console.error("Erreur de l'IA:", error);
         res.status(500).json({ error: "L'IA a donné une réponse inattendue." }); 
     }
 });
 
-app.post('/api/auth/signup', async (req, res) => {
+apiRouter.post('/auth/signup', async (req, res) => {
     const { email, password, role } = req.body;
-    if (!email || !password || !role) return res.status(400).json({ error: "Tous les champs sont requis." });
     try {
         const { resources: existing } = await usersContainer.items.query({ query: "SELECT * FROM c WHERE c.id = @email", parameters: [{ name: "@email", value: email }] }).fetchAll();
         if (existing.length > 0) return res.status(409).json({ error: "Cet email est déjà utilisé." });
         const newUser = { id: email, email, password, role, classes: [] };
         await usersContainer.items.create(newUser);
-        res.status(201).json({ message: "Inscription réussie !", user: { email: newUser.email, role: newUser.role } });
+        res.status(201).json({ user: { email: newUser.email, role: newUser.role } });
     } catch (e) { res.status(500).json({ error: "Erreur serveur." }); }
 });
 
-app.post('/api/auth/login', async (req, res) => {
+apiRouter.post('/auth/login', async (req, res) => {
     const { email, password } = req.body;
     try {
         const { resource: user } = await usersContainer.item(email, email).read();
-        if (!user) return res.status(404).json({ error: "Utilisateur non trouvé." });
-        if (user.password !== password) return res.status(401).json({ error: "Mot de passe incorrect." });
-        res.status(200).json({ message: "Connexion réussie !", user: { email: user.email, role: user.role, classes: user.classes || [] } });
+        if (!user || user.password !== password) return res.status(401).json({ error: "Email ou mot de passe incorrect." });
+        res.status(200).json({ user: { email: user.email, role: user.role, classes: user.classes || [] } });
     } catch (e) {
-        if (e.code === 404) return res.status(404).json({ error: "Utilisateur non trouvé." });
+        if (e.code === 404) return res.status(401).json({ error: "Email ou mot de passe incorrect." });
         res.status(500).json({ error: "Erreur serveur." });
     }
 });
 
-app.post('/api/classes/create', async (req, res) => {
+apiRouter.post('/classes/create', async (req, res) => {
     const { className, teacherEmail } = req.body;
-    const newClass = { id: `${teacherEmail.split('@')[0]}-${className.replace(/\s+/g, '-')}-${Date.now()}`, className, teacherEmail, students: [], quizzes: [], results: [] };
+    const newClass = { id: `${className.replace(/\s+/g, '-')}-${Date.now()}`, className, teacherEmail, students: [], quizzes: [], results: [] };
     try {
         const { resource: created } = await classesContainer.items.create(newClass);
         res.status(201).json(created);
     } catch (e) { res.status(500).json({ error: "Impossible de créer la classe." }); }
 });
 
-app.get('/api/classes/:teacherEmail', async (req, res) => {
+apiRouter.get('/classes/:teacherEmail', async (req, res) => {
     const { teacherEmail } = req.params;
     try {
         const { resources: classes } = await classesContainer.items.query({ query: "SELECT * FROM c WHERE c.teacherEmail = @teacherEmail", parameters: [{ name: "@teacherEmail", value: teacherEmail }] }).fetchAll();
@@ -115,7 +114,7 @@ app.get('/api/classes/:teacherEmail', async (req, res) => {
     } catch (e) { res.status(500).json({ error: "Impossible de récupérer les classes." }); }
 });
 
-app.post('/api/class/join', async (req, res) => {
+apiRouter.post('/class/join', async (req, res) => {
     const { className, studentEmail } = req.body;
     try {
         const { resources: classes } = await classesContainer.items.query({ query: "SELECT * FROM c WHERE c.className = @className", parameters: [{ name: "@className", value: className }] }).fetchAll();
@@ -135,7 +134,7 @@ app.post('/api/class/join', async (req, res) => {
     } catch (e) { res.status(500).json({ error: "Impossible de rejoindre la classe." }); }
 });
     
-app.get('/api/student/classes/:studentEmail', async (req, res) => {
+apiRouter.get('/student/classes/:studentEmail', async (req, res) => {
     const { studentEmail } = req.params;
     try {
         const { resource: studentDoc } = await usersContainer.item(studentEmail, studentEmail).read();
@@ -145,7 +144,7 @@ app.get('/api/student/classes/:studentEmail', async (req, res) => {
     } catch (e) { res.status(500).json({ error: "Erreur serveur." }); }
 });
 
-app.post('/api/class/assign-quiz', async (req, res) => {
+apiRouter.post('/class/assign-quiz', async (req, res) => {
     const { quizData, classId, teacherEmail } = req.body;
     try {
         const { resource: classDoc } = await classesContainer.item(classId, teacherEmail).read();
@@ -157,7 +156,7 @@ app.post('/api/class/assign-quiz', async (req, res) => {
     } catch (e) { res.status(500).json({ error: "Impossible d'assigner le quiz." }); }
 });
     
-app.get('/api/class/details/:classId', async (req, res) => {
+apiRouter.get('/class/details/:classId', async (req, res) => {
     const { classId } = req.params;
     try {
         const { resources: classes } = await classesContainer.items.query({ query: "SELECT * FROM c WHERE c.id = @classId", parameters: [{ name: "@classId", value: classId }] }).fetchAll();
@@ -166,7 +165,7 @@ app.get('/api/class/details/:classId', async (req, res) => {
     } catch (e) { res.status(500).json({ error: "Erreur serveur." }); }
 });
 
-app.post('/api/quiz/submit', async (req, res) => {
+apiRouter.post('/quiz/submit', async (req, res) => {
     const { classId, quizId, studentEmail, score, totalQuestions, quizTitle, answers } = req.body;
     try {
         const { resources: classes } = await classesContainer.items.query({ query: "SELECT * FROM c WHERE c.id = @classId", parameters: [{ name: '@classId', value: classId }] }).fetchAll();
@@ -178,32 +177,36 @@ app.post('/api/quiz/submit', async (req, res) => {
         await classesContainer.item(classDoc.id, classDoc.teacherEmail).replace(classDoc);
         res.status(200).json({ message: "Score enregistré !" });
     } catch (e) { 
-        console.error("Erreur d'enregistrement du score:", e);
         res.status(500).json({ error: "Impossible d'enregistrer le score." }); 
     }
 });
 
-app.post('/api/aida/help', async (req, res) => {
+apiRouter.post('/aida/help', async (req, res) => {
     const { question } = req.body;
     const apiKey = process.env.DEEPSEEK_API_KEY;
     if (!apiKey) return res.status(500).json({ error: "Clé API non configurée." });
     try {
-        const prompt = `Pour un élève, donne un indice simple pour l'aider à répondre à cette question, sans donner la réponse. Question : "${question}"`;
+        const prompt = `Donne un indice simple pour un élève, sans donner la réponse. Question : "${question}"`;
         const response = await axios.post('https://api.deepseek.com/chat/completions', { model: 'deepseek-chat', messages: [{ content: prompt, role: 'user' }] }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
         res.json({ hint: response.data.choices[0].message.content });
     } catch (error) { res.status(500).json({ error: "AIDA n'a pas pu fournir d'indice." }); }
 });
 
-app.post('/api/aida/feedback', async (req, res) => {
+apiRouter.post('/aida/feedback', async (req, res) => {
     const { question, wrongAnswer, correctAnswer } = req.body;
     const apiKey = process.env.DEEPSEEK_API_KEY;
     if (!apiKey) return res.status(500).json({ error: "Clé API non configurée." });
     try {
-        const prompt = `Pour un élève de primaire, explique très simplement en une phrase pourquoi la réponse "${wrongAnswer}" est incorrecte pour la question "${question}", et pourquoi "${correctAnswer}" est la bonne réponse. Sois encourageant.`;
+        const prompt = `Pour un élève, explique simplement pourquoi "${wrongAnswer}" est incorrect pour la question "${question}", et pourquoi "${correctAnswer}" est la bonne réponse.`;
         const response = await axios.post('https://api.deepseek.com/chat/completions', { model: 'deepseek-chat', messages: [{ content: prompt, role: 'user' }] }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
         res.json({ feedback: response.data.choices[0].message.content });
     } catch (error) { res.status(500).json({ error: "AIDA n'a pas pu fournir d'explication." }); }
 });
+
+// On utilise le routeur pour toutes les routes commençant par /api
+app.use('/api', apiRouter);
+app.get('/', (req, res) => res.send('<h1>Le serveur AIDA est en ligne !</h1>'));
+
 
 // --- 5. Démarrer le serveur ---
 setupDatabase().then((containers) => {
@@ -213,11 +216,8 @@ setupDatabase().then((containers) => {
         console.log(`\x1b[32m%s\x1b[0m`, `Serveur AIDA démarré sur le port ${PORT}`);
     });
 }).catch(error => {
-    // --- MODE DÉTECTIVE ACTIVÉ ---
-    console.error("\x1b[31m%s\x1b[0m", "[ERREUR CRITIQUE] La connexion à la base de données a échoué. Le serveur ne peut pas démarrer.");
+    console.error("\x1b[31m%s\x1b[0m", "[ERREUR CRITIQUE] La connexion à la base de données a échoué.");
     console.error("Détail de l'erreur Cosmos DB:", error);
     process.exit(1);
 });
-
-    
 
