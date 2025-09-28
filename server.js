@@ -31,13 +31,19 @@ let classesContainer;
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// --- CONFIGURATION CORS CORRIGÉE ---
+// On définit précisément qui a le droit de parler à notre serveur.
 const corsOptions = {
-  origin: 'https://ecole20.netlify.app',
-  methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
-  credentials: true,
-  optionsSuccessStatus: 204
+  origin: 'https://ecole20.netlify.app', // L'adresse de votre site Netlify
+  methods: ['GET', 'POST', 'OPTIONS', 'PUT', 'DELETE', 'PATCH'], // Les méthodes autorisées
+  allowedHeaders: ['Content-Type', 'Authorization'], // Les en-têtes autorisés
+  credentials: true
 };
-app.use(cors(corsOptions)); 
+
+// On applique la configuration CORS à toutes les routes.
+// Express s'occupera de répondre correctement aux requêtes "pré-vol" OPTIONS.
+app.use(cors(corsOptions));
+
 app.use(express.json());
 
 // --- 4. Définir les "Routes" ---
@@ -73,7 +79,7 @@ apiRouter.post('/generate/content', async (req, res) => {
         res.json({ structured_content: jsonData, text_representation: textData });
 
     } catch (error) { 
-        console.error("Erreur de l'IA:", error);
+        console.error("Erreur de l'IA:", error.response ? error.response.data : error.message);
         res.status(500).json({ error: "L'IA a donné une réponse inattendue." }); 
     }
 });
@@ -101,39 +107,28 @@ apiRouter.post('/convert/text-to-json', async (req, res) => {
         const data = JSON.parse(jsonString);
         res.json(data);
     } catch(error) {
-        console.error("Erreur de conversion IA:", error);
+        console.error("Erreur de conversion IA:", error.response ? error.response.data : error.message);
         res.status(500).json({ error: "Impossible de convertir le texte." });
     }
 });
 
-
-// --- Les autres routes restent inchangées ---
-apiRouter.post('/class/assign-content', async (req, res) => {
-    const { contentData, classId, teacherEmail } = req.body;
-    try {
-        const { resource: classDoc } = await classesContainer.item(classId, teacherEmail).read();
-        const contentWithId = { ...contentData, id: `${contentData.type}-${Date.now()}` };
-        if(!classDoc.quizzes) classDoc.quizzes = [];
-        classDoc.quizzes.push(contentWithId);
-        await classesContainer.item(classId, teacherEmail).replace(classDoc);
-        res.status(200).json({ message: "Contenu assigné !" });
-    } catch (e) { res.status(500).json({ error: "Impossible d'assigner le contenu." }); }
-});
-apiRouter.post('/auth/signup', async (req, res) => { /* ... (inchangé) ... */ });
-apiRouter.post('/auth/login', async (req, res) => { /* ... (inchangé) ... */ });
-apiRouter.post('/classes/create', async (req, res) => { /* ... (inchangé) ... */ });
-apiRouter.get('/classes/:teacherEmail', async (req, res) => { /* ... (inchangé) ... */ });
-apiRouter.post('/class/join', async (req, res) => { /* ... (inchangé) ... */ });
-apiRouter.get('/student/classes/:studentEmail', async (req, res) => { /* ... (inchangé) ... */ });
-apiRouter.get('/class/details/:classId', async (req, res) => { /* ... (inchangé) ... */ });
-apiRouter.post('/quiz/submit', async (req, res) => { /* ... (inchangé) ... */ });
-apiRouter.post('/aida/chat', async (req, res) => { /* ... (inchangé) ... */ });
-apiRouter.post('/aida/hint', async (req, res) => { /* ... (inchangé) ... */ });
+// --- Les autres routes ---
+apiRouter.post('/class/assign-content', async (req, res) => { /* ... */ });
+apiRouter.post('/auth/signup', async (req, res) => { /* ... */ });
+apiRouter.post('/auth/login', async (req, res) => { /* ... */ });
+apiRouter.post('/classes/create', async (req, res) => { /* ... */ });
+apiRouter.get('/classes/:teacherEmail', async (req, res) => { /* ... */ });
+apiRouter.post('/class/join', async (req, res) => { /* ... */ });
+apiRouter.get('/student/classes/:studentEmail', async (req, res) => { /* ... */ });
+apiRouter.get('/class/details/:classId', async (req, res) => { /* ... */ });
+apiRouter.post('/quiz/submit', async (req, res) => { /* ... */ });
+apiRouter.post('/aida/chat', async (req, res) => { /* ... */ });
+apiRouter.post('/aida/hint', async (req, res) => { /* ... */ });
 
 app.use('/api', apiRouter);
 app.get('/', (req, res) => res.send('<h1>Le serveur AIDA est en ligne !</h1>'));
 
-// --- 5. Démarrer le serveur (inchangée) ---
+// --- 5. Démarrer le serveur ---
 setupDatabase().then((containers) => {
     usersContainer = containers.usersContainer;
     classesContainer = containers.classesContainer;
@@ -141,8 +136,7 @@ setupDatabase().then((containers) => {
         console.log(`\x1b[32m%s\x1b[0m`, `Serveur AIDA démarré sur le port ${PORT}`);
     });
 }).catch(error => {
-    console.error("\x1b[31m%s\x1b[0m", "[ERREUR CRITIQUE] La connexion à la base de données a échoué.");
-    console.error("Détail de l'erreur Cosmos DB:", error);
+    console.error("\x1b[31m%s\x1b[0m", "[ERREUR CRITIQUE] Démarrage impossible.", error);
     process.exit(1);
 });
 
