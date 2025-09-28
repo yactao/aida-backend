@@ -91,28 +91,197 @@ apiRouter.post('/convert/text-to-json', async (req, res) => {
     }
 });
 
-// --- Les autres routes ---
-apiRouter.post('/class/assign-content', async (req, res) => { /* ... */ });
-apiRouter.post('/auth/signup', async (req, res) => { /* ... */ });
-apiRouter.post('/auth/login', async (req, res) => { /* ... */ });
-apiRouter.post('/classes/create', async (req, res) => { /* ... */ });
-apiRouter.get('/classes/:teacherEmail', async (req, res) => { /* ... */ });
-apiRouter.post('/class/join', async (req, res) => { /* ... */ });
-apiRouter.get('/student/classes/:studentEmail', async (req, res) => { /* ... */ });
-apiRouter.get('/class/details/:classId', async (req, res) => { /* ... */ });
-apiRouter.post('/quiz/submit', async (req, res) => { /* ... */ });
-apiRouter.post('/aida/chat', async (req, res) => { /* ... */ });
-apiRouter.post('/aida/hint', async (req, res) => { /* ... */ });
+apiRouter.post('/auth/signup', async (req, res) => {
+    const { email, password, role } = req.body;
+    if (!email || !password || !role) {
+        return res.status(400).json({ error: "Email, mot de passe et rôle sont requis." });
+    }
+    try {
+        const { resource: existingUser } = await usersContainer.item(email, email).read().catch(() => ({ resource: null }));
+        if (existingUser) {
+            return res.status(409).json({ error: "Cet email est déjà utilisé." });
+        }
+        const newUser = { id: email, email, password, role, classes: [] };
+        await usersContainer.items.create(newUser);
+        res.status(201).json({ user: { email, role } });
+    } catch (error) {
+        res.status(500).json({ error: "Erreur lors de la création du compte." });
+    }
+});
+
+apiRouter.post('/auth/login', async (req, res) => {
+    const { email, password } = req.body;
+     if (!email || !password) {
+        return res.status(400).json({ error: "Email et mot de passe sont requis." });
+    }
+    try {
+        const { resource: user } = await usersContainer.item(email, email).read().catch(() => ({ resource: null }));
+        if (!user || user.password !== password) {
+            return res.status(401).json({ error: "Email ou mot de passe incorrect." });
+        }
+        res.status(200).json({ user: { email: user.email, role: user.role } });
+    } catch (error) {
+        res.status(500).json({ error: "Erreur lors de la connexion." });
+    }
+});
+
+apiRouter.post('/classes/create', async (req, res) => {
+    const { className, teacherEmail } = req.body;
+    const newClass = {
+        className,
+        teacherEmail,
+        students: [],
+        quizzes: [],
+        results: [],
+        id: `${className.replace(/\s+/g, '-')}-${Date.now()}`
+    };
+    try {
+        await classesContainer.items.create(newClass);
+        res.status(201).json(newClass);
+    } catch (error) {
+        res.status(500).json({ error: "Impossible de créer la classe." });
+    }
+});
+
+apiRouter.get('/classes/:teacherEmail', async (req, res) => {
+    const { teacherEmail } = req.params;
+    const querySpec = {
+        query: "SELECT * FROM c WHERE c.teacherEmail = @teacherEmail",
+        parameters: [{ name: "@teacherEmail", value: teacherEmail }]
+    };
+    try {
+        const { resources: classes } = await classesContainer.items.query(querySpec).fetchAll();
+        res.status(200).json(classes);
+    } catch (error) {
+        res.status(500).json({ error: "Impossible de récupérer les classes." });
+    }
+});
+
+apiRouter.get('/class/details/:classId', async (req, res) => {
+    const { classId } = req.params;
+     try {
+        const querySpec = {
+            query: "SELECT * FROM c WHERE c.id = @classId",
+            parameters: [{ name: "@classId", value: classId }]
+        };
+        const { resources } = await classesContainer.items.query(querySpec).fetchAll();
+        if (resources.length === 0) {
+            return res.status(404).json({ error: "Classe non trouvée." });
+        }
+        res.status(200).json(resources[0]);
+    } catch (error) {
+        res.status(500).json({ error: "Impossible de récupérer les détails de la classe." });
+    }
+});
+
+apiRouter.post('/class/join', async (req, res) => {
+    const { className, studentEmail } = req.body;
+     try {
+        const classQuery = {
+            query: "SELECT * FROM c WHERE c.className = @className",
+            parameters: [{ name: "@className", value: className }]
+        };
+        const { resources: classes } = await classesContainer.items.query(classQuery).fetchAll();
+        if (classes.length === 0) {
+            return res.status(404).json({ error: "Cette classe n'existe pas." });
+        }
+        const classDoc = classes[0];
+
+        if (classDoc.students.includes(studentEmail)) {
+            return res.status(409).json({ error: "Vous êtes déjà dans cette classe." });
+        }
+        
+        classDoc.students.push(studentEmail);
+        await classesContainer.item(classDoc.id, classDoc.teacherEmail).replace(classDoc);
+
+        const { resource: studentDoc } = await usersContainer.item(studentEmail, studentEmail).read();
+        if (!studentDoc.classes) studentDoc.classes = [];
+        studentDoc.classes.push(classDoc.id);
+        await usersContainer.item(studentEmail, studentEmail).replace(studentDoc);
+
+        res.status(200).json({ message: `Vous avez rejoint la classe ${className} !` });
+    } catch (error) {
+        res.status(500).json({ error: "Impossible de rejoindre la classe." });
+    }
+});
+
+apiRouter.post('/class/assign-content', async (req, res) => {
+    const { contentData, classId, teacherEmail } = req.body;
+    try {
+        const { resource: classDoc } = await classesContainer.item(classId, teacherEmail).read();
+        const contentWithId = { ...contentData, id: `${contentData.type}-${Date.now()}` };
+        if(!classDoc.quizzes) classDoc.quizzes = [];
+        classDoc.quizzes.push(contentWithId);
+        await classesContainer.item(classId, teacherEmail).replace(classDoc);
+        res.status(200).json({ message: "Contenu assigné !" });
+    } catch (e) { res.status(500).json({ error: "Impossible d'assigner le contenu." }); }
+});
+
+apiRouter.get('/student/classes/:studentEmail', async (req, res) => {
+    const { studentEmail } = req.params;
+    try {
+        const { resource: student } = await usersContainer.item(studentEmail, studentEmail).read();
+        if (!student || !student.classes || student.classes.length === 0) {
+            return res.status(200).json([]);
+        }
+        const classQuery = {
+            query: `SELECT * FROM c WHERE ARRAY_CONTAINS(@classIds, c.id)`,
+            parameters: [{ name: '@classIds', value: student.classes }]
+        };
+        const { resources: classes } = await classesContainer.items.query(classQuery).fetchAll();
+        res.status(200).json(classes);
+    } catch (error) {
+        res.status(500).json({ error: "Impossible de récupérer les classes de l'élève." });
+    }
+});
+
+apiRouter.post('/quiz/submit', async (req, res) => {
+    const { classId, quizId, studentEmail, score, totalQuestions, quizTitle, answers } = req.body;
+    try {
+        const classQuery = {
+            query: "SELECT * FROM c WHERE c.id = @classId",
+            parameters: [{ name: "@classId", value: classId }]
+        };
+        const { resources: classes } = await classesContainer.items.query(classQuery).fetchAll();
+        if (classes.length === 0) {
+            return res.status(404).json({ error: "Classe non trouvée." });
+        }
+        const classDoc = classes[0];
+
+        const newResult = {
+            resultId: `result-${Date.now()}`,
+            quizId,
+            studentEmail,
+            score,
+            totalQuestions,
+            quizTitle,
+            answers,
+            submittedAt: new Date().toISOString()
+        };
+
+        if (!classDoc.results) {
+            classDoc.results = [];
+        }
+        classDoc.results.push(newResult);
+        await classesContainer.item(classDoc.id, classDoc.teacherEmail).replace(classDoc);
+        res.status(200).json({ message: "Résultats enregistrés." });
+    } catch (error) {
+        res.status(500).json({ error: "Impossible d'enregistrer les résultats." });
+    }
+});
 
 app.use('/api', apiRouter);
+app.get('/', (req, res) => res.send('<h1>Le serveur AIDA est en ligne !</h1>'));
 
 // --- 5. Démarrer le serveur ---
 setupDatabase().then(containers => {
     usersContainer = containers.usersContainer;
     classesContainer = containers.classesContainer;
-    app.listen(PORT, () => console.log(`Serveur AIDA démarré sur le port ${PORT}`));
+    app.listen(PORT, () => {
+        console.log(`\x1b[32m%s\x1b[0m`, `Serveur AIDA démarré sur le port ${PORT}`);
+    });
 }).catch(error => {
-    console.error("Démarrage impossible.", error);
-    process.exit(1); // Arrête le serveur si la base de données n'est pas accessible
+    console.error("\x1b[31m%s\x1b[0m", "[ERREUR CRITIQUE] Démarrage impossible.", error);
+    process.exit(1);
 });
 
