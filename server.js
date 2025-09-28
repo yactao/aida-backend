@@ -8,10 +8,6 @@ const { CosmosClient } = require('@azure/cosmos');
 // --- 2. Configuration & Initialisation ---
 const endpoint = process.env.COSMOS_ENDPOINT;
 const key = process.env.COSMOS_KEY;
-if (!endpoint || !key) {
-    console.error("\x1b[31m%s\x1b[0m", "[ERREUR CRITIQUE] Variables COSMOS_ENDPOINT/COSMOS_KEY non définies.");
-    process.exit(1);
-}
 const client = new CosmosClient({ endpoint, key });
 const databaseId = 'AidaDB';
 const usersContainerId = 'Users';
@@ -31,25 +27,12 @@ let classesContainer;
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// --- CONFIGURATION CORS CORRIGÉE ---
-// On définit précisément qui a le droit de parler à notre serveur.
-const corsOptions = {
-  origin: 'https://ecole20.netlify.app', // L'adresse de votre site Netlify
-  methods: ['GET', 'POST', 'OPTIONS', 'PUT', 'DELETE', 'PATCH'], // Les méthodes autorisées
-  allowedHeaders: ['Content-Type', 'Authorization'], // Les en-têtes autorisés
-  credentials: true
-};
-
-// On applique la configuration CORS à toutes les routes.
-// Express s'occupera de répondre correctement aux requêtes "pré-vol" OPTIONS.
-app.use(cors(corsOptions));
-
+app.use(cors()); 
 app.use(express.json());
 
 // --- 4. Définir les "Routes" ---
 const apiRouter = express.Router();
 
-// --- ROUTE DE GÉNÉRATION DE CONTENU (MISE À JOUR) ---
 apiRouter.post('/generate/content', async (req, res) => {
     const { competences, contentType } = req.body;
     const apiKey = process.env.DEEPSEEK_API_KEY;
@@ -77,14 +60,11 @@ apiRouter.post('/generate/content', async (req, res) => {
         const textData = textResponse.data.choices[0].message.content;
         
         res.json({ structured_content: jsonData, text_representation: textData });
-
     } catch (error) { 
-        console.error("Erreur de l'IA:", error.response ? error.response.data : error.message);
         res.status(500).json({ error: "L'IA a donné une réponse inattendue." }); 
     }
 });
 
-// --- NOUVELLE ROUTE POUR CONVERTIR LE TEXTE MODIFIÉ EN JSON ---
 apiRouter.post('/convert/text-to-json', async (req, res) => {
     const { text, contentType } = req.body;
     const apiKey = process.env.DEEPSEEK_API_KEY;
@@ -107,7 +87,6 @@ apiRouter.post('/convert/text-to-json', async (req, res) => {
         const data = JSON.parse(jsonString);
         res.json(data);
     } catch(error) {
-        console.error("Erreur de conversion IA:", error.response ? error.response.data : error.message);
         res.status(500).json({ error: "Impossible de convertir le texte." });
     }
 });
@@ -126,17 +105,14 @@ apiRouter.post('/aida/chat', async (req, res) => { /* ... */ });
 apiRouter.post('/aida/hint', async (req, res) => { /* ... */ });
 
 app.use('/api', apiRouter);
-app.get('/', (req, res) => res.send('<h1>Le serveur AIDA est en ligne !</h1>'));
 
 // --- 5. Démarrer le serveur ---
-setupDatabase().then((containers) => {
+setupDatabase().then(containers => {
     usersContainer = containers.usersContainer;
     classesContainer = containers.classesContainer;
-    app.listen(PORT, () => {
-        console.log(`\x1b[32m%s\x1b[0m`, `Serveur AIDA démarré sur le port ${PORT}`);
-    });
+    app.listen(PORT, () => console.log(`Serveur AIDA démarré sur le port ${PORT}`));
 }).catch(error => {
-    console.error("\x1b[31m%s\x1b[0m", "[ERREUR CRITIQUE] Démarrage impossible.", error);
-    process.exit(1);
+    console.error("Démarrage impossible.", error);
+    process.exit(1); // Arrête le serveur si la base de données n'est pas accessible
 });
 
