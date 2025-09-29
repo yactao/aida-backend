@@ -8,10 +8,6 @@ const { CosmosClient } = require('@azure/cosmos');
 // --- 2. Configuration & Initialisation ---
 const endpoint = process.env.COSMOS_ENDPOINT;
 const key = process.env.COSMOS_KEY;
-if (!endpoint || !key) {
-    console.error("\x1b[31m%s\x1b[0m", "[ERREUR CRITIQUE] Variables COSMOS_ENDPOINT/COSMOS_KEY non définies.");
-    process.exit(1);
-}
 const client = new CosmosClient({ endpoint, key });
 const databaseId = 'AidaDB';
 const usersContainerId = 'Users';
@@ -31,38 +27,57 @@ let classesContainer;
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const corsOptions = {
-  origin: 'https://ecole20.netlify.app',
-  methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
-  credentials: true,
-  optionsSuccessStatus: 204
-};
-app.use(cors(corsOptions)); 
+app.use(cors()); 
 app.use(express.json());
 
 // --- 4. Définir les "Routes" ---
 const apiRouter = express.Router();
 
-// NOUVELLE ROUTE POUR GÉNÉRER TOUS TYPES DE CONTENUS
 apiRouter.post('/generate/content', async (req, res) => {
     const { competences, contentType } = req.body;
     const apiKey = process.env.DEEPSEEK_API_KEY;
     if (!apiKey) return res.status(500).json({ error: "Clé API non configurée." });
 
-    let prompt;
+    let jsonPrompt, textPrompt;
     switch (contentType) {
         case 'exercices':
-            prompt = `Tu es un assistant pédagogique. Crée 3 exercices d'application variés avec leur correction sur la compétence : "${competences}". Formate la réponse en JSON : {"title": "Exercices sur...", "type": "exercices", "content": [{"enonce": "...", "correction": "..."}, ...]}`;
-            break;
-        case 'questions_ouvertes':
-            prompt = `Tu es un assistant pédagogique. Crée 3 questions ouvertes qui font réfléchir un élève sur la compétence : "${competences}". Formate la réponse en JSON : {"title": "Questions sur...", "type": "questions_ouvertes", "content": ["Question 1...", "Question 2...", ...]}`;
-            break;
-        case 'fiche_revision':
-            prompt = `Tu es un assistant pédagogique. Rédige une fiche de révision très claire, concise et structurée pour un élève sur la compétence : "${competences}". Formate la réponse en JSON : {"title": "Fiche de révision sur...", "type": "fiche_revision", "content": "Texte de la fiche..."}`;
+            jsonPrompt = `Crée 3 exercices variés avec correction sur: "${competences}". Format JSON: {"title": "...", "type": "exercices", "content": [{"enonce": "...", "correction": "..."}]}`;
+            textPrompt = `Rédige 3 exercices clairs et variés avec leur correction détaillée sur la compétence suivante : "${competences}". Numérote chaque exercice. Sépare bien l'énoncé de la correction.`;
             break;
         case 'quiz':
         default:
-            prompt = `Tu es un assistant pédagogique. Crée un quiz de 5 questions à 4 choix pour des élèves, basé sur la compétence : "${competences}". Formate la réponse en JSON : {"title": "Quiz sur...", "type": "quiz", "questions": [{"question_text": "...", "options": ["A", "B", "C", "D"], "correct_answer_index": 0}]}`;
+            jsonPrompt = `Crée un quiz de 5 questions à 4 choix sur: "${competences}". Format JSON : {"title": "...", "type": "quiz", "questions": [{"question_text": "...", "options": ["A", "B", "C", "D"], "correct_answer_index": 0}]}`;
+            textPrompt = `Rédige un quiz de 5 questions sur la compétence : "${competences}". Pour chaque question, propose 4 options de réponse (A, B, C, D) et indique la bonne réponse avec une étoile (*).`;
+            break;
+    }
+
+    try {
+        const jsonResponse = await axios.post('https://api.deepseek.com/chat/completions', { model: 'deepseek-chat', messages: [{ content: jsonPrompt, role: 'user' }] }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
+        let jsonString = jsonResponse.data.choices[0].message.content.replace(/```json\n|\n```/g, '');
+        const jsonData = JSON.parse(jsonString);
+
+        const textResponse = await axios.post('https://api.deepseek.com/chat/completions', { model: 'deepseek-chat', messages: [{ content: textPrompt, role: 'user' }] }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
+        const textData = textResponse.data.choices[0].message.content;
+        
+        res.json({ structured_content: jsonData, text_representation: textData });
+    } catch (error) { 
+        res.status(500).json({ error: "L'IA a donné une réponse inattendue." }); 
+    }
+});
+
+apiRouter.post('/convert/text-to-json', async (req, res) => {
+    const { text, contentType } = req.body;
+    const apiKey = process.env.DEEPSEEK_API_KEY;
+    if (!apiKey) return res.status(500).json({ error: "Clé API non configurée." });
+    
+    let prompt;
+    switch (contentType) {
+        case 'exercices':
+            prompt = `Convertis ce texte d'exercices en format JSON: {"title": "...", "type": "exercices", "content": [{"enonce": "...", "correction": "..."}]}. TEXTE : "${text}"`;
+            break;
+        case 'quiz':
+        default:
+            prompt = `Convertis ce texte de quiz en format JSON: {"title": "...", "type": "quiz", "questions": [{"question_text": "...", "options": ["A", "B", "C", "D"], "correct_answer_index": 0}]}. La bonne réponse est marquée d'une étoile. TEXTE : "${text}"`;
             break;
     }
 
@@ -71,158 +86,202 @@ apiRouter.post('/generate/content', async (req, res) => {
         let jsonString = response.data.choices[0].message.content.replace(/```json\n|\n```/g, '');
         const data = JSON.parse(jsonString);
         res.json(data);
-    } catch (error) { 
-        console.error("Erreur de l'IA:", error);
-        res.status(500).json({ error: "L'IA a donné une réponse inattendue." }); 
+    } catch(error) {
+        res.status(500).json({ error: "Impossible de convertir le texte." });
     }
 });
 
-// ROUTE MISE À JOUR POUR ASSIGNER TOUS TYPES DE CONTENUS
+apiRouter.post('/auth/signup', async (req, res) => {
+    const { email, password, role } = req.body;
+    if (!email || !password || !role) {
+        return res.status(400).json({ error: "Email, mot de passe et rôle sont requis." });
+    }
+    try {
+        const { resource: existingUser } = await usersContainer.item(email, email).read().catch(() => ({ resource: null }));
+        if (existingUser) {
+            return res.status(409).json({ error: "Cet email est déjà utilisé." });
+        }
+        const newUser = { id: email, email, password, role, classes: [] };
+        await usersContainer.items.create(newUser);
+        res.status(201).json({ user: { email, role } });
+    } catch (error) {
+        res.status(500).json({ error: "Erreur lors de la création du compte." });
+    }
+});
+
+apiRouter.post('/auth/login', async (req, res) => {
+    const { email, password } = req.body;
+     if (!email || !password) {
+        return res.status(400).json({ error: "Email et mot de passe sont requis." });
+    }
+    try {
+        const { resource: user } = await usersContainer.item(email, email).read().catch(() => ({ resource: null }));
+        if (!user || user.password !== password) {
+            return res.status(401).json({ error: "Email ou mot de passe incorrect." });
+        }
+        res.status(200).json({ user: { email: user.email, role: user.role } });
+    } catch (error) {
+        res.status(500).json({ error: "Erreur lors de la connexion." });
+    }
+});
+
+apiRouter.post('/classes/create', async (req, res) => {
+    const { className, teacherEmail } = req.body;
+    const newClass = {
+        className,
+        teacherEmail,
+        students: [],
+        quizzes: [],
+        results: [],
+        id: `${className.replace(/\s+/g, '-')}-${Date.now()}`
+    };
+    try {
+        await classesContainer.items.create(newClass);
+        res.status(201).json(newClass);
+    } catch (error) {
+        res.status(500).json({ error: "Impossible de créer la classe." });
+    }
+});
+
+apiRouter.get('/classes/:teacherEmail', async (req, res) => {
+    const { teacherEmail } = req.params;
+    const querySpec = {
+        query: "SELECT * FROM c WHERE c.teacherEmail = @teacherEmail",
+        parameters: [{ name: "@teacherEmail", value: teacherEmail }]
+    };
+    try {
+        const { resources: classes } = await classesContainer.items.query(querySpec).fetchAll();
+        res.status(200).json(classes);
+    } catch (error) {
+        res.status(500).json({ error: "Impossible de récupérer les classes." });
+    }
+});
+
+apiRouter.get('/class/details/:classId', async (req, res) => {
+    const { classId } = req.params;
+     try {
+        const querySpec = {
+            query: "SELECT * FROM c WHERE c.id = @classId",
+            parameters: [{ name: "@classId", value: classId }]
+        };
+        const { resources } = await classesContainer.items.query(querySpec).fetchAll();
+        if (resources.length === 0) {
+            return res.status(404).json({ error: "Classe non trouvée." });
+        }
+        res.status(200).json(resources[0]);
+    } catch (error) {
+        res.status(500).json({ error: "Impossible de récupérer les détails de la classe." });
+    }
+});
+
+apiRouter.post('/class/join', async (req, res) => {
+    const { className, studentEmail } = req.body;
+     try {
+        const classQuery = {
+            query: "SELECT * FROM c WHERE c.className = @className",
+            parameters: [{ name: "@className", value: className }]
+        };
+        const { resources: classes } = await classesContainer.items.query(classQuery).fetchAll();
+        if (classes.length === 0) {
+            return res.status(404).json({ error: "Cette classe n'existe pas." });
+        }
+        const classDoc = classes[0];
+
+        if (classDoc.students.includes(studentEmail)) {
+            return res.status(409).json({ error: "Vous êtes déjà dans cette classe." });
+        }
+        
+        classDoc.students.push(studentEmail);
+        await classesContainer.item(classDoc.id, classDoc.teacherEmail).replace(classDoc);
+
+        const { resource: studentDoc } = await usersContainer.item(studentEmail, studentEmail).read();
+        if (!studentDoc.classes) studentDoc.classes = [];
+        studentDoc.classes.push(classDoc.id);
+        await usersContainer.item(studentEmail, studentEmail).replace(studentDoc);
+
+        res.status(200).json({ message: `Vous avez rejoint la classe ${className} !` });
+    } catch (error) {
+        res.status(500).json({ error: "Impossible de rejoindre la classe." });
+    }
+});
+
 apiRouter.post('/class/assign-content', async (req, res) => {
     const { contentData, classId, teacherEmail } = req.body;
     try {
         const { resource: classDoc } = await classesContainer.item(classId, teacherEmail).read();
         const contentWithId = { ...contentData, id: `${contentData.type}-${Date.now()}` };
-        if(!classDoc.quizzes) classDoc.quizzes = []; // On garde le nom "quizzes" pour ne pas casser la compatibilité
+        if(!classDoc.quizzes) classDoc.quizzes = [];
         classDoc.quizzes.push(contentWithId);
         await classesContainer.item(classId, teacherEmail).replace(classDoc);
         res.status(200).json({ message: "Contenu assigné !" });
     } catch (e) { res.status(500).json({ error: "Impossible d'assigner le contenu." }); }
 });
 
-
-// --- Le reste des routes (login, signup, classes, etc.) reste inchangé ---
-
-apiRouter.post('/auth/signup', async (req, res) => {
-    const { email, password, role } = req.body;
-    try {
-        const { resources: existing } = await usersContainer.items.query({ query: "SELECT * FROM c WHERE c.id = @email", parameters: [{ name: "@email", value: email }] }).fetchAll();
-        if (existing.length > 0) return res.status(409).json({ error: "Cet email est déjà utilisé." });
-        const newUser = { id: email, email, password, role, classes: [] };
-        await usersContainer.items.create(newUser);
-        res.status(201).json({ user: { email: newUser.email, role: newUser.role } });
-    } catch (e) { res.status(500).json({ error: "Erreur serveur." }); }
-});
-
-apiRouter.post('/auth/login', async (req, res) => {
-    const { email, password } = req.body;
-    try {
-        const { resource: user } = await usersContainer.item(email, email).read();
-        if (!user || user.password !== password) return res.status(401).json({ error: "Email ou mot de passe incorrect." });
-        res.status(200).json({ user: { email: user.email, role: user.role, classes: user.classes || [] } });
-    } catch (e) {
-        if (e.code === 404) return res.status(401).json({ error: "Email ou mot de passe incorrect." });
-        res.status(500).json({ error: "Erreur serveur." });
-    }
-});
-
-apiRouter.post('/classes/create', async (req, res) => {
-    const { className, teacherEmail } = req.body;
-    const newClass = { id: `${className.replace(/\s+/g, '-')}-${Date.now()}`, className, teacherEmail, students: [], quizzes: [], results: [] };
-    try {
-        const { resource: created } = await classesContainer.items.create(newClass);
-        res.status(201).json(created);
-    } catch (e) { res.status(500).json({ error: "Impossible de créer la classe." }); }
-});
-
-apiRouter.get('/classes/:teacherEmail', async (req, res) => {
-    const { teacherEmail } = req.params;
-    try {
-        const { resources: classes } = await classesContainer.items.query({ query: "SELECT * FROM c WHERE c.teacherEmail = @teacherEmail", parameters: [{ name: "@teacherEmail", value: teacherEmail }] }).fetchAll();
-        res.status(200).json(classes);
-    } catch (e) { res.status(500).json({ error: "Impossible de récupérer les classes." }); }
-});
-
-apiRouter.post('/class/join', async (req, res) => {
-    const { className, studentEmail } = req.body;
-    try {
-        const { resources: classes } = await classesContainer.items.query({ query: "SELECT * FROM c WHERE c.className = @className", parameters: [{ name: "@className", value: className }] }).fetchAll();
-        if (classes.length === 0) return res.status(404).json({ error: "Classe non trouvée." });
-        const classDoc = classes[0];
-        if (!classDoc.students.includes(studentEmail)) {
-            classDoc.students.push(studentEmail);
-            await classesContainer.item(classDoc.id, classDoc.teacherEmail).replace(classDoc);
-        }
-        const { resource: studentDoc } = await usersContainer.item(studentEmail, studentEmail).read();
-        if (!studentDoc.classes) studentDoc.classes = [];
-        if (!studentDoc.classes.includes(classDoc.id)) {
-            studentDoc.classes.push(classDoc.id);
-            await usersContainer.item(studentEmail, studentEmail).replace(studentDoc);
-        }
-        res.status(200).json({ message: `Vous avez rejoint la classe ${classDoc.className} !` });
-    } catch (e) { res.status(500).json({ error: "Impossible de rejoindre la classe." }); }
-});
-    
 apiRouter.get('/student/classes/:studentEmail', async (req, res) => {
     const { studentEmail } = req.params;
     try {
-        const { resource: studentDoc } = await usersContainer.item(studentEmail, studentEmail).read();
-        if (!studentDoc || !studentDoc.classes || !studentDoc.classes.length) return res.json([]);
-        const { resources: classes } = await classesContainer.items.query({ query: "SELECT * FROM c WHERE ARRAY_CONTAINS(@classIds, c.id)", parameters: [{ name: '@classIds', value: studentDoc.classes }] }).fetchAll();
+        const { resource: student } = await usersContainer.item(studentEmail, studentEmail).read();
+        if (!student || !student.classes || student.classes.length === 0) {
+            return res.status(200).json([]);
+        }
+        const classQuery = {
+            query: `SELECT * FROM c WHERE ARRAY_CONTAINS(@classIds, c.id)`,
+            parameters: [{ name: '@classIds', value: student.classes }]
+        };
+        const { resources: classes } = await classesContainer.items.query(classQuery).fetchAll();
         res.status(200).json(classes);
-    } catch (e) { res.status(500).json({ error: "Erreur serveur." }); }
-});
-    
-apiRouter.get('/class/details/:classId', async (req, res) => {
-    const { classId } = req.params;
-    try {
-        const { resources: classes } = await classesContainer.items.query({ query: "SELECT * FROM c WHERE c.id = @classId", parameters: [{ name: "@classId", value: classId }] }).fetchAll();
-        if (classes.length === 0) return res.status(404).json({ error: "Classe non trouvée." });
-        res.status(200).json(classes[0]);
-    } catch (e) { res.status(500).json({ error: "Erreur serveur." }); }
+    } catch (error) {
+        res.status(500).json({ error: "Impossible de récupérer les classes de l'élève." });
+    }
 });
 
 apiRouter.post('/quiz/submit', async (req, res) => {
     const { classId, quizId, studentEmail, score, totalQuestions, quizTitle, answers } = req.body;
     try {
-        const { resources: classes } = await classesContainer.items.query({ query: "SELECT * FROM c WHERE c.id = @classId", parameters: [{ name: '@classId', value: classId }] }).fetchAll();
-        if (classes.length === 0) return res.status(404).json({ error: "Classe non trouvée." });
+        const classQuery = {
+            query: "SELECT * FROM c WHERE c.id = @classId",
+            parameters: [{ name: "@classId", value: classId }]
+        };
+        const { resources: classes } = await classesContainer.items.query(classQuery).fetchAll();
+        if (classes.length === 0) {
+            return res.status(404).json({ error: "Classe non trouvée." });
+        }
         const classDoc = classes[0];
-        if (!classDoc.results) classDoc.results = [];
-        const newResult = { resultId: `result-${Date.now()}`, quizId, quizTitle, studentEmail, score, totalQuestions, answers, date: new Date().toISOString() };
+
+        const newResult = {
+            resultId: `result-${Date.now()}`,
+            quizId,
+            studentEmail,
+            score,
+            totalQuestions,
+            quizTitle,
+            answers,
+            submittedAt: new Date().toISOString()
+        };
+
+        if (!classDoc.results) {
+            classDoc.results = [];
+        }
         classDoc.results.push(newResult);
         await classesContainer.item(classDoc.id, classDoc.teacherEmail).replace(classDoc);
-        res.status(200).json({ message: "Score enregistré !" });
-    } catch (e) { 
-        res.status(500).json({ error: "Impossible d'enregistrer le score." }); 
+        res.status(200).json({ message: "Résultats enregistrés." });
+    } catch (error) {
+        res.status(500).json({ error: "Impossible d'enregistrer les résultats." });
     }
-});
-
-apiRouter.post('/aida/help', async (req, res) => {
-    const { question } = req.body;
-    const apiKey = process.env.DEEPSEEK_API_KEY;
-    if (!apiKey) return res.status(500).json({ error: "Clé API non configurée." });
-    try {
-        const prompt = `Donne un indice simple pour un élève, sans donner la réponse. Question : "${question}"`;
-        const response = await axios.post('https://api.deepseek.com/chat/completions', { model: 'deepseek-chat', messages: [{ content: prompt, role: 'user' }] }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
-        res.json({ hint: response.data.choices[0].message.content });
-    } catch (error) { res.status(500).json({ error: "AIDA n'a pas pu fournir d'indice." }); }
-});
-
-apiRouter.post('/aida/feedback', async (req, res) => {
-    const { question, wrongAnswer, correctAnswer } = req.body;
-    const apiKey = process.env.DEEPSEEK_API_KEY;
-    if (!apiKey) return res.status(500).json({ error: "Clé API non configurée." });
-    try {
-        const prompt = `Pour un élève, explique simplement pourquoi "${wrongAnswer}" est incorrect pour la question "${question}", et pourquoi "${correctAnswer}" est la bonne réponse.`;
-        const response = await axios.post('https://api.deepseek.com/chat/completions', { model: 'deepseek-chat', messages: [{ content: prompt, role: 'user' }] }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
-        res.json({ feedback: response.data.choices[0].message.content });
-    } catch (error) { res.status(500).json({ error: "AIDA n'a pas pu fournir d'explication." }); }
 });
 
 app.use('/api', apiRouter);
 app.get('/', (req, res) => res.send('<h1>Le serveur AIDA est en ligne !</h1>'));
 
 // --- 5. Démarrer le serveur ---
-setupDatabase().then((containers) => {
+setupDatabase().then(containers => {
     usersContainer = containers.usersContainer;
     classesContainer = containers.classesContainer;
     app.listen(PORT, () => {
         console.log(`\x1b[32m%s\x1b[0m`, `Serveur AIDA démarré sur le port ${PORT}`);
     });
 }).catch(error => {
-    console.error("\x1b[31m%s\x1b[0m", "[ERREUR CRITIQUE] La connexion à la base de données a échoué.");
-    console.error("Détail de l'erreur Cosmos DB:", error);
+    console.error("\x1b[31m%s\x1b[0m", "[ERREUR CRITIQUE] Démarrage impossible.", error);
     process.exit(1);
 });
 

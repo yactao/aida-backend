@@ -1,0 +1,107 @@
+[
+  {
+    "id": "c.dubois@ecole.com",
+    "email": "c.dubois@ecole.com",
+    "password": "password123",
+    "role": "teacher",
+    "classes": []
+  },
+  {
+    "id": "k.alami@ecole.com",
+    "email": "k.alami@ecole.com",
+    "password": "password123",
+    "role": "teacher",
+    "classes": []
+  },
+  {
+    "id": "s.garcia@ecole.com",
+    "email": "s.garcia@ecole.com",
+    "password": "password123",
+    "role": "teacher",
+    "classes": []
+  },
+  {
+    "id": "lea.martin@eleve.com",
+    "email": "lea.martin@eleve.com",
+    "password": "password123",
+    "role": "student",
+    "classes": ["CP-A"]
+  },
+  {
+    "id": "hugo.bernard@eleve.com",
+    "email": "hugo.bernard@eleve.com",
+    "password": "password123",
+    "role": "student",
+    "classes": ["CP-A"]
+  },
+  {
+    "id": "chloe.robert@eleve.com",
+    "email": "chloe.robert@eleve.com",
+    "password": "password123",
+    "role": "student",
+    "classes": ["CP-A"]
+  },
+  {
+    "id": "yanis.cherfi@eleve.com",
+    "email": "yanis.cherfi@eleve.com",
+    "password": "password123",
+    "role": "student",
+    "classes": ["CE1-A", "CE2-A", "CM1-A", "CM2-A"]
+  },
+  {
+    "id": "sofia.gonzalez@eleve.com",
+    "email": "sofia.gonzalez@eleve.com",
+    "password": "password123",
+    "role": "student",
+    "classes": ["CE1-A", "CE2-A", "CM1-A", "CM2-A"]
+  },
+  {
+    "id": "arthur.petit@eleve.com",
+    "email": "arthur.petit@eleve.com",
+    "password": "password123",
+    "role": "student",
+    "classes": ["CE1-A", "CE2-A", "CM1-A", "CM2-A"]
+  },
+  {
+    "id": "inaya.bamba@eleve.com",
+    "email": "inaya.bamba@eleve.com",
+    "password": "password123",
+    "role": "student",
+    "classes": ["6eme-A", "5eme-A", "4eme-A", "3eme-A"]
+  },
+  {
+    "id": "enzo.da-silva@eleve.com",
+    "email": "enzo.da-silva@eleve.com",
+    "password": "password123",
+    "role": "student",
+    "classes": ["6eme-A", "5eme-A", "4eme-A", "3eme-A"]
+  },
+  {
+    "id": "manon.leroy@eleve.com",
+    "email": "manon.leroy@eleve.com",
+    "password": "password123",
+    "role": "student",
+    "classes": ["6eme-A", "5eme-A", "4eme-A", "3eme-A"]
+  },
+  {
+    "id": "omar.salah@eleve.com",
+    "email": "omar.salah@eleve.com",
+    "password": "password123",
+    "role": "student",
+    "classes": ["Seconde-A", "Premiere-A", "Terminale-A"]
+  },
+  {
+    "id": "camila.rodriguez@eleve.com",
+    "email": "camila.rodriguez@eleve.com",
+    "password": "password123",
+    "role": "student",
+    "classes": ["Seconde-A", "Premiere-A", "Terminale-A"]
+  },
+  {
+    "id": "noah.dupont@eleve.com",
+    "email": "noah.dupont@eleve.com",
+    "password": "password123",
+    "role": "student",
+    "classes": ["Seconde-A", "Premiere-A", "Terminale-A"]
+  }
+]
