@@ -236,7 +236,11 @@ apiRouter.post('/class/assign-content', async (req, res) => {
     const { contentData, classId, teacherEmail } = req.body;
     try {
         const { resource: classDoc } = await classesContainer.item(classId, teacherEmail).read();
-        const contentWithId = { ...contentData, id: `${contentData.type}-${Date.now()}` };
+        const contentWithId = { 
+            ...contentData, 
+            id: `${contentData.type}-${Date.now()}`,
+            assignedAt: new Date().toISOString() // Ajout de la date d'assignation
+        };
         if(!classDoc.quizzes) classDoc.quizzes = [];
         classDoc.quizzes.push(contentWithId);
         await classesContainer.item(classId, teacherEmail).replace(classDoc);
@@ -253,13 +257,13 @@ apiRouter.get('/student/classes/:studentEmail', async (req, res) => {
             return res.status(200).json([]);
         }
 
-        // 2. Récupérer les IDs des contenus déjà terminés par l'élève
+        // 2. Récupérer les contenus déjà terminés par l'élève
         const completedQuery = {
-            query: "SELECT c.contentId FROM c WHERE c.studentEmail = @studentEmail",
+            query: "SELECT c.contentId, c.completedAt FROM c WHERE c.studentEmail = @studentEmail",
             parameters: [{ name: "@studentEmail", value: studentEmail }]
         };
         const { resources: completedItems } = await completedContentContainer.items.query(completedQuery).fetchAll();
-        const completedContentIds = completedItems.map(item => item.contentId);
+        const completedContentMap = new Map(completedItems.map(item => [item.contentId, item.completedAt]));
 
         // 3. Récupérer les classes de l'élève
         const classQuery = {
@@ -268,19 +272,40 @@ apiRouter.get('/student/classes/:studentEmail', async (req, res) => {
         };
         const { resources: classes } = await classesContainer.items.query(classQuery).fetchAll();
         
-        // 4. Filtrer les contenus pour ne pas inclure ceux déjà terminés
-        const filteredClasses = classes.map(cls => {
+        let allQuizzes = [];
+
+        // 4. Enrichir les contenus avec leur statut et les collecter
+        const processedClasses = classes.map(cls => {
             if (cls.quizzes && cls.quizzes.length > 0) {
-                cls.quizzes = cls.quizzes.filter(quiz => !completedContentIds.includes(quiz.id));
+                cls.quizzes.forEach(quiz => {
+                    if (completedContentMap.has(quiz.id)) {
+                        quiz.status = 'completed';
+                        quiz.completedAt = completedContentMap.get(quiz.id);
+                    } else {
+                        quiz.status = 'todo';
+                    }
+                    allQuizzes.push(quiz);
+                });
             }
             return cls;
         });
+        
+        // 5. Identifier le contenu le plus récent pour le tag "NEW"
+        if (allQuizzes.length > 0) {
+            allQuizzes.sort((a, b) => new Date(b.assignedAt) - new Date(a.assignedAt));
+            const newestQuiz = allQuizzes[0];
+            if (newestQuiz.status !== 'completed') {
+                 newestQuiz.isNewest = true;
+            }
+        }
 
-        res.status(200).json(filteredClasses);
+        res.status(200).json(processedClasses);
     } catch (error) {
+        console.error("Erreur détaillée:", error);
         res.status(500).json({ error: "Impossible de récupérer les classes de l'élève." });
     }
 });
+
 
 apiRouter.post('/quiz/submit', async (req, res) => {
     const { classId, quizId, studentEmail, score, totalQuestions, quizTitle, answers } = req.body;
