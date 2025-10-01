@@ -1,371 +1,724 @@
-// --- 1. Importer les outils nécessaires ---
-const express = require('express');
-const cors = require('cors'); 
-require('dotenv').config();
-const axios = require('axios');
-const { CosmosClient } = require('@azure/cosmos');
+// URL complète du backend Azure
+const backendUrl = 'https://aida-backend-bqd0fnd2a3c7dadf.francecentral-01.azurewebsites.net/api';
 
-// --- 2. Configuration & Initialisation ---
-const endpoint = process.env.COSMOS_ENDPOINT;
-const key = process.env.COSMOS_KEY;
-const client = new CosmosClient({ endpoint, key });
-const databaseId = 'AidaDB';
-const usersContainerId = 'Users';
-const classesContainerId = 'Classes';
-const completedContentContainerId = 'CompletedContent'; // Nouveau conteneur
-
-async function setupDatabase() {
-  const { database } = await client.databases.createIfNotExists({ id: databaseId });
-  const { container: usersContainer } = await database.containers.createIfNotExists({ id: usersContainerId, partitionKey: { paths: ["/email"] } });
-  const { container: classesContainer } = await database.containers.createIfNotExists({ id: classesContainerId, partitionKey: { paths: ["/teacherEmail"] } });
-  // Création du nouveau conteneur pour les contenus terminés
-  const { container: completedContentContainer } = await database.containers.createIfNotExists({ id: completedContentContainerId, partitionKey: { paths: ["/studentEmail"] } });
-  return { usersContainer, classesContainer, completedContentContainer };
-}
-
-let usersContainer;
-let classesContainer;
-let completedContentContainer; // Nouvelle variable de conteneur
-
-// --- 3. Initialiser l'application ---
-const app = express();
-const PORT = process.env.PORT || 3000;
-
-app.use(cors()); 
-app.use(express.json());
-
-// --- 4. Définir les "Routes" ---
-const apiRouter = express.Router();
-
-// Route pour l'explication d'AIDA
-apiRouter.post('/generate/explanation', async (req, res) => {
-    const { question, studentAnswer, correctAnswer } = req.body;
-    const apiKey = process.env.DEEPSEEK_API_KEY;
-    if (!apiKey) return res.status(500).json({ error: "Clé API non configurée." });
-
-    const prompt = `Un élève a mal répondu à cette question de quiz : "${question}". Sa réponse était "${studentAnswer}" alors que la bonne réponse était "${correctAnswer}". Explique-lui son erreur de manière simple, encourageante et pédagogique, en une ou deux phrases maximum. Adresse-toi directement à lui.`;
-
-    try {
-        const response = await axios.post('https://api.deepseek.com/chat/completions', {
-            model: 'deepseek-chat',
-            messages: [{ content: prompt, role: 'user' }]
-        }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
-        
-        const explanation = response.data.choices[0].message.content;
-        res.json({ explanation });
-    } catch (error) {
-        console.error("Erreur API DeepSeek:", error.response ? error.response.data : error.message);
-        res.status(500).json({ error: "L'IA n'a pas pu générer d'explication." });
-    }
-});
-
-
-apiRouter.post('/generate/content', async (req, res) => {
-    const { competences, contentType } = req.body;
-    const apiKey = process.env.DEEPSEEK_API_KEY;
-    if (!apiKey) return res.status(500).json({ error: "Clé API non configurée." });
-
-    let jsonPrompt, textPrompt;
-    switch (contentType) {
-        case 'exercices':
-            jsonPrompt = `Crée 3 exercices variés avec correction sur: "${competences}". Format JSON: {"title": "...", "type": "exercices", "content": [{"enonce": "...", "correction": "..."}]}`;
-            textPrompt = `Rédige 3 exercices clairs et variés avec leur correction détaillée sur la compétence suivante : "${competences}". Numérote chaque exercice. Sépare bien l'énoncé de la correction.`;
-            break;
-        case 'quiz':
-        default:
-            jsonPrompt = `Crée un quiz de 5 questions à 4 choix sur: "${competences}". Format JSON : {"title": "...", "type": "quiz", "questions": [{"question_text": "...", "options": ["A", "B", "C", "D"], "correct_answer_index": 0}]}`;
-            textPrompt = `Rédige un quiz de 5 questions sur la compétence : "${competences}". Pour chaque question, propose 4 options de réponse (A, B, C, D) et indique la bonne réponse avec une étoile (*).`;
-            break;
-    }
-
-    try {
-        const jsonResponse = await axios.post('https://api.deepseek.com/chat/completions', { model: 'deepseek-chat', messages: [{ content: jsonPrompt, role: 'user' }] }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
-        let jsonString = jsonResponse.data.choices[0].message.content.replace(/```json\n|\n```/g, '');
-        const jsonData = JSON.parse(jsonString);
-
-        const textResponse = await axios.post('https://api.deepseek.com/chat/completions', { model: 'deepseek-chat', messages: [{ content: textPrompt, role: 'user' }] }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
-        const textData = textResponse.data.choices[0].message.content;
-        
-        res.json({ structured_content: jsonData, text_representation: textData });
-    } catch (error) { 
-        res.status(500).json({ error: "L'IA a donné une réponse inattendue." }); 
-    }
-});
-
-apiRouter.post('/convert/text-to-json', async (req, res) => {
-    const { text, contentType } = req.body;
-    const apiKey = process.env.DEEPSEEK_API_KEY;
-    if (!apiKey) return res.status(500).json({ error: "Clé API non configurée." });
+document.addEventListener('DOMContentLoaded', () => {
+    // --- SÉLECTEURS ---
+    const pages = document.querySelectorAll('.page');
+    const startButton = document.querySelector('#home .btn-main');
+    const registerBtn = document.querySelector('.btn-register');
+    const homeLink = document.getElementById('home-link');
+    const themeToggleBtn = document.getElementById('theme-toggle-btn');
+    const loginForm = document.getElementById('login-form');
+    const signupForm = document.getElementById('signup-form');
+    const showSignupLink = document.getElementById('show-signup');
+    const showLoginLink = document.getElementById('show-login');
+    const teacherWelcome = document.getElementById('teacher-welcome');
+    const openClassModalBtn = document.getElementById('open-class-modal-btn');
+    const classModal = document.getElementById('create-class-modal');
+    const createClassForm = document.getElementById('create-class-form');
+    const classListContainer = document.getElementById('class-list');
+    const noClassesMessage = document.getElementById('no-classes-message');
+    const openResourceModalBtn = document.querySelector('.new-resource-btn');
     
-    let prompt;
-    switch (contentType) {
-        case 'exercices':
-            prompt = `Convertis ce texte d'exercices en format JSON: {"title": "...", "type": "exercices", "content": [{"enonce": "...", "correction": "..."}]}. TEXTE : "${text}"`;
-            break;
-        case 'quiz':
-        default:
-            prompt = `Convertis ce texte de quiz en format JSON: {"title": "...", "type": "quiz", "questions": [{"question_text": "...", "options": ["A", "B", "C", "D"], "correct_answer_index": 0}]}. La bonne réponse est marquée d'une étoile. TEXTE : "${text}"`;
-            break;
+    // Modales
+    const generationModal = document.getElementById('generation-modal');
+    const assignmentModal = document.getElementById('assignment-modal');
+    
+    const resourceForm = document.getElementById('resource-form');
+    const modalFormStep = document.getElementById('modal-form-step');
+    const modalLoadingStep = document.getElementById('modal-loading-step');
+    
+    const assignClassSelect = document.getElementById('assign-class-select');
+    const studentWelcome = document.getElementById('student-welcome');
+    const joinClassPanel = document.getElementById('join-class-panel');
+    const joinClassForm = document.getElementById('join-class-form');
+    
+    const studentTodoList = document.getElementById('student-todo-list');
+    const studentCompletedList = document.getElementById('student-completed-list');
+    
+    const contentTitle = document.getElementById('content-title');
+    const contentViewer = document.getElementById('content-viewer');
+    const speakContentBtn = document.getElementById('speak-content-btn');
+    const submitQuizBtn = document.getElementById('submit-quiz-btn');
+    const quizResult = document.getElementById('quiz-result');
+
+    const classDetailsTitle = document.getElementById('class-details-title');
+    const classDetailsContent = document.getElementById('class-details-content');
+    const backToTeacherDashboardBtn = document.getElementById('back-to-teacher-dashboard');
+    
+    const cycleSelect = document.getElementById('cycle-select');
+    const levelSelect = document.getElementById('level-select');
+    const subjectSelect = document.getElementById('subject-select');
+    const notionSelect = document.getElementById('notion-select');
+    const contentTypeSelect = document.getElementById('content-type-select');
+    const resourceFormButton = document.querySelector('#resource-form button');
+    
+    const generatedContentEditor = document.getElementById('generated-content-editor');
+    const confirmAssignBtn = document.getElementById('confirm-assign-btn');
+    
+    const userMenuContainer = document.querySelector('.user-menu-container');
+    const userInfoClickable = document.getElementById('user-info-clickable');
+    const userDropdown = document.querySelector('.user-dropdown');
+    const userEmailDisplay = document.getElementById('user-email-display');
+    const logoutBtn = document.getElementById('logout-btn');
+    const backToDashboardBtn = document.getElementById('back-to-dashboard-btn');
+
+
+    // --- VARIABLES GLOBALES ---
+    let currentUser = null;
+    let generatedContentData = null; // Stockera le JSON structuré
+    let programmesData = null;
+    let currentClassData = null; // Stockera les données de la classe consultée
+
+    // --- SYNTHÈSE VOCALE ---
+    function getTextFromContentViewer() {
+        let text = contentTitle.textContent + '. ';
+        contentViewer.querySelectorAll('.quiz-question, .question-feedback, .revision-content').forEach(el => {
+            text += el.innerText + '. ';
+        });
+        return text;
     }
 
-    try {
-        const response = await axios.post('https://api.deepseek.com/chat/completions', { model: 'deepseek-chat', messages: [{ content: prompt, role: 'user' }] }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
-        let jsonString = response.data.choices[0].message.content.replace(/```json\n|\n```/g, '');
-        const data = JSON.parse(jsonString);
-        res.json(data);
-    } catch(error) {
-        res.status(500).json({ error: "Impossible de convertir le texte." });
-    }
-});
-
-apiRouter.post('/auth/signup', async (req, res) => {
-    const { email, password, role } = req.body;
-    if (!email || !password || !role) {
-        return res.status(400).json({ error: "Email, mot de passe et rôle sont requis." });
-    }
-    try {
-        const { resource: existingUser } = await usersContainer.item(email, email).read().catch(() => ({ resource: null }));
-        if (existingUser) {
-            return res.status(409).json({ error: "Cet email est déjà utilisé." });
+    function speakText(text, buttonElement) {
+        if (speechSynthesis.speaking) {
+            speechSynthesis.cancel();
+            buttonElement.classList.remove('speaking');
+            return;
         }
-        const newUser = { id: email, email, password, role, classes: [] };
-        await usersContainer.items.create(newUser);
-        res.status(201).json({ user: { email, role } });
-    } catch (error) {
-        res.status(500).json({ error: "Erreur lors de la création du compte." });
-    }
-});
-
-apiRouter.post('/auth/login', async (req, res) => {
-    const { email, password } = req.body;
-     if (!email || !password) {
-        return res.status(400).json({ error: "Email et mot de passe sont requis." });
-    }
-    try {
-        const { resource: user } = await usersContainer.item(email, email).read().catch(() => ({ resource: null }));
-        if (!user || user.password !== password) {
-            return res.status(401).json({ error: "Email ou mot de passe incorrect." });
+        if (text) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'fr-FR';
+            utterance.onstart = () => buttonElement.classList.add('speaking');
+            utterance.onend = () => buttonElement.classList.remove('speaking');
+            speechSynthesis.speak(utterance);
         }
-        res.status(200).json({ user: { email: user.email, role: user.role } });
-    } catch (error) {
-        res.status(500).json({ error: "Erreur lors de la connexion." });
     }
-});
 
-apiRouter.post('/classes/create', async (req, res) => {
-    const { className, teacherEmail } = req.body;
-    const newClass = {
-        className,
-        teacherEmail,
-        students: [],
-        quizzes: [],
-        results: [],
-        id: `${className.replace(/\s+/g, '-')}-${Date.now()}`
-    };
-    try {
-        await classesContainer.items.create(newClass);
-        res.status(201).json(newClass);
-    } catch (error) {
-        res.status(500).json({ error: "Impossible de créer la classe." });
+    // --- NAVIGATION ET UI ---
+    function changePage(targetId) {
+        pages.forEach(page => page.classList.remove('active'));
+        document.getElementById(targetId)?.classList.add('active');
+        speechSynthesis.cancel(); // Arrêter la lecture si on change de page
     }
-});
 
-apiRouter.get('/classes/:teacherEmail', async (req, res) => {
-    const { teacherEmail } = req.params;
-    const querySpec = {
-        query: "SELECT * FROM c WHERE c.teacherEmail = @teacherEmail",
-        parameters: [{ name: "@teacherEmail", value: teacherEmail }]
-    };
-    try {
-        const { resources: classes } = await classesContainer.items.query(querySpec).fetchAll();
-        res.status(200).json(classes);
-    } catch (error) {
-        res.status(500).json({ error: "Impossible de récupérer les classes." });
+    function applyTheme(theme) {
+        document.body.classList.toggle('dark-mode', theme === 'dark');
+        themeToggleBtn.innerHTML = theme === 'dark' ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>';
     }
-});
 
-apiRouter.get('/class/details/:classId', async (req, res) => {
-    const { classId } = req.params;
-     try {
-        const querySpec = {
-            query: "SELECT * FROM c WHERE c.id = @classId",
-            parameters: [{ name: "@classId", value: classId }]
-        };
-        const { resources } = await classesContainer.items.query(querySpec).fetchAll();
-        if (resources.length === 0) {
-            return res.status(404).json({ error: "Classe non trouvée." });
+    // --- AUTHENTIFICATION ---
+    async function handleAuth(url, body) {
+        const errorEl = body.role ? document.getElementById('signup-error') : document.getElementById('login-error');
+        errorEl.textContent = '';
+        try {
+            const response = await fetch(`${backendUrl}${url}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error);
+            currentUser = data.user;
+            await setupUIForUser();
+        } catch (error) { errorEl.textContent = error.message; }
+    }
+
+    async function setupUIForUser() {
+        if (!currentUser) {
+            registerBtn.classList.remove('hidden');
+            userMenuContainer.classList.add('hidden');
+            return;
         }
-        res.status(200).json(resources[0]);
-    } catch (error) {
-        res.status(500).json({ error: "Impossible de récupérer les détails de la classe." });
+        registerBtn.classList.add('hidden');
+        userMenuContainer.classList.remove('hidden');
+        userEmailDisplay.textContent = currentUser.email;
+        userDropdown.classList.add('hidden');
+
+        if (currentUser.role === 'teacher') {
+            teacherWelcome.textContent = `Tableau de bord de ${currentUser.email.split('@')[0]}`;
+            await fetchAndDisplayClasses();
+            changePage('teacher-dashboard');
+        } else {
+            studentWelcome.textContent = `Bonjour ${currentUser.email.split('@')[0]} !`;
+            await fetchAndDisplayStudentContent();
+            changePage('student-dashboard');
+        }
     }
-});
 
-apiRouter.post('/class/join', async (req, res) => {
-    const { className, studentEmail } = req.body;
-     try {
-        const classQuery = {
-            query: "SELECT * FROM c WHERE c.className = @className",
-            parameters: [{ name: "@className", value: className }]
-        };
-        const { resources: classes } = await classesContainer.items.query(classQuery).fetchAll();
-        if (classes.length === 0) {
-            return res.status(404).json({ error: "Cette classe n'existe pas." });
-        }
-        const classDoc = classes[0];
-
-        if (classDoc.students.includes(studentEmail)) {
-            return res.status(409).json({ error: "Vous êtes déjà dans cette classe." });
-        }
-        
-        classDoc.students.push(studentEmail);
-        await classesContainer.item(classDoc.id, classDoc.teacherEmail).replace(classDoc);
-
-        const { resource: studentDoc } = await usersContainer.item(studentEmail, studentEmail).read();
-        if (!studentDoc.classes) studentDoc.classes = [];
-        studentDoc.classes.push(classDoc.id);
-        await usersContainer.item(studentEmail, studentEmail).replace(studentDoc);
-
-        res.status(200).json({ message: `Vous avez rejoint la classe ${className} !` });
-    } catch (error) {
-        res.status(500).json({ error: "Impossible de rejoindre la classe." });
+    function logout() {
+        currentUser = null;
+        initializeAppState();
     }
-});
 
-apiRouter.post('/class/assign-content', async (req, res) => {
-    const { contentData, classId, teacherEmail } = req.body;
-    try {
-        const { resource: classDoc } = await classesContainer.item(classId, teacherEmail).read();
-        const contentWithId = { 
-            ...contentData, 
-            id: `${contentData.type}-${Date.now()}`,
-            assignedAt: new Date().toISOString() // Ajout de la date d'assignation
-        };
-        if(!classDoc.quizzes) classDoc.quizzes = [];
-        classDoc.quizzes.push(contentWithId);
-        await classesContainer.item(classId, teacherEmail).replace(classDoc);
-        res.status(200).json({ message: "Contenu assigné !" });
-    } catch (e) { res.status(500).json({ error: "Impossible d'assigner le contenu." }); }
-});
+    // --- LOGIQUE ENSEIGNANT ---
+    async function fetchAndDisplayClasses() {
+        if (!currentUser) return;
+        try {
+            const response = await fetch(`${backendUrl}/classes/${currentUser.email}`);
+            const classes = await response.json();
+            classListContainer.innerHTML = '';
+            assignClassSelect.innerHTML = '<option value="">-- Sélectionnez --</option>';
+            noClassesMessage.style.display = classes.length === 0 ? 'block' : 'none';
+            classes.forEach(cls => {
+                const classCard = document.createElement('div');
+                classCard.className = 'dashboard-card';
+                classCard.innerHTML = `<h4><i class="fa-solid fa-users"></i> ${cls.className}</h4><p>${cls.students.length} élève(s)</p><p>${(cls.quizzes || []).length} contenu(s)</p>`;
+                classCard.addEventListener('click', () => showClassDetails(cls.id, cls.className));
+                classListContainer.appendChild(classCard);
+                assignClassSelect.add(new Option(cls.className, cls.id));
+            });
+        } catch (error) { console.error("Erreur de récupération des classes:", error); }
+    }
+    
+    async function showClassDetails(classId, className) {
+        changePage('class-details-page');
+        classDetailsTitle.textContent = `Détails de la classe : ${className}`;
+        classDetailsContent.innerHTML = '<div class="spinner"></div>';
 
-apiRouter.get('/student/classes/:studentEmail', async (req, res) => {
-    const { studentEmail } = req.params;
-    try {
-        // 1. Récupérer l'élève et ses classes
-        const { resource: student } = await usersContainer.item(studentEmail, studentEmail).read();
-        if (!student || !student.classes || student.classes.length === 0) {
-            return res.status(200).json([]);
-        }
+        try {
+            const response = await fetch(`${backendUrl}/class/details/${classId}`);
+            currentClassData = await response.json();
+            classDetailsContent.innerHTML = ''; // Nettoyer
 
-        // 2. Récupérer les contenus déjà terminés par l'élève
-        const completedQuery = {
-            query: "SELECT c.contentId, c.completedAt FROM c WHERE c.studentEmail = @studentEmail",
-            parameters: [{ name: "@studentEmail", value: studentEmail }]
-        };
-        const { resources: completedItems } = await completedContentContainer.items.query(completedQuery).fetchAll();
-        const completedContentMap = new Map(completedItems.map(item => [item.contentId, item.completedAt]));
-
-        // 3. Récupérer les classes de l'élève
-        const classQuery = {
-            query: `SELECT * FROM c WHERE ARRAY_CONTAINS(@classIds, c.id)`,
-            parameters: [{ name: '@classIds', value: student.classes }]
-        };
-        const { resources: classes } = await classesContainer.items.query(classQuery).fetchAll();
-        
-        let allQuizzes = [];
-
-        // 4. Enrichir les contenus avec leur statut et les collecter
-        const processedClasses = classes.map(cls => {
-            if (cls.quizzes && cls.quizzes.length > 0) {
-                cls.quizzes.forEach(quiz => {
-                    if (completedContentMap.has(quiz.id)) {
-                        quiz.status = 'completed';
-                        quiz.completedAt = completedContentMap.get(quiz.id);
-                    } else {
-                        quiz.status = 'todo';
-                    }
-                    allQuizzes.push(quiz);
+            // Section des contenus assignés
+            const contentsSection = document.createElement('div');
+            contentsSection.className = 'class-details-section';
+            contentsSection.innerHTML = '<h3>Contenus Assignés</h3>';
+            const assignedGrid = document.createElement('div');
+            assignedGrid.className = 'details-grid';
+            if (currentClassData.quizzes && currentClassData.quizzes.length > 0) {
+                currentClassData.quizzes.forEach(content => {
+                    const card = document.createElement('div');
+                    card.className = 'details-card';
+                    card.innerHTML = `
+                        <div class="card-title">${content.title}</div>
+                        <div class="card-info">Type: ${content.type}</div>
+                        <button class="btn-secondary" data-content-id="${content.id}">Voir</button>
+                    `;
+                    assignedGrid.appendChild(card);
                 });
+            } else {
+                assignedGrid.innerHTML = '<p>Aucun contenu assigné pour cette classe.</p>';
             }
-            return cls;
+            contentsSection.appendChild(assignedGrid);
+            classDetailsContent.appendChild(contentsSection);
+
+            // Section des résultats
+            const resultsSection = document.createElement('div');
+            resultsSection.className = 'class-details-section';
+            resultsSection.innerHTML = '<h3>Résultats des Élèves</h3>';
+             if (currentClassData.results && currentClassData.results.length > 0) {
+                const resultsGrid = document.createElement('div');
+                resultsGrid.className = 'details-grid';
+                currentClassData.results.forEach(result => {
+                    const card = document.createElement('div');
+                    card.className = 'details-card result-card';
+                    const scorePercentage = (result.score / result.totalQuestions) * 100;
+                    card.innerHTML = `
+                        <div class="card-title">${result.studentEmail.split('@')[0]}</div>
+                        <div class="card-info">${result.quizTitle}</div>
+                        <div class="score-display">
+                            <span class="score">${result.score}/${result.totalQuestions}</span>
+                            <div class="score-bar"><div class="score-fill" style="width: ${scorePercentage}%;"></div></div>
+                        </div>
+                        <button class="btn-secondary" data-result-id="${result.resultId}">Détails</button>
+                    `;
+                    resultsGrid.appendChild(card);
+                });
+                resultsSection.appendChild(resultsGrid);
+             } else {
+                 resultsSection.innerHTML += '<p>Aucun élève n\'a encore terminé de contenu.</p>';
+             }
+            classDetailsContent.appendChild(resultsSection);
+
+        } catch (error) {
+            classDetailsContent.innerHTML = "<p>Erreur lors du chargement des détails.</p>";
+        }
+    }
+
+    function displayContentForTeacher(contentId) {
+        const content = currentClassData.quizzes.find(q => q.id === contentId);
+        if (!content) return;
+        displayContent(content, currentClassData.id);
+    }
+
+    function displayStudentResultDetails(resultId) {
+        const result = currentClassData.results.find(r => r.resultId === resultId);
+        const content = currentClassData.quizzes.find(q => q.id === result.quizId);
+        if (!result || !content) return;
+
+        const modal = document.getElementById('result-details-modal');
+        const modalTitle = document.getElementById('result-modal-title');
+        const modalContent = document.getElementById('result-modal-content');
+
+        modalTitle.textContent = `Réponses de ${result.studentEmail.split('@')[0]}`;
+        let contentHTML = '';
+        content.questions.forEach((q, index) => {
+            const studentAnswerIndex = result.answers[index];
+            const isCorrect = studentAnswerIndex == q.correct_answer_index;
+            contentHTML += `<h4>Question ${index + 1}: ${q.question_text}</h4>`;
+            q.options.forEach((opt, optIndex) => {
+                let className = '';
+                if (optIndex == studentAnswerIndex) {
+                    className = isCorrect ? 'correct' : 'incorrect';
+                } else if (optIndex == q.correct_answer_index) {
+                    className = 'correct';
+                }
+                contentHTML += `<div class="answer ${className}">${opt}</div>`;
+            });
+        });
+        modalContent.innerHTML = contentHTML;
+        modal.classList.remove('hidden');
+    }
+
+    // --- LOGIQUE ÉLÈVE ---
+    async function fetchAndDisplayStudentContent() {
+        if (!currentUser) return;
+        try {
+            const response = await fetch(`${backendUrl}/student/classes/${currentUser.email}`);
+            const classes = await response.json();
+            studentTodoList.innerHTML = '';
+            studentCompletedList.innerHTML = '';
+            
+            let allContents = [];
+            classes.forEach(cls => {
+                if (cls.quizzes && cls.quizzes.length > 0) {
+                    cls.quizzes.forEach(content => {
+                        allContents.push({ ...content, className: cls.className, classId: cls.id });
+                    });
+                }
+            });
+
+            const toDolist = allContents.filter(c => c.status !== 'completed');
+            const completedList = allContents.filter(c => c.status === 'completed');
+
+            toDolist.sort((a, b) => new Date(b.assignedAt) - new Date(a.assignedAt));
+            completedList.sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
+
+            if(toDolist.length === 0) studentTodoList.innerHTML = '<p>Bravo, tu as tout terminé !</p>';
+            toDolist.forEach(content => createStudentCard(content, studentTodoList));
+
+            if(completedList.length === 0) studentCompletedList.innerHTML = '<p>Aucun exercice terminé pour le moment.</p>';
+            completedList.forEach(content => createStudentCard(content, studentCompletedList));
+
+            const hasClasses = classes.length > 0;
+            joinClassPanel.classList.toggle('hidden', hasClasses);
+            document.getElementById('student-work-area').classList.toggle('hidden', !hasClasses);
+
+        } catch (error) { console.error("Erreur de récupération des modules:", error); }
+    }
+
+    function createStudentCard(content, container) {
+        const card = document.createElement('div');
+        card.className = 'dashboard-card-student';
+        const isCompleted = content.status === 'completed';
+
+        const assignedDate = new Date(content.assignedAt);
+        const formattedDate = assignedDate.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+        let subject = 'autre';
+        if (content.title.toLowerCase().includes('math')) subject = 'maths';
+        if (content.title.toLowerCase().includes('français')) subject = 'francais';
+        if (content.title.toLowerCase().includes('science')) subject = 'sciences';
+        if (content.title.toLowerCase().includes('histoire')) subject = 'histoire';
+
+        card.innerHTML = `
+            <div class="card-header">
+                <span class="subject-tag tag-${subject}">${subject.charAt(0).toUpperCase() + subject.slice(1)}</span>
+                ${content.isNewest && !isCompleted ? '<span class="new-tag">Nouveau</span>' : ''}
+            </div>
+            <div class="card-content">
+                <h4>${content.title}</h4>
+                <p>Classe: ${content.className}</p>
+            </div>
+            <div class="card-footer">
+                <span class="card-date">Reçu le ${formattedDate}</span>
+                <button class="btn-secondary ${isCompleted ? 'btn-termine' : ''}" ${isCompleted ? 'disabled' : ''}>
+                    ${isCompleted ? 'Terminé' : 'Commencer'}
+                </button>
+            </div>
+        `;
+
+        if (!isCompleted) {
+            card.querySelector('button').addEventListener('click', () => displayContent(content, content.classId));
+        }
+        container.appendChild(card);
+    }
+    
+    function displayContent(contentData, classId) {
+        contentTitle.textContent = contentData.title;
+        contentViewer.innerHTML = '';
+        submitQuizBtn.classList.add('hidden');
+        quizResult.classList.add('hidden');
+        
+        const isTeacherPreview = currentUser.role === 'teacher';
+
+        switch(contentData.type) {
+            case 'quiz':
+                displayQuiz(contentData, classId, isTeacherPreview);
+                break;
+            case 'revision':
+            case 'exercices':
+                contentViewer.innerHTML = `<div class="revision-content">${contentData.content.replace(/\n/g, '<br>')}</div>`;
+                break;
+            default:
+                contentViewer.innerHTML = `<p>${contentData.content || "Ce type de contenu n'est pas encore supporté."}</p>`;
+        }
+        changePage('content-page');
+    }
+    
+    function displayQuiz(quizData, classId, isTeacherPreview) {
+        quizData.questions.forEach((q, index) => {
+            const questionElement = document.createElement('div');
+            questionElement.className = 'quiz-question';
+            const optionsHTML = q.options.map((option, i) => `<label><input type="radio" name="question-${index}" value="${i}" ${isTeacherPreview ? 'disabled' : ''}> ${option}</label>`).join('');
+            questionElement.innerHTML = `<p><strong>${index + 1}. ${q.question_text}</strong></p><div class="quiz-options">${optionsHTML}</div>`;
+            contentViewer.appendChild(questionElement);
         });
         
-        // 5. Identifier le contenu le plus récent pour le tag "NEW"
-        if (allQuizzes.length > 0) {
-            allQuizzes.sort((a, b) => new Date(b.assignedAt) - new Date(a.assignedAt));
-            const newestQuiz = allQuizzes[0];
-            if (newestQuiz.status !== 'completed') {
-                 newestQuiz.isNewest = true;
+        if (!isTeacherPreview) {
+            submitQuizBtn.classList.remove('hidden');
+            submitQuizBtn.onclick = () => submitQuiz(quizData, classId);
+        }
+    }
+
+    async function submitQuiz(quizData, classId) {
+        const userAnswers = [];
+        quizData.questions.forEach((q, index) => {
+            const selectedInput = document.querySelector(`input[name="question-${index}"]:checked`);
+            userAnswers.push(selectedInput ? parseInt(selectedInput.value) : -1);
+        });
+
+        submitQuizBtn.classList.add('hidden');
+        contentViewer.innerHTML = '';
+
+        for (let i = 0; i < quizData.questions.length; i++) {
+            const q = quizData.questions[i];
+            const studentAnswerIndex = userAnswers[i];
+            const isCorrect = studentAnswerIndex == q.correct_answer_index;
+
+            const feedbackElement = document.createElement('div');
+            feedbackElement.className = `question-feedback ${isCorrect ? 'correct' : 'incorrect'}`;
+            
+            let optionsHTML = q.options.map((option, idx) => {
+                let className = '';
+                if (idx == studentAnswerIndex) className = isCorrect ? 'correct' : 'incorrect';
+                else if (idx == q.correct_answer_index) className = 'correct';
+                return `<div class="answer ${className}">${option}</div>`;
+            }).join('');
+
+            feedbackElement.innerHTML = `<p><strong>${i + 1}. ${q.question_text}</strong></p>${optionsHTML}`;
+
+            if (!isCorrect) {
+                const explanationSpinner = document.createElement('div');
+                explanationSpinner.className = 'spinner';
+                feedbackElement.appendChild(explanationSpinner);
+
+                try {
+                    const response = await fetch(`${backendUrl}/generate/explanation`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            question: q.question_text,
+                            studentAnswer: q.options[studentAnswerIndex] || "Aucune réponse",
+                            correctAnswer: q.options[q.correct_answer_index]
+                        })
+                    });
+                    const data = await response.json();
+                    explanationSpinner.remove();
+                    const explanationDiv = document.createElement('div');
+                    explanationDiv.className = 'aida-explanation';
+                    explanationDiv.innerHTML = `💡 **AIDA dit :** ${data.explanation}`;
+                    feedbackElement.appendChild(explanationDiv);
+                } catch (error) {
+                    explanationSpinner.remove();
+                    console.error("Erreur explication:", error);
+                }
             }
+            contentViewer.appendChild(feedbackElement);
         }
 
-        res.status(200).json(processedClasses);
-    } catch (error) {
-        console.error("Erreur détaillée:", error);
-        res.status(500).json({ error: "Impossible de récupérer les classes de l'élève." });
+        try {
+            let score = userAnswers.reduce((acc, ans, idx) => acc + (ans == quizData.questions[idx].correct_answer_index ? 1 : 0), 0);
+            await fetch(`${backendUrl}/quiz/submit`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    classId,
+                    quizId: quizData.id,
+                    studentEmail: currentUser.email,
+                    score,
+                    totalQuestions: quizData.questions.length,
+                    quizTitle: quizData.title,
+                    answers: userAnswers
+                })
+            });
+            await fetchAndDisplayStudentContent();
+        } catch (error) {
+            console.error("Erreur lors de l'envoi du score:", error);
+        }
     }
-});
 
-
-apiRouter.post('/quiz/submit', async (req, res) => {
-    const { classId, quizId, studentEmail, score, totalQuestions, quizTitle, answers } = req.body;
-    try {
-        const classQuery = {
-            query: "SELECT * FROM c WHERE c.id = @classId",
-            parameters: [{ name: "@classId", value: classId }]
-        };
-        const { resources: classes } = await classesContainer.items.query(classQuery).fetchAll();
-        if (classes.length === 0) {
-            return res.status(404).json({ error: "Classe non trouvée." });
+    // --- INITIALISATION & GESTION DES ÉVÉNEMENTS ---
+    function initializeAppState() {
+        changePage('home');
+        if (currentUser) logout();
+        else {
+            registerBtn.classList.remove('hidden');
+            userMenuContainer.classList.add('hidden');
         }
-        const classDoc = classes[0];
-
-        const newResult = {
-            resultId: `result-${Date.now()}`,
-            quizId,
-            studentEmail,
-            score,
-            totalQuestions,
-            quizTitle,
-            answers,
-            submittedAt: new Date().toISOString()
-        };
-
-        if (!classDoc.results) {
-            classDoc.results = [];
-        }
-        classDoc.results.push(newResult);
-        await classesContainer.item(classDoc.id, classDoc.teacherEmail).replace(classDoc);
-
-        // Enregistrer que l'élève a terminé ce contenu
-        const completedRecord = {
-            studentEmail: studentEmail,
-            contentId: quizId,
-            completedAt: new Date().toISOString(),
-            id: `${studentEmail}-${quizId}` // ID unique pour cet enregistrement
-        };
-        await completedContentContainer.items.upsert(completedRecord);
-
-
-        res.status(200).json({ message: "Résultats enregistrés." });
-    } catch (error) {
-        res.status(500).json({ error: "Impossible d'enregistrer les résultats." });
     }
-});
+    
+    function populateSelect(selectElement, options, defaultText, isObject = false) {
+        selectElement.innerHTML = `<option value="">${defaultText}</option>`;
+        options.forEach(option => {
+            const value = isObject ? option.key : option;
+            const text = isObject ? option.name : option;
+            selectElement.add(new Option(text, value));
+        });
+        selectElement.disabled = false;
+    }
 
-app.use('/api', apiRouter);
-app.get('/', (req, res) => res.send('<h1>Le serveur AIDA est en ligne !</h1>'));
+    function findCompetences(data, path) {
+        let current = data;
+        for (const key of path) {
+            if (current && typeof current === 'object' && key in current) {
+                current = current[key];
+            } else { return []; }
+        }
+        if (current && Array.isArray(current.competences)) {
+            return current.competences;
+        }
+        return [];
+    }
+    
+    function initializeResourceModal() {
+        cycleSelect.value = '';
+        levelSelect.innerHTML = '<option value="">-- D\'abord choisir un cycle --</option>';
+        levelSelect.disabled = true;
+        subjectSelect.innerHTML = '<option value="">-- D\'abord choisir une classe --</option>';
+        subjectSelect.disabled = true;
+        notionSelect.innerHTML = '<option value="">-- D\'abord choisir une matière --</option>';
+        notionSelect.disabled = true;
+        if(resourceFormButton) resourceFormButton.disabled = true;
+        programmesData = null;
+        modalFormStep.classList.remove('hidden');
+        modalLoadingStep.classList.add('hidden');
+    }
 
-// --- 5. Démarrer le serveur ---
-setupDatabase().then(containers => {
-    usersContainer = containers.usersContainer;
-    classesContainer = containers.classesContainer;
-    completedContentContainer = containers.completedContentContainer; // Assigner le nouveau conteneur
-    app.listen(PORT, () => {
-        console.log(`\x1b[32m%s\x1b[0m`, `Serveur AIDA démarré sur le port ${PORT}`);
-    });
-}).catch(error => {
-    console.error("\x1b[31m%s\x1b[0m", "[ERREUR CRITIQUE] Démarrage impossible.", error);
-    process.exit(1);
+    async function loadProgrammesForCycle(cycle) {
+        if (!cycle) {
+            levelSelect.innerHTML = '<option value="">-- D\'abord choisir un cycle --</option>';
+            levelSelect.disabled = true;
+            return;
+        }
+        const fileMap = {
+            primaire: 'programmes-primaire.json',
+            college: 'programmes-college.json',
+            lycee: 'programmes-lycee.json'
+        };
+        try {
+            const response = await fetch(fileMap[cycle]);
+            if (!response.ok) throw new Error(`Fichier non trouvé: ${fileMap[cycle]}`);
+            programmesData = await response.json();
+            populateSelect(levelSelect, Object.keys(programmesData), "-- Choisir la classe --");
+        } catch (e) { 
+            console.error("Erreur chargement programmes pour le cycle:", cycle, e); 
+            alert(`Impossible de charger le programme pour le cycle "${cycle}". Vérifiez que le fichier "${fileMap[cycle]}" existe et est accessible.`);
+        }
+    }
+
+    function setupEventListeners() {
+        homeLink.addEventListener('click', (e) => { e.preventDefault(); initializeAppState(); });
+        startButton.addEventListener('click', (e) => { e.preventDefault(); changePage(startButton.getAttribute('data-target')); });
+        registerBtn.addEventListener('click', (e) => { e.preventDefault(); changePage('auth-page'); });
+        backToDashboardBtn.addEventListener('click', () => {
+            if(currentUser.role === 'teacher') changePage('teacher-dashboard');
+            else changePage('student-dashboard');
+        });
+
+        speakContentBtn.addEventListener('click', () => {
+            const textToRead = getTextFromContentViewer();
+            speakText(textToRead, speakContentBtn);
+        });
+
+        themeToggleBtn.addEventListener('click', () => {
+            const newTheme = document.body.classList.contains('dark-mode') ? 'light' : 'dark';
+            localStorage.setItem('theme', newTheme);
+            applyTheme(newTheme);
+        });
+        showSignupLink.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('login-form-container').classList.add('hidden'); document.getElementById('signup-form-container').classList.remove('hidden'); });
+        showLoginLink.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('signup-form-container').classList.add('hidden'); document.getElementById('login-form-container').classList.remove('hidden'); });
+        
+        userInfoClickable.addEventListener('click', () => {
+            userDropdown.classList.toggle('hidden');
+        });
+        window.addEventListener('click', (e) => {
+            if (!userMenuContainer.contains(e.target)) {
+                userDropdown.classList.add('hidden');
+            }
+        });
+        logoutBtn.addEventListener('click', logout);
+        
+        backToTeacherDashboardBtn.addEventListener('click', () => changePage('teacher-dashboard'));
+
+        document.querySelectorAll('.modal-overlay').forEach(modal => {
+            modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.add('hidden'); });
+            modal.querySelector('.close-modal')?.addEventListener('click', () => modal.classList.add('hidden'));
+        });
+        
+        loginForm.addEventListener('submit', (e) => { e.preventDefault(); handleAuth('/auth/login', { email: loginForm.elements['login-email'].value, password: loginForm.elements['login-password'].value }); });
+        signupForm.addEventListener('submit', (e) => { e.preventDefault(); handleAuth('/auth/signup', { email: signupForm.elements['signup-email'].value, password: signupForm.elements['signup-password'].value, role: signupForm.elements['signup-role'].value }); });
+
+        openClassModalBtn.addEventListener('click', () => classModal.classList.remove('hidden'));
+        createClassForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const className = createClassForm.elements['class-name-input'].value;
+            try {
+                const response = await fetch(`${backendUrl}/classes/create`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ className, teacherEmail: currentUser.email }) });
+                if (!response.ok) throw new Error((await response.json()).error);
+                await fetchAndDisplayClasses();
+                classModal.classList.add('hidden');
+            } catch (error) { document.getElementById('class-creation-error').textContent = error.message; }
+        });
+
+        openResourceModalBtn.addEventListener('click', () => {
+            initializeResourceModal();
+            generationModal.classList.remove('hidden');
+        });
+
+        cycleSelect.addEventListener('change', () => loadProgrammesForCycle(cycleSelect.value));
+        
+        levelSelect.addEventListener('change', () => {
+            notionSelect.innerHTML = '<option value="">-- D\'abord choisir une matière --</option>';
+            notionSelect.disabled = true;
+            const level = levelSelect.value;
+            if (level && programmesData[level]) {
+                const subjects = Object.keys(programmesData[level]).map(key => ({ key: key, name: programmesData[level][key].nom }));
+                populateSelect(subjectSelect, subjects, "-- Choisir la matière --", true);
+            }
+        });
+        
+        subjectSelect.addEventListener('change', () => {
+            const selectedLevel = levelSelect.value;
+            const selectedSubject = subjectSelect.value;
+            if (selectedLevel && selectedSubject && programmesData[selectedLevel]?.[selectedSubject]) {
+                const subjectData = programmesData[selectedLevel][selectedSubject];
+                let allNotions = [];
+                Object.keys(subjectData).forEach(mainNotionKey => {
+                    if (mainNotionKey === 'nom') return;
+                    const mainNotion = subjectData[mainNotionKey];
+                    if (mainNotion && mainNotion.sous_notions) {
+                        Object.keys(mainNotion.sous_notions).forEach(subNotionKey => {
+                            const subNotion = mainNotion.sous_notions[subNotionKey];
+                            if (subNotion && subNotion.nom) {
+                                allNotions.push({ key: `${mainNotionKey},${subNotionKey}`, name: subNotion.nom });
+                            }
+                        });
+                    }
+                });
+                populateSelect(notionSelect, allNotions, "-- Choisir la notion --", true);
+            }
+        });
+
+        notionSelect.addEventListener('change', () => {
+            if(resourceFormButton) resourceFormButton.disabled = !notionSelect.value;
+        });
+
+        resourceForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            modalFormStep.classList.add('hidden');
+            modalLoadingStep.classList.remove('hidden');
+
+            const [mainNotionKey, subNotionKey] = notionSelect.value.split(',');
+            const path = [levelSelect.value, subjectSelect.value, mainNotionKey, 'sous_notions', subNotionKey];
+            const competences = findCompetences(programmesData, path);
+            const contentType = contentTypeSelect.value;
+
+            if (competences.length === 0) {
+                 alert("Aucune compétence trouvée pour cette notion.");
+                 initializeResourceModal();
+                 return;
+            }
+            
+            try {
+                const response = await fetch(`${backendUrl}/generate/content`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ competences, contentType })
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error);
+                
+                generatedContentEditor.value = data.text_representation;
+                generatedContentData = data.structured_content;
+                
+                generationModal.classList.add('hidden');
+                assignmentModal.classList.remove('hidden');
+            } catch (err) {
+                alert("Erreur de génération: " + err.message);
+            } finally {
+                initializeResourceModal();
+            }
+        });
+        
+        confirmAssignBtn.addEventListener('click', async () => {
+            const classId = assignClassSelect.value;
+            if (!classId) return alert("Veuillez sélectionner une classe.");
+            const modifiedText = generatedContentEditor.value;
+
+            try {
+                const conversionResponse = await fetch(`${backendUrl}/convert/text-to-json`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: modifiedText, contentType: generatedContentData.type })
+                });
+                const finalContent = await conversionResponse.json();
+
+                const assignResponse = await fetch(`${backendUrl}/class/assign-content`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contentData: finalContent, classId, teacherEmail: currentUser.email })
+                });
+                if (!assignResponse.ok) throw new Error((await assignResponse.json()).error);
+                alert("Contenu assigné avec succès !");
+                assignmentModal.classList.add('hidden');
+                await fetchAndDisplayClasses();
+            } catch (error) { alert(`Erreur: ${error.message}`); }
+        });
+        
+        joinClassForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const className = joinClassForm.elements['class-code-input'].value;
+            try {
+                const response = await fetch(`${backendUrl}/class/join`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ className, studentEmail: currentUser.email })
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error);
+                alert(data.message);
+                await fetchAndDisplayStudentContent();
+            } catch (error) { document.getElementById('join-class-error').textContent = error.message; }
+        });
+
+        classDetailsContent.addEventListener('click', (e) => {
+            const button = e.target.closest('button');
+            if (!button) return;
+            
+            if (button.dataset.resultId) {
+                displayStudentResultDetails(button.dataset.resultId);
+            } else if (button.dataset.contentId) {
+                displayContentForTeacher(button.dataset.contentId);
+            }
+        });
+    }
+
+    // --- INITIALISATION ---
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    applyTheme(savedTheme);
+    initializeAppState();
+    setupEventListeners();
 });
 
