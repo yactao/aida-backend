@@ -12,19 +12,20 @@ const client = new CosmosClient({ endpoint, key });
 const databaseId = 'AidaDB';
 const usersContainerId = 'Users';
 const classesContainerId = 'Classes';
-const completedContentContainerId = 'CompletedContent';
+const completedContentContainerId = 'CompletedContent'; // Nouveau conteneur
 
 async function setupDatabase() {
   const { database } = await client.databases.createIfNotExists({ id: databaseId });
   const { container: usersContainer } = await database.containers.createIfNotExists({ id: usersContainerId, partitionKey: { paths: ["/email"] } });
   const { container: classesContainer } = await database.containers.createIfNotExists({ id: classesContainerId, partitionKey: { paths: ["/teacherEmail"] } });
+  // Création du nouveau conteneur pour les contenus terminés
   const { container: completedContentContainer } = await database.containers.createIfNotExists({ id: completedContentContainerId, partitionKey: { paths: ["/studentEmail"] } });
   return { usersContainer, classesContainer, completedContentContainer };
 }
 
 let usersContainer;
 let classesContainer;
-let completedContentContainer;
+let completedContentContainer; // Nouvelle variable de conteneur
 
 // --- 3. Initialiser l'application ---
 const app = express();
@@ -36,6 +37,7 @@ app.use(express.json());
 // --- 4. Définir les "Routes" ---
 const apiRouter = express.Router();
 
+// Route pour l'explication d'AIDA
 apiRouter.post('/generate/explanation', async (req, res) => {
     const { question, studentAnswer, correctAnswer } = req.body;
     const apiKey = process.env.DEEPSEEK_API_KEY;
@@ -200,8 +202,29 @@ apiRouter.get('/class/details/:classId', async (req, res) => {
         if (resources.length === 0) {
             return res.status(404).json({ error: "Classe non trouvée." });
         }
-        res.status(200).json(resources[0]);
+        
+        const classDoc = resources[0];
+
+        // Regrouper les résultats par élève
+        const studentsWithResults = classDoc.students.map(studentEmail => {
+            const studentResults = classDoc.results.filter(r => r.studentEmail === studentEmail);
+            return {
+                email: studentEmail,
+                results: studentResults
+            };
+        });
+
+        const responseData = {
+            ...classDoc,
+            students: undefined, // On enlève les anciennes listes plates
+            results: undefined,
+            studentsWithResults // On ajoute la nouvelle structure
+        };
+
+        res.status(200).json(responseData);
+
     } catch (error) {
+        console.error(error);
         res.status(500).json({ error: "Impossible de récupérer les détails de la classe." });
     }
 });
@@ -241,9 +264,12 @@ apiRouter.post('/class/assign-content', async (req, res) => {
     const { contentData, classId, teacherEmail } = req.body;
     try {
         const { resource: classDoc } = await classesContainer.item(classId, teacherEmail).read();
+        // Enrichir le contenu avec un type s'il n'existe pas
+        const type = contentData.type || (contentData.questions ? 'quiz' : (contentData.content ? 'exercices' : 'unknown'));
         const contentWithId = { 
             ...contentData, 
-            id: `${contentData.type}-${Date.now()}`,
+            type: type,
+            id: `${type}-${Date.now()}`,
             assignedAt: new Date().toISOString() // Ajout de la date d'assignation
         };
         if(!classDoc.quizzes) classDoc.quizzes = [];
@@ -256,11 +282,13 @@ apiRouter.post('/class/assign-content', async (req, res) => {
 apiRouter.get('/student/classes/:studentEmail', async (req, res) => {
     const { studentEmail } = req.params;
     try {
+        // 1. Récupérer l'élève pour connaître ses classes
         const { resource: student } = await usersContainer.item(studentEmail, studentEmail).read();
         if (!student || !student.classes || student.classes.length === 0) {
             return res.status(200).json({ todo: [], completed: [] });
         }
 
+        // 2. Récupérer tous les contenus que l'élève a déjà terminés
         const completedQuery = {
             query: "SELECT c.contentId, c.completedAt FROM c WHERE c.studentEmail = @studentEmail",
             parameters: [{ name: "@studentEmail", value: studentEmail }]
@@ -268,12 +296,14 @@ apiRouter.get('/student/classes/:studentEmail', async (req, res) => {
         const { resources: completedItems } = await completedContentContainer.items.query(completedQuery).fetchAll();
         const completedMap = new Map(completedItems.map(item => [item.contentId, item.completedAt]));
 
+        // 3. Récupérer toutes les classes de l'élève
         const classQuery = {
             query: `SELECT * FROM c WHERE ARRAY_CONTAINS(@classIds, c.id)`,
             parameters: [{ name: '@classIds', value: student.classes }]
         };
         const { resources: classes } = await classesContainer.items.query(classQuery).fetchAll();
         
+        // 4. Trier et séparer les contenus
         let allContents = [];
         classes.forEach(cls => {
             if (cls.quizzes && cls.quizzes.length > 0) {
@@ -283,6 +313,7 @@ apiRouter.get('/student/classes/:studentEmail', async (req, res) => {
             }
         });
 
+        // Marquer le contenu le plus récent
         allContents.sort((a, b) => new Date(b.assignedAt) - new Date(a.assignedAt));
         const newestContentId = allContents.length > 0 ? allContents[0].id : null;
 
@@ -305,13 +336,14 @@ apiRouter.get('/student/classes/:studentEmail', async (req, res) => {
             }
         });
         
+        // Trier la liste des terminés par date de complétion
         completed.sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
 
         res.status(200).json({ todo, completed });
 
     } catch (error) {
         console.error(error);
-        res.status(500).json({ error: "Impossible de récupérer les données de l'élève." });
+        res.status(500).json({ error: "Impossible de récupérer les classes de l'élève." });
     }
 });
 
@@ -343,6 +375,7 @@ apiRouter.post('/quiz/submit', async (req, res) => {
         if (!classDoc.results) {
             classDoc.results = [];
         }
+        // Remplacer un résultat existant si l'élève refait le test
         const existingResultIndex = classDoc.results.findIndex(r => r.quizId === quizId && r.studentEmail === studentEmail);
         if (existingResultIndex > -1) {
             classDoc.results[existingResultIndex] = newResult;
@@ -351,17 +384,18 @@ apiRouter.post('/quiz/submit', async (req, res) => {
         }
         await classesContainer.item(classDoc.id, classDoc.teacherEmail).replace(classDoc);
 
+        // Enregistrer que le contenu est terminé
         const completedRecord = {
             studentEmail: studentEmail,
             contentId: quizId,
             completedAt: new Date().toISOString(),
-            id: `${studentEmail}-${quizId}`
+            id: `${studentEmail}-${quizId}` // ID unique pour l'enregistrement
         };
         await completedContentContainer.items.upsert(completedRecord);
 
-
         res.status(200).json({ message: "Résultats enregistrés." });
     } catch (error) {
+        console.error(error);
         res.status(500).json({ error: "Impossible d'enregistrer les résultats." });
     }
 });
