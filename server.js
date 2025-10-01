@@ -1,6 +1,6 @@
 // --- 1. Importer les outils nécessaires ---
 const express = require('express');
-const cors = require('cors');
+const cors = require('cors'); 
 require('dotenv').config();
 const axios = require('axios');
 const path = require('path'); // Ajout pour la gestion des chemins
@@ -16,11 +16,11 @@ const classesContainerId = 'Classes';
 const completedContentContainerId = 'CompletedContent';
 
 async function setupDatabase() {
-    const { database } = await client.databases.createIfNotExists({ id: databaseId });
-    const { container: usersContainer } = await database.containers.createIfNotExists({ id: usersContainerId, partitionKey: { paths: ["/email"] } });
-    const { container: classesContainer } = await database.containers.createIfNotExists({ id: classesContainerId, partitionKey: { paths: ["/teacherEmail"] } });
-    const { container: completedContentContainer } = await database.containers.createIfNotExists({ id: completedContentContainerId, partitionKey: { paths: ["/studentEmail"] } });
-    return { usersContainer, classesContainer, completedContentContainer };
+  const { database } = await client.databases.createIfNotExists({ id: databaseId });
+  const { container: usersContainer } = await database.containers.createIfNotExists({ id: usersContainerId, partitionKey: { paths: ["/email"] } });
+  const { container: classesContainer } = await database.containers.createIfNotExists({ id: classesContainerId, partitionKey: { paths: ["/teacherEmail"] } });
+  const { container: completedContentContainer } = await database.containers.createIfNotExists({ id: completedContentContainerId, partitionKey: { paths: ["/studentEmail"] } });
+  return { usersContainer, classesContainer, completedContentContainer };
 }
 
 let usersContainer;
@@ -31,10 +31,12 @@ let completedContentContainer;
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
+app.use(cors()); 
 app.use(express.json());
 
-// Servir les fichiers statiques (comme les programmes)
+// --- NOUVEAU: Servir les fichiers statiques (comme les programmes) ---
+// Créez un dossier "public" à la racine de votre projet backend
+// et mettez-y vos fichiers programmes-primaire.json, etc.
 app.use(express.static(path.join(__dirname, 'public')));
 
 
@@ -57,6 +59,7 @@ apiRouter.post('/generate/explanation', async (req, res) => {
         const explanation = response.data.choices[0].message.content;
         res.json({ explanation });
     } catch (error) {
+        console.error("Erreur API DeepSeek:", error.response ? error.response.data : error.message);
         res.status(500).json({ error: "L'IA n'a pas pu générer d'explication." });
     }
 });
@@ -204,28 +207,8 @@ apiRouter.get('/class/details/:classId', async (req, res) => {
         if (resources.length === 0) {
             return res.status(404).json({ error: "Classe non trouvée." });
         }
-        
-        const classDoc = resources[0];
-
-        // Regrouper les résultats par élève pour la vue moderne
-        const studentsWithResults = classDoc.students.map(studentEmail => {
-            const studentResults = classDoc.results.filter(r => r.studentEmail === studentEmail);
-            return {
-                email: studentEmail,
-                results: studentResults
-            };
-        });
-
-        const responseData = {
-            ...classDoc,
-            // Garder les résultats plats pour l'ancienne vue au cas où, mais ajouter la nouvelle structure
-            studentsWithResults 
-        };
-
-        res.status(200).json(responseData);
-
+        res.status(200).json(resources[0]);
     } catch (error) {
-        console.error(error);
         res.status(500).json({ error: "Impossible de récupérer les détails de la classe." });
     }
 });
@@ -268,7 +251,7 @@ apiRouter.post('/class/assign-content', async (req, res) => {
         const contentWithId = { 
             ...contentData, 
             id: `${contentData.type}-${Date.now()}`,
-            assignedAt: new Date().toISOString()
+            assignedAt: new Date().toISOString() // Ajout de la date d'assignation
         };
         if(!classDoc.quizzes) classDoc.quizzes = [];
         classDoc.quizzes.push(contentWithId);
