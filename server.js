@@ -1,5 +1,4 @@
 // --- 1. Importer les outils nécessaires ---
-
 const express = require('express');
 const cors = require('cors'); 
 require('dotenv').config();
@@ -13,20 +12,19 @@ const client = new CosmosClient({ endpoint, key });
 const databaseId = 'AidaDB';
 const usersContainerId = 'Users';
 const classesContainerId = 'Classes';
-const completedContentContainerId = 'CompletedContent'; // Nouveau conteneur
+const completedContentContainerId = 'CompletedContent';
 
 async function setupDatabase() {
   const { database } = await client.databases.createIfNotExists({ id: databaseId });
   const { container: usersContainer } = await database.containers.createIfNotExists({ id: usersContainerId, partitionKey: { paths: ["/email"] } });
   const { container: classesContainer } = await database.containers.createIfNotExists({ id: classesContainerId, partitionKey: { paths: ["/teacherEmail"] } });
-  // Création du nouveau conteneur pour les contenus terminés
   const { container: completedContentContainer } = await database.containers.createIfNotExists({ id: completedContentContainerId, partitionKey: { paths: ["/studentEmail"] } });
   return { usersContainer, classesContainer, completedContentContainer };
 }
 
 let usersContainer;
 let classesContainer;
-let completedContentContainer; // Nouvelle variable de conteneur
+let completedContentContainer;
 
 // --- 3. Initialiser l'application ---
 const app = express();
@@ -38,7 +36,6 @@ app.use(express.json());
 // --- 4. Définir les "Routes" ---
 const apiRouter = express.Router();
 
-// Route pour l'explication d'AIDA
 apiRouter.post('/generate/explanation', async (req, res) => {
     const { question, studentAnswer, correctAnswer } = req.body;
     const apiKey = process.env.DEEPSEEK_API_KEY;
@@ -261,7 +258,7 @@ apiRouter.get('/student/classes/:studentEmail', async (req, res) => {
     try {
         const { resource: student } = await usersContainer.item(studentEmail, studentEmail).read();
         if (!student || !student.classes || student.classes.length === 0) {
-            return res.status(200).json([]);
+            return res.status(200).json({ todo: [], completed: [] });
         }
 
         const completedQuery = {
@@ -277,39 +274,47 @@ apiRouter.get('/student/classes/:studentEmail', async (req, res) => {
         };
         const { resources: classes } = await classesContainer.items.query(classQuery).fetchAll();
         
-        let allQuizzes = [];
+        let allContents = [];
         classes.forEach(cls => {
             if (cls.quizzes && cls.quizzes.length > 0) {
-                cls.quizzes.forEach(quiz => {
-                    allQuizzes.push({ ...quiz, className: cls.className, classId: cls.id });
+                cls.quizzes.forEach(content => {
+                    allContents.push({ ...content, className: cls.className, classId: cls.id });
+                });
+            }
+        });
+
+        allContents.sort((a, b) => new Date(b.assignedAt) - new Date(a.assignedAt));
+        const newestContentId = allContents.length > 0 ? allContents[0].id : null;
+
+        const todo = [];
+        const completed = [];
+
+        allContents.forEach(content => {
+            if (completedMap.has(content.id)) {
+                completed.push({
+                    ...content,
+                    status: 'completed',
+                    completedAt: completedMap.get(content.id)
+                });
+            } else {
+                todo.push({
+                    ...content,
+                    status: 'new',
+                    isNewest: content.id === newestContentId
                 });
             }
         });
         
-        allQuizzes.sort((a, b) => new Date(b.assignedAt) - new Date(a.assignedAt));
-        const newestQuizId = allQuizzes.length > 0 ? allQuizzes[0].id : null;
+        completed.sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
 
-        const enrichedClasses = classes.map(cls => {
-            if (cls.quizzes && cls.quizzes.length > 0) {
-                cls.quizzes = cls.quizzes.map(quiz => {
-                    const isCompleted = completedMap.has(quiz.id);
-                    return {
-                        ...quiz,
-                        status: isCompleted ? 'completed' : 'new',
-                        completedAt: isCompleted ? completedMap.get(quiz.id) : null,
-                        isNewest: quiz.id === newestQuizId
-                    };
-                });
-            }
-            return cls;
-        });
+        res.status(200).json({ todo, completed });
 
-        res.status(200).json(enrichedClasses);
     } catch (error) {
         console.error(error);
-        res.status(500).json({ error: "Impossible de récupérer les classes de l'élève." });
+        res.status(500).json({ error: "Impossible de récupérer les données de l'élève." });
     }
 });
+
 
 apiRouter.post('/quiz/submit', async (req, res) => {
     const { classId, quizId, studentEmail, score, totalQuestions, quizTitle, answers } = req.body;
@@ -368,7 +373,7 @@ app.get('/', (req, res) => res.send('<h1>Le serveur AIDA est en ligne !</h1>'));
 setupDatabase().then(containers => {
     usersContainer = containers.usersContainer;
     classesContainer = containers.classesContainer;
-    completedContentContainer = containers.completedContentContainer; // Assigner le nouveau conteneur
+    completedContentContainer = containers.completedContentContainer;
     app.listen(PORT, () => {
         console.log(`\x1b[32m%s\x1b[0m`, `Serveur AIDA démarré sur le port ${PORT}`);
     });
