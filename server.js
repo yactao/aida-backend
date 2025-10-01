@@ -38,7 +38,6 @@ app.use(express.static(path.join(__dirname, 'public')));
 // --- 4. Définir les "Routes" ---
 const apiRouter = express.Router();
 
-// ... (toutes les autres routes comme /generate/explanation, /generate/content, etc. restent les mêmes)
 
 apiRouter.post('/generate/explanation', async (req, res) => {
     const { question, studentAnswer, correctAnswer } = req.body;
