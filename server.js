@@ -1,4 +1,3 @@
-// Version avec un changement mineur pour la détection par Git
 // --- 1. Importer les outils nécessaires ---
 const express = require('express');
 const cors = require('cors');
