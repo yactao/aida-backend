@@ -38,22 +38,32 @@ app.use(express.static(path.join(__dirname, 'public')));
 // --- 4. Définir les "Routes" ---
 const apiRouter = express.Router();
 
-
 apiRouter.post('/generate/explanation', async (req, res) => {
     const { question, studentAnswer, correctAnswer } = req.body;
     const apiKey = process.env.DEEPSEEK_API_KEY;
     if (!apiKey) return res.status(500).json({ error: "Clé API non configurée." });
+
     const prompt = `Un élève a mal répondu à cette question de quiz : "${question}". Sa réponse était "${studentAnswer}" alors que la bonne réponse était "${correctAnswer}". Explique-lui son erreur de manière simple, encourageante et pédagogique, en une ou deux phrases maximum. Adresse-toi directement à lui.`;
+
     try {
-        const response = await axios.post('https://api.deepseek.com/chat/completions', { model: 'deepseek-chat', messages: [{ content: prompt, role: 'user' }] }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
-        res.json({ explanation: response.data.choices[0].message.content });
-    } catch (error) { res.status(500).json({ error: "L'IA n'a pas pu générer d'explication." }); }
+        const response = await axios.post('https://api.deepseek.com/chat/completions', {
+            model: 'deepseek-chat',
+            messages: [{ content: prompt, role: 'user' }]
+        }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
+        
+        const explanation = response.data.choices[0].message.content;
+        res.json({ explanation });
+    } catch (error) {
+        res.status(500).json({ error: "L'IA n'a pas pu générer d'explication." });
+    }
 });
+
 
 apiRouter.post('/generate/content', async (req, res) => {
     const { competences, contentType } = req.body;
     const apiKey = process.env.DEEPSEEK_API_KEY;
     if (!apiKey) return res.status(500).json({ error: "Clé API non configurée." });
+
     let jsonPrompt, textPrompt;
     switch (contentType) {
         case 'exercices':
@@ -64,122 +74,155 @@ apiRouter.post('/generate/content', async (req, res) => {
             jsonPrompt = `Crée une fiche de révision synthétique sur: "${competences}". Format JSON: {"title": "Fiche de révision : ${competences}", "type": "revision", "content": "..."}`;
             textPrompt = `Rédige une fiche de révision claire, concise et structurée sur la compétence : "${competences}". Utilise des titres et des points clés pour faciliter la lecture.`;
             break;
+        case 'quiz':
         default:
             jsonPrompt = `Crée un quiz de 5 questions à 4 choix sur: "${competences}". Format JSON : {"title": "Quiz sur ${competences}", "type": "quiz", "questions": [{"question_text": "...", "options": ["A", "B", "C", "D"], "correct_answer_index": 0}]}`;
             textPrompt = `Rédige un quiz de 5 questions sur la compétence : "${competences}". Pour chaque question, propose 4 options de réponse (A, B, C, D) et indique la bonne réponse avec une étoile (*).`;
             break;
     }
+
     try {
         const jsonResponse = await axios.post('https://api.deepseek.com/chat/completions', { model: 'deepseek-chat', messages: [{ content: jsonPrompt, role: 'user' }] }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
         let jsonString = jsonResponse.data.choices[0].message.content.replace(/```json\n|\n```/g, '');
         const jsonData = JSON.parse(jsonString);
+
         const textResponse = await axios.post('https://api.deepseek.com/chat/completions', { model: 'deepseek-chat', messages: [{ content: textPrompt, role: 'user' }] }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
         const textData = textResponse.data.choices[0].message.content;
+        
         res.json({ structured_content: jsonData, text_representation: textData });
-    } catch (error) { res.status(500).json({ error: "L'IA a donné une réponse inattendue." }); }
+    } catch (error) { 
+        res.status(500).json({ error: "L'IA a donné une réponse inattendue." }); 
+    }
 });
 
 apiRouter.post('/convert/text-to-json', async (req, res) => {
     const { text, contentType } = req.body;
     const apiKey = process.env.DEEPSEEK_API_KEY;
     if (!apiKey) return res.status(500).json({ error: "Clé API non configurée." });
+    
     let prompt;
     switch (contentType) {
-        case 'exercices': prompt = `Convertis ce texte d'exercices en format JSON: {"title": "...", "type": "exercices", "content": [{"enonce": "...", "correction": "..."}]}. TEXTE : "${text}"`; break;
-        case 'revision': prompt = `Convertis ce texte de fiche de révision en format JSON: {"title": "...", "type": "revision", "content": "..."}. TEXTE : "${text}"`; break;
-        default: prompt = `Convertis ce texte de quiz en format JSON: {"title": "...", "type": "quiz", "questions": [{"question_text": "...", "options": ["A", "B", "C", "D"], "correct_answer_index": 0}]}. La bonne réponse est marquée d'une étoile. TEXTE : "${text}"`; break;
+        case 'exercices':
+            prompt = `Convertis ce texte d'exercices en format JSON: {"title": "...", "type": "exercices", "content": [{"enonce": "...", "correction": "..."}]}. TEXTE : "${text}"`;
+            break;
+         case 'revision':
+            prompt = `Convertis ce texte de fiche de révision en format JSON: {"title": "...", "type": "revision", "content": "..."}. TEXTE : "${text}"`;
+            break;
+        case 'quiz':
+        default:
+            prompt = `Convertis ce texte de quiz en format JSON: {"title": "...", "type": "quiz", "questions": [{"question_text": "...", "options": ["A", "B", "C", "D"], "correct_answer_index": 0}]}. La bonne réponse est marquée d'une étoile. TEXTE : "${text}"`;
+            break;
     }
+
     try {
         const response = await axios.post('https://api.deepseek.com/chat/completions', { model: 'deepseek-chat', messages: [{ content: prompt, role: 'user' }] }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
         let jsonString = response.data.choices[0].message.content.replace(/```json\n|\n```/g, '');
-        res.json(JSON.parse(jsonString));
-    } catch (error) { res.status(500).json({ error: "Impossible de convertir le texte." }); }
+        const data = JSON.parse(jsonString);
+        res.json(data);
+    } catch(error) {
+        res.status(500).json({ error: "Impossible de convertir le texte." });
+    }
 });
 
 apiRouter.post('/auth/signup', async (req, res) => {
     const { email, password, role } = req.body;
-    if (!email || !password || !role) return res.status(400).json({ error: "Email, mot de passe et rôle sont requis." });
+    if (!email || !password || !role) {
+        return res.status(400).json({ error: "Email, mot de passe et rôle sont requis." });
+    }
     try {
         const { resource: existingUser } = await usersContainer.item(email, email).read().catch(() => ({ resource: null }));
-        if (existingUser) return res.status(409).json({ error: "Cet email est déjà utilisé." });
+        if (existingUser) {
+            return res.status(409).json({ error: "Cet email est déjà utilisé." });
+        }
         const newUser = { id: email, email, password, role, classes: [] };
         await usersContainer.items.create(newUser);
         res.status(201).json({ user: { email, role } });
-    } catch (error) { res.status(500).json({ error: "Erreur lors de la création du compte." }); }
+    } catch (error) {
+        res.status(500).json({ error: "Erreur lors de la création du compte." });
+    }
 });
 
 apiRouter.post('/auth/login', async (req, res) => {
     const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ error: "Email et mot de passe sont requis." });
+     if (!email || !password) {
+        return res.status(400).json({ error: "Email et mot de passe sont requis." });
+    }
     try {
         const { resource: user } = await usersContainer.item(email, email).read().catch(() => ({ resource: null }));
-        if (!user || user.password !== password) return res.status(401).json({ error: "Email ou mot de passe incorrect." });
+        if (!user || user.password !== password) {
+            return res.status(401).json({ error: "Email ou mot de passe incorrect." });
+        }
         res.status(200).json({ user: { email: user.email, role: user.role } });
-    } catch (error) { res.status(500).json({ error: "Erreur lors de la connexion." }); }
+    } catch (error) {
+        res.status(500).json({ error: "Erreur lors de la connexion." });
+    }
 });
 
 apiRouter.post('/classes/create', async (req, res) => {
     const { className, teacherEmail } = req.body;
-    const newClass = { className, teacherEmail, students: [], quizzes: [], results: [], id: `${className.replace(/\s+/g, '-')}-${Date.now()}` };
+    const newClass = {
+        className,
+        teacherEmail,
+        students: [],
+        quizzes: [],
+        results: [],
+        id: `${className.replace(/\s+/g, '-')}-${Date.now()}`
+    };
     try {
         await classesContainer.items.create(newClass);
         res.status(201).json(newClass);
-    } catch (error) { res.status(500).json({ error: "Impossible de créer la classe." }); }
+    } catch (error) {
+        res.status(500).json({ error: "Impossible de créer la classe." });
+    }
 });
 
 apiRouter.get('/classes/:teacherEmail', async (req, res) => {
     const { teacherEmail } = req.params;
-    const querySpec = { query: "SELECT * FROM c WHERE c.teacherEmail = @teacherEmail", parameters: [{ name: "@teacherEmail", value: teacherEmail }] };
+    const querySpec = {
+        query: "SELECT * FROM c WHERE c.teacherEmail = @teacherEmail",
+        parameters: [{ name: "@teacherEmail", value: teacherEmail }]
+    };
     try {
         const { resources: classes } = await classesContainer.items.query(querySpec).fetchAll();
         res.status(200).json(classes);
-    } catch (error) { res.status(500).json({ error: "Impossible de récupérer les classes." }); }
+    } catch (error) {
+        res.status(500).json({ error: "Impossible de récupérer les classes." });
+    }
 });
 
-// ROUTE CORRIGÉE
 apiRouter.get('/class/details/:classId', async (req, res) => {
     const { classId } = req.params;
-    try {
-        const querySpec = { query: "SELECT * FROM c WHERE c.id = @classId", parameters: [{ name: "@classId", value: classId }] };
+     try {
+        const querySpec = {
+            query: "SELECT * FROM c WHERE c.id = @classId",
+            parameters: [{ name: "@classId", value: classId }]
+        };
         const { resources } = await classesContainer.items.query(querySpec).fetchAll();
         if (resources.length === 0) {
             return res.status(404).json({ error: "Classe non trouvée." });
         }
-        const classDoc = resources[0];
-
-        // Créer une structure qui regroupe les résultats par élève
-        const studentsWithResults = classDoc.students.map(studentEmail => {
-            const studentResults = classDoc.results.filter(r => r.studentEmail === studentEmail);
-            return {
-                email: studentEmail,
-                results: studentResults
-            };
-        });
-        
-        // Renvoyer une version propre de la classe avec la nouvelle structure
-        const responseData = {
-            ...classDoc,
-            students: undefined, // On enlève les anciennes listes pour éviter la confusion
-            results: undefined,
-            studentsWithResults // On ajoute la nouvelle structure claire
-        };
-
-        res.status(200).json(responseData);
+        res.status(200).json(resources[0]);
     } catch (error) {
-        console.error(error);
         res.status(500).json({ error: "Impossible de récupérer les détails de la classe." });
     }
 });
 
 apiRouter.post('/class/join', async (req, res) => {
     const { className, studentEmail } = req.body;
-    try {
-        const classQuery = { query: "SELECT * FROM c WHERE c.className = @className", parameters: [{ name: "@className", value: className }] };
+     try {
+        const classQuery = {
+            query: "SELECT * FROM c WHERE c.className = @className",
+            parameters: [{ name: "@className", value: className }]
+        };
         const { resources: classes } = await classesContainer.items.query(classQuery).fetchAll();
-        if (classes.length === 0) return res.status(404).json({ error: "Cette classe n'existe pas." });
-        
+        if (classes.length === 0) {
+            return res.status(404).json({ error: "Cette classe n'existe pas." });
+        }
         const classDoc = classes[0];
-        if (classDoc.students.includes(studentEmail)) return res.status(409).json({ error: "Vous êtes déjà dans cette classe." });
+
+        if (classDoc.students.includes(studentEmail)) {
+            return res.status(409).json({ error: "Vous êtes déjà dans cette classe." });
+        }
         
         classDoc.students.push(studentEmail);
         await classesContainer.item(classDoc.id, classDoc.teacherEmail).replace(classDoc);
@@ -190,15 +233,21 @@ apiRouter.post('/class/join', async (req, res) => {
         await usersContainer.item(studentEmail, studentEmail).replace(studentDoc);
 
         res.status(200).json({ message: `Vous avez rejoint la classe ${className} !` });
-    } catch (error) { res.status(500).json({ error: "Impossible de rejoindre la classe." }); }
+    } catch (error) {
+        res.status(500).json({ error: "Impossible de rejoindre la classe." });
+    }
 });
 
 apiRouter.post('/class/assign-content', async (req, res) => {
     const { contentData, classId, teacherEmail } = req.body;
     try {
         const { resource: classDoc } = await classesContainer.item(classId, teacherEmail).read();
-        const contentWithId = { ...contentData, id: `${contentData.type}-${Date.now()}`, assignedAt: new Date().toISOString() };
-        if (!classDoc.quizzes) classDoc.quizzes = [];
+        const contentWithId = { 
+            ...contentData, 
+            id: `${contentData.type}-${Date.now()}`,
+            assignedAt: new Date().toISOString()
+        };
+        if(!classDoc.quizzes) classDoc.quizzes = [];
         classDoc.quizzes.push(contentWithId);
         await classesContainer.item(classId, teacherEmail).replace(classDoc);
         res.status(200).json({ message: "Contenu assigné !" });
@@ -212,11 +261,20 @@ apiRouter.get('/student/classes/:studentEmail', async (req, res) => {
         if (!student || !student.classes || student.classes.length === 0) {
             return res.status(200).json({ todo: [], completed: [] });
         }
-        const completedQuery = { query: "SELECT c.contentId, c.completedAt FROM c WHERE c.studentEmail = @studentEmail", parameters: [{ name: "@studentEmail", value: studentEmail }] };
+
+        const completedQuery = {
+            query: "SELECT c.contentId, c.completedAt FROM c WHERE c.studentEmail = @studentEmail",
+            parameters: [{ name: "@studentEmail", value: studentEmail }]
+        };
         const { resources: completedItems } = await completedContentContainer.items.query(completedQuery).fetchAll();
         const completedMap = new Map(completedItems.map(item => [item.contentId, item.completedAt]));
-        const classQuery = { query: `SELECT * FROM c WHERE ARRAY_CONTAINS(@classIds, c.id)`, parameters: [{ name: '@classIds', value: student.classes }] };
+
+        const classQuery = {
+            query: `SELECT * FROM c WHERE ARRAY_CONTAINS(@classIds, c.id)`,
+            parameters: [{ name: '@classIds', value: student.classes }]
+        };
         const { resources: classes } = await classesContainer.items.query(classQuery).fetchAll();
+        
         let allContents = [];
         classes.forEach(cls => {
             if (cls.quizzes && cls.quizzes.length > 0) {
@@ -225,33 +283,67 @@ apiRouter.get('/student/classes/:studentEmail', async (req, res) => {
                 });
             }
         });
+
         allContents.sort((a, b) => new Date(b.assignedAt) - new Date(a.assignedAt));
         const newestContentId = allContents.length > 0 ? allContents[0].id : null;
+
         const todo = [];
         const completed = [];
+
         allContents.forEach(content => {
             if (completedMap.has(content.id)) {
-                completed.push({ ...content, status: 'completed', completedAt: completedMap.get(content.id) });
+                completed.push({
+                    ...content,
+                    status: 'completed',
+                    completedAt: completedMap.get(content.id)
+                });
             } else {
-                todo.push({ ...content, status: 'new', isNewest: content.id === newestContentId });
+                todo.push({
+                    ...content,
+                    status: 'new',
+                    isNewest: content.id === newestContentId
+                });
             }
         });
+        
         completed.sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
+
         res.status(200).json({ todo, completed });
-    } catch (error) { res.status(500).json({ error: "Impossible de récupérer les données de l'élève." }); }
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Impossible de récupérer les données de l'élève." });
+    }
 });
+
 
 apiRouter.post('/quiz/submit', async (req, res) => {
     const { classId, quizId, studentEmail, score, totalQuestions, quizTitle, answers } = req.body;
     try {
-        const classQuery = { query: "SELECT * FROM c WHERE c.id = @classId", parameters: [{ name: "@classId", value: classId }] };
+        const classQuery = {
+            query: "SELECT * FROM c WHERE c.id = @classId",
+            parameters: [{ name: "@classId", value: classId }]
+        };
         const { resources: classes } = await classesContainer.items.query(classQuery).fetchAll();
-        if (classes.length === 0) return res.status(404).json({ error: "Classe non trouvée." });
-        
+        if (classes.length === 0) {
+            return res.status(404).json({ error: "Classe non trouvée." });
+        }
         const classDoc = classes[0];
-        const newResult = { resultId: `result-${Date.now()}`, quizId, studentEmail, score, totalQuestions, quizTitle, answers, submittedAt: new Date().toISOString() };
 
-        if (!classDoc.results) classDoc.results = [];
+        const newResult = {
+            resultId: `result-${Date.now()}`,
+            quizId,
+            studentEmail,
+            score,
+            totalQuestions,
+            quizTitle,
+            answers,
+            submittedAt: new Date().toISOString()
+        };
+
+        if (!classDoc.results) {
+            classDoc.results = [];
+        }
         const existingResultIndex = classDoc.results.findIndex(r => r.quizId === quizId && r.studentEmail === studentEmail);
         if (existingResultIndex > -1) {
             classDoc.results[existingResultIndex] = newResult;
@@ -260,11 +352,19 @@ apiRouter.post('/quiz/submit', async (req, res) => {
         }
         await classesContainer.item(classDoc.id, classDoc.teacherEmail).replace(classDoc);
 
-        const completedRecord = { studentEmail, contentId: quizId, completedAt: new Date().toISOString(), id: `${studentEmail}-${quizId}` };
+        const completedRecord = {
+            studentEmail: studentEmail,
+            contentId: quizId,
+            completedAt: new Date().toISOString(),
+            id: `${studentEmail}-${quizId}`
+        };
         await completedContentContainer.items.upsert(completedRecord);
 
+
         res.status(200).json({ message: "Résultats enregistrés." });
-    } catch (error) { res.status(500).json({ error: "Impossible d'enregistrer les résultats." }); }
+    } catch (error) {
+        res.status(500).json({ error: "Impossible d'enregistrer les résultats." });
+    }
 });
 
 app.use('/api', apiRouter);
