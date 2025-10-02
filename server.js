@@ -221,14 +221,14 @@ apiRouter.get('/student/classes/:studentEmail', async (req, res) => {
 });
 
 apiRouter.post('/quiz/submit', async (req, res) => {
-    const { classId, quizId, studentEmail, score, totalQuestions, quizTitle, answers } = req.body;
+    const { classId, quizId, studentEmail, score, totalQuestions, quizTitle, answers, type } = req.body;
     try {
         const classQuery = { query: "SELECT * FROM c WHERE c.id = @classId", parameters: [{ name: "@classId", value: classId }] };
         const { resources: classes } = await classesContainer.items.query(classQuery).fetchAll();
         if (classes.length === 0) return res.status(404).json({ error: "Classe non trouvée." });
         
         const classDoc = classes[0];
-        const newResult = { resultId: `result-${Date.now()}`, quizId, studentEmail, score, totalQuestions, quizTitle, answers, submittedAt: new Date().toISOString(), type: 'quiz' }; // Ajout du type pour le tri
+        const newResult = { resultId: `result-${Date.now()}`, quizId, studentEmail, score, totalQuestions, quizTitle, answers, submittedAt: new Date().toISOString(), type };
 
         if (!classDoc.results) classDoc.results = [];
         const existingResultIndex = classDoc.results.findIndex(r => r.quizId === quizId && r.studentEmail === studentEmail);
@@ -259,6 +259,7 @@ apiRouter.post('/class/add-student', async (req, res) => {
 
         if ((classDoc.students || []).includes(studentEmail)) return res.status(409).json({ error: "Cet élève est déjà dans la classe." });
 
+        if(!classDoc.students) classDoc.students = [];
         classDoc.students.push(studentEmail);
         await classesContainer.item(classId, teacherEmail).replace(classDoc);
         
@@ -292,12 +293,22 @@ apiRouter.post('/class/remove-student', async (req, res) => {
 apiRouter.delete('/class/:classId/:teacherEmail', async (req, res) => {
     const { classId, teacherEmail } = req.params;
     try {
+        const { resource: classDoc } = await classesContainer.item(classId, teacherEmail).read();
+        if(!classDoc) return res.status(404).json({ error: "Classe non trouvée." });
+
+        // Retirer la référence de la classe pour chaque élève
+        if (classDoc.students && classDoc.students.length > 0) {
+            for (const studentEmail of classDoc.students) {
+                const { resource: studentDoc } = await usersContainer.item(studentEmail, studentEmail).read().catch(() => ({ resource: null }));
+                if (studentDoc) {
+                    studentDoc.classes = (studentDoc.classes || []).filter(id => id !== classId);
+                    await usersContainer.item(studentEmail, studentEmail).replace(studentDoc);
+                }
+            }
+        }
+        
         // Supprimer la classe elle-même
         await classesContainer.item(classId, teacherEmail).delete();
-        
-        // TODO: Parcourir tous les élèves et retirer classId de leur tableau `classes`. 
-        // C'est une opération plus complexe qui nécessite une requête sur le conteneur Users.
-        // Pour l'instant, la classe est supprimée, mais les références peuvent rester chez les élèves.
 
         res.status(200).json({ message: "Classe supprimée avec succès." });
     } catch (error) {
