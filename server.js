@@ -136,7 +136,6 @@ apiRouter.get('/classes/:teacherEmail', async (req, res) => {
     } catch (error) { res.status(500).json({ error: "Impossible de récupérer les classes." }); }
 });
 
-// ROUTE CORRIGÉE POUR LA VUE PAR ÉLÈVE
 apiRouter.get('/class/details/:classId', async (req, res) => {
     const { classId } = req.params;
     try {
@@ -147,8 +146,7 @@ apiRouter.get('/class/details/:classId', async (req, res) => {
         }
         const classDoc = resources[0];
 
-        // Créer une structure qui regroupe les résultats par élève
-        const studentsWithResults = classDoc.students.map(studentEmail => {
+        const studentsWithResults = (classDoc.students || []).map(studentEmail => {
             const studentResults = (classDoc.results || []).filter(r => r.studentEmail === studentEmail);
             return {
                 email: studentEmail,
@@ -170,28 +168,6 @@ apiRouter.get('/class/details/:classId', async (req, res) => {
     }
 });
 
-
-apiRouter.post('/class/join', async (req, res) => {
-    const { className, studentEmail } = req.body;
-    try {
-        const classQuery = { query: "SELECT * FROM c WHERE c.className = @className", parameters: [{ name: "@className", value: className }] };
-        const { resources: classes } = await classesContainer.items.query(classQuery).fetchAll();
-        if (classes.length === 0) return res.status(404).json({ error: "Cette classe n'existe pas." });
-        
-        const classDoc = classes[0];
-        if (classDoc.students.includes(studentEmail)) return res.status(409).json({ error: "Vous êtes déjà dans cette classe." });
-        
-        classDoc.students.push(studentEmail);
-        await classesContainer.item(classDoc.id, classDoc.teacherEmail).replace(classDoc);
-
-        const { resource: studentDoc } = await usersContainer.item(studentEmail, studentEmail).read();
-        if (!studentDoc.classes) studentDoc.classes = [];
-        studentDoc.classes.push(classDoc.id);
-        await usersContainer.item(studentEmail, studentEmail).replace(studentDoc);
-
-        res.status(200).json({ message: `Vous avez rejoint la classe ${className} !` });
-    } catch (error) { res.status(500).json({ error: "Impossible de rejoindre la classe." }); }
-});
 
 apiRouter.post('/class/assign-content', async (req, res) => {
     const { contentData, classId, teacherEmail } = req.body;
@@ -238,7 +214,10 @@ apiRouter.get('/student/classes/:studentEmail', async (req, res) => {
         });
         completed.sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
         res.status(200).json({ todo, completed });
-    } catch (error) { res.status(500).json({ error: "Impossible de récupérer les données de l'élève." }); }
+    } catch (error) { 
+        console.error(error);
+        res.status(500).json({ error: "Impossible de récupérer les données de l'élève." }); 
+    }
 });
 
 apiRouter.post('/quiz/submit', async (req, res) => {
@@ -249,7 +228,7 @@ apiRouter.post('/quiz/submit', async (req, res) => {
         if (classes.length === 0) return res.status(404).json({ error: "Classe non trouvée." });
         
         const classDoc = classes[0];
-        const newResult = { resultId: `result-${Date.now()}`, quizId, studentEmail, score, totalQuestions, quizTitle, answers, submittedAt: new Date().toISOString() };
+        const newResult = { resultId: `result-${Date.now()}`, quizId, studentEmail, score, totalQuestions, quizTitle, answers, submittedAt: new Date().toISOString(), type: 'quiz' }; // Ajout du type pour le tri
 
         if (!classDoc.results) classDoc.results = [];
         const existingResultIndex = classDoc.results.findIndex(r => r.quizId === quizId && r.studentEmail === studentEmail);
@@ -266,6 +245,66 @@ apiRouter.post('/quiz/submit', async (req, res) => {
         res.status(200).json({ message: "Résultats enregistrés." });
     } catch (error) { res.status(500).json({ error: "Impossible d'enregistrer les résultats." }); }
 });
+
+// --- NOUVELLES ROUTES POUR LA GESTION DE CLASSE ---
+
+apiRouter.post('/class/add-student', async (req, res) => {
+    const { classId, teacherEmail, studentEmail } = req.body;
+    try {
+        const { resource: classDoc } = await classesContainer.item(classId, teacherEmail).read();
+        if (!classDoc) return res.status(404).json({ error: "Classe non trouvée." });
+        
+        const { resource: studentDoc } = await usersContainer.item(studentEmail, studentEmail).read().catch(() => ({ resource: null }));
+        if (!studentDoc || studentDoc.role !== 'student') return res.status(404).json({ error: "Cet utilisateur n'est pas un élève valide." });
+
+        if ((classDoc.students || []).includes(studentEmail)) return res.status(409).json({ error: "Cet élève est déjà dans la classe." });
+
+        classDoc.students.push(studentEmail);
+        await classesContainer.item(classId, teacherEmail).replace(classDoc);
+        
+        if (!studentDoc.classes) studentDoc.classes = [];
+        studentDoc.classes.push(classId);
+        await usersContainer.item(studentEmail, studentEmail).replace(studentDoc);
+
+        res.status(200).json({ message: "Élève ajouté avec succès." });
+    } catch (error) { res.status(500).json({ error: "Impossible d'ajouter l'élève." }); }
+});
+
+apiRouter.post('/class/remove-student', async (req, res) => {
+    const { classId, teacherEmail, studentEmail } = req.body;
+     try {
+        const { resource: classDoc } = await classesContainer.item(classId, teacherEmail).read();
+        if (!classDoc) return res.status(404).json({ error: "Classe non trouvée." });
+        
+        classDoc.students = (classDoc.students || []).filter(email => email !== studentEmail);
+        await classesContainer.item(classId, teacherEmail).replace(classDoc);
+
+        const { resource: studentDoc } = await usersContainer.item(studentEmail, studentEmail).read().catch(() => ({ resource: null }));
+        if(studentDoc) {
+            studentDoc.classes = (studentDoc.classes || []).filter(id => id !== classId);
+            await usersContainer.item(studentEmail, studentEmail).replace(studentDoc);
+        }
+
+        res.status(200).json({ message: "Élève retiré avec succès." });
+    } catch (error) { res.status(500).json({ error: "Impossible de retirer l'élève." }); }
+});
+
+apiRouter.delete('/class/:classId/:teacherEmail', async (req, res) => {
+    const { classId, teacherEmail } = req.params;
+    try {
+        // Supprimer la classe elle-même
+        await classesContainer.item(classId, teacherEmail).delete();
+        
+        // TODO: Parcourir tous les élèves et retirer classId de leur tableau `classes`. 
+        // C'est une opération plus complexe qui nécessite une requête sur le conteneur Users.
+        // Pour l'instant, la classe est supprimée, mais les références peuvent rester chez les élèves.
+
+        res.status(200).json({ message: "Classe supprimée avec succès." });
+    } catch (error) {
+        res.status(500).json({ error: "Impossible de supprimer la classe." });
+    }
+});
+
 
 app.use('/api', apiRouter);
 app.get('/', (req, res) => res.send('<h1>Le serveur AIDA est en ligne !</h1>'));
