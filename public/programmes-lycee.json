@@ -1,0 +1,366 @@
+{
+  "Seconde": {
+    "francais": {
+      "nom": "Français",
+      "objet_etude_poesie": {
+        "nom": "La poésie du XIXe au XXIe siècle",
+        "sous_notions": {
+          "poesie_formes_themes": {
+            "nom": "Formes et thèmes poétiques",
+            "competences": ["Analyser les formes fixes (sonnet) et les formes libres (vers libre)", "Étudier les thèmes du lyrisme, de la nature, de la ville, de l'engagement", "Repérer et interpréter les figures de style"]
+          }
+        }
+      },
+      "objet_etude_roman": {
+        "nom": "Le roman et le récit du Moyen Âge au XXIe siècle",
+        "sous_notions": {
+          "personnage_statut_evolution": {
+            "nom": "Le personnage de roman",
+            "competences": ["Analyser la construction d'un personnage", "Comprendre le statut du narrateur et les points de vue narratifs"]
+          }
+        }
+      }
+    },
+    "mathematiques": {
+      "nom": "Mathématiques",
+      "fonctions": {
+        "nom": "Fonctions",
+        "sous_notions": {
+          "generalites_fonctions": {
+            "nom": "Généralités sur les fonctions",
+            "competences": ["Déterminer l'ensemble de définition, l'image, les antécédents", "Analyser le sens de variation et les extrema d'une fonction", "Étudier les fonctions de référence (carré, inverse)"]
+          }
+        }
+      },
+      "geometrie": {
+        "nom": "Géométrie",
+        "sous_notions": {
+          "geometrie_plane_reperee": {
+            "nom": "Géométrie plane repérée",
+            "competences": ["Calculer les coordonnées du milieu, la distance entre deux points", "Utiliser les vecteurs pour caractériser un alignement ou un parallélisme"]
+          }
+        }
+      }
+    },
+    "histoire_geographie": {
+      "nom": "Histoire-Géographie",
+      "histoire_europe_monde": {
+        "nom": "Le monde méditerranéen : empreintes de l'Antiquité et du Moyen Âge",
+        "sous_notions": {
+          "mediterranee_medievale": {
+            "nom": "La Méditerranée médiévale",
+            "competences": ["Analyser les contacts entre la Chrétienté et l'Islam en Méditerranée", "Étudier un carrefour de civilisations"]
+          }
+        }
+      },
+      "geographie_transitions": {
+        "nom": "Sociétés et environnements : des équilibres fragiles",
+        "sous_notions": {
+          "enjeux_developpement_durable": {
+            "nom": "Les enjeux du développement durable",
+            "competences": ["Comprendre les transitions démographique et environnementale", "Étudier les sociétés face aux risques"]
+          }
+        }
+      }
+    },
+    "physique_chimie": {
+      "nom": "Physique-Chimie",
+      "constitution_transformations_matiere": {
+        "nom": "Constitution et transformations de la matière",
+        "sous_notions": {
+          "atome_element_chimique": {
+            "nom": "De l'atome à l'élément chimique",
+            "competences": ["Décrire la structure de l'atome (noyau, électrons)", "Comprendre la notion d'élément chimique et de tableau périodique"]
+          },
+          "transformation_chimique": {
+            "nom": "La transformation chimique",
+            "competences": ["Modéliser une réaction chimique par une équation", "Comprendre les notions de réactif et de produit"]
+          }
+        }
+      }
+    },
+    "svt": {
+      "nom": "SVT",
+      "la_terre_dans_univers": {
+        "nom": "La Terre, la vie et l'organisation du vivant",
+        "sous_notions": {
+          "biodiversite": {
+            "nom": "La biodiversité, résultat et étape de l'évolution",
+            "competences": ["Identifier les différentes échelles de la biodiversité (écosystèmes, espèces, génétique)", "Comprendre les mécanismes de l'évolution (sélection naturelle)"]
+          },
+          "cellule_unite_vivant": {
+            "nom": "L'organisation fonctionnelle du vivant : la cellule",
+            "competences": ["Comparer cellule animale et végétale", "Comprendre la notion d'ADN comme support de l'information génétique"]
+          }
+        }
+      }
+    }
+  },
+  "Premiere": {
+    "francais": {
+      "nom": "Français",
+      "objet_etude_roman": {
+        "nom": "Le roman et le récit du Moyen Âge au XXIe siècle",
+        "sous_notions": {
+          "personnage_ses_raisons": {
+            "nom": "Le personnage de roman, esthétiques et valeurs",
+            "competences": ["Analyser les dilemmes moraux des personnages", "Étudier le roman comme miroir d'une société (réalisme, naturalisme)"]
+          }
+        }
+      },
+      "objet_etude_theatre": {
+        "nom": "Le théâtre du XVIIe au XXIe siècle",
+        "sous_notions": {
+          "spectacle_vivant": {
+            "nom": "Le spectacle vivant et ses enjeux",
+            "competences": ["Analyser le conflit théâtral et ses résolutions", "Comprendre les enjeux de la mise en scène"]
+          }
+        }
+      }
+    },
+    "mathematiques": {
+      "nom": "Mathématiques (Spécialité)",
+      "analyse": {
+        "nom": "Analyse",
+        "sous_notions": {
+          "second_degre": {
+            "nom": "Polynômes du second degré",
+            "competences": ["Résoudre des équations et inéquations du second degré", "Étudier le signe d'un trinôme"]
+          },
+          "derivation": {
+            "nom": "Dérivation",
+            "competences": ["Calculer le nombre dérivé et la fonction dérivée", "Utiliser la dérivée pour étudier les variations d'une fonction"]
+          }
+        }
+      },
+      "geometrie": {
+        "nom": "Géométrie",
+        "sous_notions": {
+          "produit_scalaire": {
+            "nom": "Produit scalaire",
+            "competences": ["Calculer un produit scalaire", "Utiliser le produit scalaire pour prouver une orthogonalité ou calculer un angle"]
+          }
+        }
+      }
+    },
+    "histoire_geographie": {
+      "nom": "Histoire-Géographie",
+      "histoire_nation_europe": {
+        "nom": "L'Europe face aux révolutions",
+        "sous_notions": {
+          "revolution_empire": {
+            "nom": "La Révolution française et l'Empire",
+            "competences": ["Analyser les apports de la Révolution et de l'Empire en France et en Europe", "Comprendre la naissance du sentiment national"]
+          }
+        }
+      },
+      "geographie_recomposition": {
+        "nom": "Les dynamiques d'un monde en recomposition",
+        "sous_notions": {
+          "espaces_maritimes": {
+            "nom": "Les espaces maritimes : approches géostratégiques",
+            "competences": ["Comprendre le rôle des mers et océans dans la mondialisation"]
+          }
+        }
+      }
+    },
+    "physique_chimie": {
+        "nom": "Physique-Chimie (Spécialité)",
+        "mouvement_interactions": {
+            "nom": "Mouvement et interactions",
+            "sous_notions": {
+                "description_mouvement": {
+                    "nom": "Description d'un mouvement",
+                    "competences": ["Décrire un mouvement par son vecteur vitesse", "Comprendre le principe d'inertie", "Modéliser une action par une force"]
+                }
+            }
+        },
+        "energie_conversions": {
+            "nom": "L'énergie : conversions et transferts",
+            "sous_notions": {
+                "energie_mecanique": {
+                    "nom": "Aspects énergétiques des phénomènes mécaniques",
+                    "competences": ["Calculer l'énergie cinétique et l'énergie potentielle de pesanteur", "Comprendre la conservation de l'énergie mécanique"]
+                }
+            }
+        }
+    },
+    "svt": {
+        "nom": "SVT (Spécialité)",
+        "terre_vie_evolution": {
+            "nom": "La Terre, la vie et l'évolution du vivant",
+            "sous_notions": {
+                "transmission_genetique": {
+                    "nom": "Transmission, variation et expression du patrimoine génétique",
+                    "competences": ["Comprendre la méiose et la fécondation", "Expliquer l'origine des mutations"]
+                },
+                "geodynamique": {
+                    "nom": "La dynamique interne de la Terre",
+                    "competences": ["Comprendre la tectonique des plaques", "Expliquer les phénomènes sismiques et volcaniques"]
+                }
+            }
+        }
+    },
+    "ses": {
+        "nom": "Sciences Économiques et Sociales",
+        "economie": {
+            "nom": "Science économique",
+            "sous_notions": {
+                "marche": {
+                    "nom": "Comment un marché concurrentiel fonctionne-t-il ?",
+                    "competences": ["Comprendre la loi de l'offre et de la demande", "Analyser la formation du prix et des quantités d'équilibre"]
+                },
+                "monnaie": {
+                    "nom": "Comment la monnaie influe-t-elle sur l'économie ?",
+                    "competences": ["Identifier les fonctions de la monnaie", "Comprendre le rôle de la banque centrale"]
+                }
+            }
+        },
+        "sociologie": {
+            "nom": "Sociologie et science politique",
+            "sous_notions": {
+                "socialisation": {
+                    "nom": "Comment la socialisation contribue-t-elle à expliquer les différences de comportement des individus ?",
+                    "competences": ["Distinguer socialisation primaire et secondaire", "Comprendre comment la famille, l'école et les médias transmettent des normes et des valeurs"]
+                }
+            }
+        }
+    }
+  },
+  "Terminale": {
+    "philosophie": {
+      "nom": "Philosophie",
+      "notions_sujet": {
+        "nom": "Le sujet",
+        "sous_notions": {
+          "conscience_inconscient": {
+            "nom": "La conscience et l'inconscient",
+            "competences": ["Analyser la notion de sujet pensant (Descartes)", "Comprendre la critique de la conscience et l'hypothèse de l'inconscient (Freud)"]
+          },
+          "liberte": {
+            "nom": "La liberté",
+            "competences": ["Analyser le concept de libre arbitre", "Comprendre le déterminisme", "Discuter le rapport entre liberté et loi"]
+          }
+        }
+      },
+      "notions_culture": {
+        "nom": "La culture",
+        "sous_notions": {
+          "art_technique": {
+            "nom": "L'art et la technique",
+            "competences": ["Distinguer l'œuvre d'art et l'objet technique", "Analyser la notion de beau", "Comprendre l'impact de la technique sur l'homme"]
+          }
+        }
+      }
+    },
+    "mathematiques": {
+      "nom": "Mathématiques (Spécialité)",
+      "analyse": {
+        "nom": "Analyse",
+        "sous_notions": {
+          "limites_suites_fonctions": {
+            "nom": "Limites des suites et des fonctions",
+            "competences": ["Déterminer la limite d'une suite ou d'une fonction", "Lever des formes indéterminées"]
+          },
+          "continuite_tvi": {
+            "nom": "Continuité et TVI",
+            "competences": ["Étudier la continuité d'une fonction", "Appliquer le Théorème des Valeurs Intermédiaires"]
+          },
+          "integration": {
+            "nom": "Intégration",
+            "competences": ["Calculer une intégrale à l'aide de primitives", "Interpréter une intégrale comme une aire"]
+          }
+        }
+      }
+    },
+    "histoire_geographie": {
+        "nom": "Histoire-Géographie, Géopolitique et Sciences Politiques",
+        "histoire_puissances": {
+            "nom": "Histoire et mémoires",
+            "sous_notions": {
+                "deuxieme_guerre_mondiale": {
+                    "nom": "Histoire et mémoires de la Seconde Guerre mondiale",
+                    "competences": ["Analyser les enjeux mémoriels liés à la guerre", "Comprendre la construction d'une mémoire collective"]
+                }
+            }
+        },
+        "geopolitique": {
+            "nom": "Géopolitique",
+            "sous_notions": {
+                "nouveaux_enjeux_geopolitiques": {
+                    "nom": "De nouveaux espaces de conquête",
+                    "competences": ["Analyser les enjeux géopolitiques des espaces maritimes, de l'espace ou du cyberespace"]
+                }
+            }
+        }
+    },
+    "physique_chimie": {
+        "nom": "Physique-Chimie (Spécialité)",
+        "mouvement_energie": {
+            "nom": "Énergie, conversions et transferts",
+            "sous_notions": {
+                "thermodynamique": {
+                    "nom": "Thermodynamique",
+                    "competences": ["Comprendre le premier principe de la thermodynamique", "Réaliser des bilans d'énergie"]
+                }
+            }
+        },
+        "ondes_signaux": {
+            "nom": "Ondes et signaux",
+            "sous_notions": {
+                "caracteriser_ondes": {
+                    "nom": "Caractériser les ondes mécaniques",
+                    "competences": ["Décrire une onde progressive", "Comprendre les notions de période, fréquence et longueur d'onde"]
+                }
+            }
+        }
+    },
+    "svt": {
+        "nom": "SVT (Spécialité)",
+        "genetique_evolution": {
+            "nom": "Génétique et évolution",
+            "sous_notions": {
+                "origine_genetique_especes": {
+                    "nom": "À la recherche du passé géologique de notre planète",
+                    "competences": ["Utiliser les fossiles pour dater les roches", "Comprendre les principes de la chronologie relative"]
+                }
+            }
+        },
+        "corps_humain_sante": {
+            "nom": "Le corps humain et la santé",
+            "sous_notions": {
+                "comportements_stress": {
+                    "nom": "Comportements, mouvement et système nerveux",
+                    "competences": ["Comprendre le fonctionnement du réflexe myotatique", "Expliquer le fonctionnement du cerveau et la plasticité cérébrale"]
+                }
+            }
+        }
+    },
+    "ses": {
+        "nom": "Sciences Économiques et Sociales",
+        "economie": {
+            "nom": "Science économique",
+            "sous_notions": {
+                "croissance_economique": {
+                    "nom": "Quelles sont les sources de la croissance économique ?",
+                    "competences": ["Comprendre le rôle du travail, du capital et du progrès technique dans la croissance", "Analyser les défis de la croissance face aux enjeux environnementaux"]
+                },
+                "commerce_international": {
+                    "nom": "Quels sont les fondements du commerce international ?",
+                    "competences": ["Comprendre les théories des avantages absolus et comparatifs", "Analyser les effets du libre-échange et du protectionnisme"]
+                }
+            }
+        },
+        "sociologie": {
+            "nom": "Sociologie et science politique",
+            "sous_notions": {
+                "mobilite_sociale": {
+                    "nom": "Comment est structurée la société française actuelle ?",
+                    "competences": ["Analyser la structure sociale en termes de classes, de strates et de catégories socioprofessionnelles", "Comprendre la notion de mobilité sociale"]
+                }
+            }
+        }
+    }
+  }
+}
+
