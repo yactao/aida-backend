@@ -15,8 +15,12 @@ const usersContainerId = 'Users';
 const classesContainerId = 'Classes';
 const completedContentContainerId = 'CompletedContent';
 
+// Variable globale pour la base de données
+let database;
+
 async function setupDatabase() {
-    const { database } = await client.databases.createIfNotExists({ id: databaseId });
+    const dbResponse = await client.databases.createIfNotExists({ id: databaseId });
+    database = dbResponse.database;
     const { container: usersContainer } = await database.containers.createIfNotExists({ id: usersContainerId, partitionKey: { paths: ["/email"] } });
     const { container: classesContainer } = await database.containers.createIfNotExists({ id: classesContainerId, partitionKey: { paths: ["/teacherEmail"] } });
     const { container: completedContentContainer } = await database.containers.createIfNotExists({ id: completedContentContainerId, partitionKey: { paths: ["/studentEmail"] } });
@@ -38,6 +42,105 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // --- 4. Définir les "Routes" ---
 const apiRouter = express.Router();
+
+// --- ROUTE DE SEEDING AMÉLIORÉE ---
+apiRouter.get('/seed-database', async (req, res) => {
+    if (req.query.secret_key !== "aida-reset-2024") {
+        return res.status(403).json({ error: "Accès non autorisé." });
+    }
+
+    try {
+        console.log("Début du seeding de la base de données...");
+
+        console.log("Nettoyage des conteneurs...");
+        // Utilise 'database' qui est maintenant dans une portée plus large
+        if (database) {
+            await database.container(usersContainerId).delete().catch(e => console.log("Le conteneur des utilisateurs n'existait pas, c'est normal."));
+            await database.container(classesContainerId).delete().catch(e => console.log("Le conteneur des classes n'existait pas, c'est normal."));
+            await database.container(completedContentContainerId).delete().catch(e => console.log("Le conteneur du contenu complété n'existait pas, c'est normal."));
+        }
+        
+        const containers = await setupDatabase();
+        usersContainer = containers.usersContainer;
+        classesContainer = containers.classesContainer;
+        completedContentContainer = containers.completedContentContainer;
+        console.log("Conteneurs recréés.");
+
+        const password = "password123";
+        
+        // Listes de prénoms et noms diversifiés
+        const firstNames = ["Léa", "Hugo", "Chloé", "Louis", "Manon", "Gabriel", "Emma", "Adam", "Camille", "Jules", "Alice", "Raphaël", "Louise", "Arthur", "Inès", "Lucas", "Lina", "Maël", "Jade", "Enzo", "Ambre", "Liam", "Anna", "Sacha", "Rose", "Tom", "Mila", "Ethan", "Zoé", "Noah"];
+        const lastNames = ["Petit", "Durand", "Moreau", "Leroy", "Lefevre", "Roux", "Fournier", "Mercier", "Girard", "Lambert", "Bonnet", "Francois", "Martinez", "Legrand", "Garnier", "Faure", "Rousseau", "Blanc", "Guerin", "Muller", "Henry", "Simon", "Chevalier", "Denis", "Aubert", "Vidal", "Brunet", "Schmitt", "Meyer", "Barbier"];
+        
+        const teachers = [
+            { firstName: "Nathalie", lastName: "Dubois", role: "teacher" },
+            { firstName: "Karim", lastName: "Martin", role: "teacher" },
+            { firstName: "Isabelle", lastName: "Bernard", role: "teacher" }
+        ].map(t => ({...t, email: `${t.firstName.toLowerCase()}.${t.lastName.toLowerCase()}@aida.com`}));
+        
+        let students = [];
+        for (let i = 0; i < 30; i++) {
+            const firstName = firstNames[i];
+            const lastName = lastNames[i];
+            students.push({
+                firstName,
+                lastName,
+                email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@aida.com`,
+                role: "student"
+            });
+        }
+
+        const allUsers = [...teachers, ...students];
+        
+        console.log("Création des utilisateurs...");
+        for (const user of allUsers) {
+            await usersContainer.items.create({
+                id: user.email,
+                email: user.email,
+                password: password,
+                role: user.role,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                classes: []
+            });
+        }
+        console.log(`${allUsers.length} utilisateurs créés.`);
+
+        console.log("Création des classes...");
+        const classesData = [
+            { name: "Classe de CP", teacher: teachers[0].email, students: students.slice(0, 10) },
+            { name: "Classe de 6ème", teacher: teachers[1].email, students: students.slice(10, 20) },
+            { name: "Classe de Seconde", teacher: teachers[2].email, students: students.slice(20, 30) }
+        ];
+
+        for (const classInfo of classesData) {
+            const newClass = {
+                id: `${classInfo.name.replace(/\s+/g, '-')}-${Date.now()}`,
+                className: classInfo.name,
+                teacherEmail: classInfo.teacher,
+                students: classInfo.students.map(s => s.email),
+                quizzes: [],
+                results: []
+            };
+            await classesContainer.items.create(newClass);
+
+            for (const student of classInfo.students) {
+                 const { resource: studentDoc } = await usersContainer.item(student.email, student.email).read();
+                 studentDoc.classes.push(newClass.id);
+                 await usersContainer.item(student.email, student.email).replace(studentDoc);
+            }
+        }
+        console.log(`${classesData.length} classes créées et élèves assignés.`);
+
+        console.log("Seeding terminé avec succès !");
+        res.status(200).send("<h1>La base de données a été réinitialisée avec les données de test !</h1><p>Vous pouvez maintenant retourner à l'application.</p>");
+
+    } catch (error) {
+        console.error("Erreur pendant le seeding:", error);
+        res.status(500).json({ error: "Une erreur est survenue lors de la réinitialisation de la base de données.", details: error.message });
+    }
+});
+
 
 apiRouter.post('/generate/explanation', async (req, res) => {
     const { question, studentAnswer, correctAnswer } = req.body;
