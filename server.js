@@ -15,21 +15,22 @@ const usersContainerId = 'Users';
 const classesContainerId = 'Classes';
 const completedContentContainerId = 'CompletedContent';
 
-// Variable globale pour la base de données
-let database;
-
-async function setupDatabase() {
-    const dbResponse = await client.databases.createIfNotExists({ id: databaseId });
-    database = dbResponse.database;
-    const { container: usersContainer } = await database.containers.createIfNotExists({ id: usersContainerId, partitionKey: { paths: ["/email"] } });
-    const { container: classesContainer } = await database.containers.createIfNotExists({ id: classesContainerId, partitionKey: { paths: ["/teacherEmail"] } });
-    const { container: completedContentContainer } = await database.containers.createIfNotExists({ id: completedContentContainerId, partitionKey: { paths: ["/studentEmail"] } });
-    return { usersContainer, classesContainer, completedContentContainer };
-}
-
 let usersContainer;
 let classesContainer;
 let completedContentContainer;
+
+async function setupDatabase() {
+    const { database } = await client.databases.createIfNotExists({ id: databaseId });
+    const { container: uc } = await database.containers.createIfNotExists({ id: usersContainerId, partitionKey: { paths: ["/email"] } });
+    const { container: cc } = await database.containers.createIfNotExists({ id: classesContainerId, partitionKey: { paths: ["/teacherEmail"] } });
+    const { container: ccc } = await database.containers.createIfNotExists({ id: completedContentContainerId, partitionKey: { paths: ["/studentEmail"] } });
+    
+    usersContainer = uc;
+    classesContainer = cc;
+    completedContentContainer = ccc;
+    
+    return { usersContainer, classesContainer, completedContentContainer };
+}
 
 // --- 3. Initialiser l'application ---
 const app = express();
@@ -43,7 +44,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 // --- 4. Définir les "Routes" ---
 const apiRouter = express.Router();
 
-// --- ROUTE DE SEEDING AMÉLIORÉE ---
+// --- ROUTE DE SEEDING ROBUSTE ---
 apiRouter.get('/seed-database', async (req, res) => {
     if (req.query.secret_key !== "aida-reset-2024") {
         return res.status(403).json({ error: "Accès non autorisé." });
@@ -52,23 +53,27 @@ apiRouter.get('/seed-database', async (req, res) => {
     try {
         console.log("Début du seeding de la base de données...");
 
+        const { database } = await client.databases.createIfNotExists({ id: databaseId });
+        console.log("Référence de la base de données obtenue.");
+
         console.log("Nettoyage des conteneurs...");
-        // Utilise 'database' qui est maintenant dans une portée plus large
-        if (database) {
-            await database.container(usersContainerId).delete().catch(e => console.log("Le conteneur des utilisateurs n'existait pas, c'est normal."));
-            await database.container(classesContainerId).delete().catch(e => console.log("Le conteneur des classes n'existait pas, c'est normal."));
-            await database.container(completedContentContainerId).delete().catch(e => console.log("Le conteneur du contenu complété n'existait pas, c'est normal."));
-        }
+        await database.container(usersContainerId).delete().catch(e => console.log("Conteneur 'Users' non trouvé, suppression ignorée."));
+        await database.container(classesContainerId).delete().catch(e => console.log("Conteneur 'Classes' non trouvé, suppression ignorée."));
+        await database.container(completedContentContainerId).delete().catch(e => console.log("Conteneur 'CompletedContent' non trouvé, suppression ignorée."));
         
-        const containers = await setupDatabase();
-        usersContainer = containers.usersContainer;
-        classesContainer = containers.classesContainer;
-        completedContentContainer = containers.completedContentContainer;
+        console.log("Recréation des conteneurs...");
+        const { container: newUsersContainer } = await database.containers.createIfNotExists({ id: usersContainerId, partitionKey: { paths: ["/email"] } });
+        const { container: newClassesContainer } = await database.containers.createIfNotExists({ id: classesContainerId, partitionKey: { paths: ["/teacherEmail"] } });
+        await database.containers.createIfNotExists({ id: completedContentContainerId, partitionKey: { paths: ["/studentEmail"] } });
+        
+        // Mettre à jour les références globales au cas où
+        usersContainer = newUsersContainer;
+        classesContainer = newClassesContainer;
+
         console.log("Conteneurs recréés.");
 
         const password = "password123";
         
-        // Listes de prénoms et noms diversifiés
         const firstNames = ["Léa", "Hugo", "Chloé", "Louis", "Manon", "Gabriel", "Emma", "Adam", "Camille", "Jules", "Alice", "Raphaël", "Louise", "Arthur", "Inès", "Lucas", "Lina", "Maël", "Jade", "Enzo", "Ambre", "Liam", "Anna", "Sacha", "Rose", "Tom", "Mila", "Ethan", "Zoé", "Noah"];
         const lastNames = ["Petit", "Durand", "Moreau", "Leroy", "Lefevre", "Roux", "Fournier", "Mercier", "Girard", "Lambert", "Bonnet", "Francois", "Martinez", "Legrand", "Garnier", "Faure", "Rousseau", "Blanc", "Guerin", "Muller", "Henry", "Simon", "Chevalier", "Denis", "Aubert", "Vidal", "Brunet", "Schmitt", "Meyer", "Barbier"];
         
@@ -78,23 +83,22 @@ apiRouter.get('/seed-database', async (req, res) => {
             { firstName: "Isabelle", lastName: "Bernard", role: "teacher" }
         ].map(t => ({...t, email: `${t.firstName.toLowerCase()}.${t.lastName.toLowerCase()}@aida.com`}));
         
-        let students = [];
-        for (let i = 0; i < 30; i++) {
-            const firstName = firstNames[i];
-            const lastName = lastNames[i];
-            students.push({
+        let students = Array.from({ length: 30 }, (_, i) => {
+            const firstName = firstNames[i % firstNames.length];
+            const lastName = lastNames[i % lastNames.length];
+            return {
                 firstName,
                 lastName,
-                email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@aida.com`,
+                email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}${i}@aida.com`, // Ajout d'un numéro pour unicité
                 role: "student"
-            });
-        }
+            };
+        });
 
         const allUsers = [...teachers, ...students];
         
         console.log("Création des utilisateurs...");
         for (const user of allUsers) {
-            await usersContainer.items.create({
+            await newUsersContainer.items.create({
                 id: user.email,
                 email: user.email,
                 password: password,
@@ -122,12 +126,12 @@ apiRouter.get('/seed-database', async (req, res) => {
                 quizzes: [],
                 results: []
             };
-            await classesContainer.items.create(newClass);
+            await newClassesContainer.items.create(newClass);
 
             for (const student of classInfo.students) {
-                 const { resource: studentDoc } = await usersContainer.item(student.email, student.email).read();
+                 const { resource: studentDoc } = await newUsersContainer.item(student.email, student.email).read();
                  studentDoc.classes.push(newClass.id);
-                 await usersContainer.item(student.email, student.email).replace(studentDoc);
+                 await newUsersContainer.item(student.email, student.email).replace(studentDoc);
             }
         }
         console.log(`${classesData.length} classes créées et élèves assignés.`);
@@ -496,10 +500,7 @@ app.use('/api', apiRouter);
 app.get('/', (req, res) => res.send('<h1>Le serveur AIDA est en ligne !</h1>'));
 
 // --- 5. Démarrer le serveur ---
-setupDatabase().then(containers => {
-    usersContainer = containers.usersContainer;
-    classesContainer = containers.classesContainer;
-    completedContentContainer = containers.completedContentContainer;
+setupDatabase().then(() => {
     app.listen(PORT, () => {
         console.log(`\x1b[32m%s\x1b[0m`, `Serveur AIDA démarré sur le port ${PORT}`);
     });
