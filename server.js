@@ -260,27 +260,60 @@ apiRouter.get('/student/classes/:studentEmail', async (req, res) => {
     try {
         const { resource: student } = await usersContainer.item(studentEmail, studentEmail).read();
         if (!student || !student.classes || student.classes.length === 0) {
-            return res.status(200).json([]);
+            return res.status(200).json({ todo: [], completed: [] });
         }
+
+        const completedQuery = {
+            query: "SELECT c.contentId, c.completedAt FROM c WHERE c.studentEmail = @studentEmail",
+            parameters: [{ name: "@studentEmail", value: studentEmail }]
+        };
+        const { resources: completedItems } = await completedContentContainer.items.query(completedQuery).fetchAll();
+        const completedMap = new Map(completedItems.map(item => [item.contentId, item.completedAt]));
 
         const classQuery = {
             query: `SELECT * FROM c WHERE ARRAY_CONTAINS(@classIds, c.id)`,
             parameters: [{ name: '@classIds', value: student.classes }]
         };
-
         const { resources: classes } = await classesContainer.items.query(classQuery).fetchAll();
-        let allQuizzes = [];
+        
+        let allContents = [];
         classes.forEach(cls => {
             if (cls.quizzes && cls.quizzes.length > 0) {
-                cls.quizzes.forEach(quiz => {
-                    allQuizzes.push({ ...quiz, className: cls.className, classId: cls.id });
+                cls.quizzes.forEach(content => {
+                    allContents.push({ ...content, className: cls.className, classId: cls.id });
                 });
             }
         });
 
-        res.status(200).json(allQuizzes);
+        allContents.sort((a, b) => new Date(b.assignedAt) - new Date(a.assignedAt));
+        const newestContentId = allContents.length > 0 ? allContents[0].id : null;
+
+        const todo = [];
+        const completed = [];
+
+        allContents.forEach(content => {
+            if (completedMap.has(content.id)) {
+                completed.push({
+                    ...content,
+                    status: 'completed',
+                    completedAt: completedMap.get(content.id)
+                });
+            } else {
+                todo.push({
+                    ...content,
+                    status: 'new',
+                    isNewest: content.id === newestContentId
+                });
+            }
+        });
+        
+        completed.sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
+
+        res.status(200).json({ todo, completed });
+
     } catch (error) {
-        res.status(500).json({ error: "Impossible de récupérer les classes de l'élève." });
+        console.error(error);
+        res.status(500).json({ error: "Impossible de récupérer les données de l'élève." });
     }
 });
 
