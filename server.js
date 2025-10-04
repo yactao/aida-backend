@@ -1,4 +1,5 @@
 // --- 1. Importer les outils nécessaires ---
+
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
@@ -66,7 +67,6 @@ apiRouter.get('/seed-database', async (req, res) => {
         const { container: newClassesContainer } = await database.containers.createIfNotExists({ id: classesContainerId, partitionKey: { paths: ["/teacherEmail"] } });
         await database.containers.createIfNotExists({ id: completedContentContainerId, partitionKey: { paths: ["/studentEmail"] } });
         
-        // Mettre à jour les références globales au cas où
         usersContainer = newUsersContainer;
         classesContainer = newClassesContainer;
 
@@ -89,7 +89,7 @@ apiRouter.get('/seed-database', async (req, res) => {
             return {
                 firstName,
                 lastName,
-                email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}${i}@aida.com`, // Ajout d'un numéro pour unicité
+                email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}${i}@aida.com`,
                 role: "student"
             };
         });
