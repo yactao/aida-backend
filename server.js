@@ -59,6 +59,27 @@ apiRouter.post('/generate/explanation', async (req, res) => {
     }
 });
 
+// NOUVELLE ROUTE POUR L'AIDE CONTEXTUELLE
+apiRouter.post('/aida/contextual-help', async (req, res) => {
+    const { questionContext, userQuery } = req.body;
+    const apiKey = process.env.DEEPSEEK_API_KEY;
+    if (!apiKey) return res.status(500).json({ error: "Clé API non configurée." });
+
+    const prompt = `Un élève est bloqué sur la question de quiz suivante : "${questionContext}". Sa question est : "${userQuery}". Fournis-lui une explication pédagogique et un indice pour l'aider à trouver la réponse, mais sans jamais donner la réponse directement. Adresse-toi à lui de manière encourageante.`;
+
+    try {
+        const response = await axios.post('https://api.deepseek.com/chat/completions', {
+            model: 'deepseek-chat',
+            messages: [{ content: prompt, role: 'user' }]
+        }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
+        
+        const helpText = response.data.choices[0].message.content;
+        res.json({ helpText });
+    } catch (error) {
+        res.status(500).json({ error: "AIDA n'a pas pu générer d'aide pour le moment." });
+    }
+});
+
 
 apiRouter.post('/generate/content', async (req, res) => {
     const { competences, contentType } = req.body;
