@@ -1,0 +1,20 @@
+[
+    {
+        "id": "lea.petit0@aida.com-quiz-cp-maths-1",
+        "studentEmail": "lea.petit0@aida.com",
+        "contentId": "quiz-cp-maths-1",
+        "completedAt": "2024-09-16T14:30:00Z"
+    },
+    {
+        "id": "alice.bonnet10@aida.com-quiz-6eme-geo-1",
+        "studentEmail": "alice.bonnet10@aida.com",
+        "contentId": "quiz-6eme-geo-1",
+        "completedAt": "2024-09-21T09:00:00Z"
+    },
+    {
+        "id": "raphael.francois11@aida.com-quiz-6eme-geo-1",
+        "studentEmail": "raphael.francois11@aida.com",
+        "contentId": "quiz-6eme-geo-1",
+        "completedAt": "2024-09-21T10:15:00Z"
+    }
+]

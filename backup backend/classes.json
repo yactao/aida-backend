@@ -1,0 +1,74 @@
+[
+  {
+    "className": "CP-A",
+    "teacherEmail": "c.dubois@ecole.com",
+    "students": [
+      "lea.martin@eleve.com",
+      "hugo.bernard@eleve.com",
+      "chloe.robert@eleve.com",
+      "yanis.cherfi@eleve.com",
+      "sofia.gonzalez@eleve.com",
+      "arthur.petit@eleve.com",
+      "inaya.bamba@eleve.com",
+      "enzo.da-silva@eleve.com",
+      "manon.leroy@eleve.com",
+      "omar.salah@eleve.com"
+    ],
+    "quizzes": [],
+    "results": []
+  },
+  {
+    "className": "CE1-A",
+    "teacherEmail": "c.dubois@ecole.com",
+    "students": [
+      "camila.rodriguez@eleve.com",
+      "noah.dupont@eleve.com",
+      "lea.martin@eleve.com",
+      "hugo.bernard@eleve.com",
+      "chloe.robert@eleve.com",
+      "yanis.cherfi@eleve.com",
+      "sofia.gonzalez@eleve.com",
+      "arthur.petit@eleve.com",
+      "inaya.bamba@eleve.com",
+      "enzo.da-silva@eleve.com"
+    ],
+    "quizzes": [],
+    "results": []
+  },
+  {
+    "className": "6eme-A",
+    "teacherEmail": "k.alami@ecole.com",
+    "students": [
+      "manon.leroy@eleve.com",
+      "omar.salah@eleve.com",
+      "camila.rodriguez@eleve.com",
+      "noah.dupont@eleve.com",
+      "lea.martin@eleve.com",
+      "hugo.bernard@eleve.com",
+      "chloe.robert@eleve.com",
+      "yanis.cherfi@eleve.com",
+      "sofia.gonzalez@eleve.com",
+      "arthur.petit@eleve.com"
+    ],
+    "quizzes": [],
+    "results": []
+  },
+  {
+    "className": "Seconde-A",
+    "teacherEmail": "s.garcia@ecole.com",
+    "students": [
+      "inaya.bamba@eleve.com",
+      "enzo.da-silva@eleve.com",
+      "manon.leroy@eleve.com",
+      "omar.salah@eleve.com",
+      "camila.rodriguez@eleve.com",
+      "noah.dupont@eleve.com",
+      "lea.martin@eleve.com",
+      "hugo.bernard@eleve.com",
+      "chloe.robert@eleve.com",
+      "yanis.cherfi@eleve.com"
+    ],
+    "quizzes": [],
+    "results": []
+  }
+]
