@@ -98,7 +98,6 @@ apiRouter.post('/teacher/classes', async (req, res) => {
     }
 });
 
-
 apiRouter.get('/teacher/classes/:classId', async (req, res) => {
     const { classId } = req.params;
     const querySpec = { query: "SELECT * FROM c WHERE c.id = @classId", parameters: [{ name: "@classId", value: classId }] };
@@ -107,6 +106,35 @@ apiRouter.get('/teacher/classes/:classId', async (req, res) => {
         if (resources.length === 0) return res.status(404).json({ error: "Classe non trouvée." });
         res.status(200).json(resources[0]);
     } catch (error) { res.status(500).json({ error: "Impossible de récupérer les détails de la classe." }); }
+});
+
+apiRouter.post('/teacher/classes/:classId/add-student', async (req, res) => {
+    const { classId } = req.params;
+    const { studentEmail } = req.body;
+    if (!studentEmail) return res.status(400).json({ error: "L'email de l'élève est requis." });
+
+    try {
+        const { resource: student } = await usersContainer.item(studentEmail, studentEmail).read().catch(() => ({ resource: null }));
+        if (!student || student.role !== 'student') {
+            return res.status(404).json({ error: "Aucun élève trouvé avec cet email." });
+        }
+
+        const querySpec = { query: "SELECT * FROM c WHERE c.id = @classId", parameters: [{ name: "@classId", value: classId }] };
+        const { resources } = await classesContainer.items.query(querySpec).fetchAll();
+        if (resources.length === 0) return res.status(404).json({ error: "Classe non trouvée." });
+        
+        const classDoc = resources[0];
+        if (classDoc.students.includes(studentEmail)) {
+            return res.status(409).json({ error: "Cet élève est déjà dans la classe." });
+        }
+
+        classDoc.students.push(studentEmail);
+        await classesContainer.item(classDoc.id, classDoc.teacherEmail).replace(classDoc);
+        
+        res.status(200).json({ message: "Élève ajouté avec succès." });
+    } catch (error) {
+        res.status(500).json({ error: "Impossible d'ajouter l'élève." });
+    }
 });
 
 apiRouter.post('/teacher/assign-content', async (req, res) => {
