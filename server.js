@@ -186,23 +186,27 @@ apiRouter.get('/student/dashboard', async (req, res) => {
 });
 
 apiRouter.post('/student/submit-quiz', async (req, res) => {
-    const { studentEmail, classId, contentId, score, totalQuestions } = req.body;
+    const { studentEmail, classId, contentId, title, score, totalQuestions } = req.body;
     if (!studentEmail || !classId || !contentId || score === undefined || !totalQuestions) {
         return res.status(400).json({ error: "Données de soumission incomplètes." });
     }
-    const completedItem = {
-        id: `${studentEmail}-${contentId}`,
-        studentEmail,
-        contentId,
-        score,
-        totalQuestions,
-        completedAt: new Date().toISOString()
-    };
+    
+    const completedItem = { id: `${studentEmail}-${contentId}`, studentEmail, contentId, completedAt: new Date().toISOString() };
+    await completedContentContainer.items.upsert(completedItem);
+
     try {
-        await completedContentContainer.items.upsert(completedItem);
+        const querySpec = { query: "SELECT * FROM c WHERE c.id = @classId", parameters: [{ name: "@classId", value: classId }] };
+        const { resources } = await classesContainer.items.query(querySpec).fetchAll();
+        if (resources.length > 0) {
+            const classDoc = resources[0];
+            const newResult = { studentEmail, contentId, title, score, totalQuestions, submittedAt: completedItem.completedAt };
+            if (!classDoc.results) classDoc.results = [];
+            classDoc.results.push(newResult);
+            await classesContainer.item(classDoc.id, classDoc.teacherEmail).replace(classDoc);
+        }
         res.status(201).json(completedItem);
     } catch (error) {
-        res.status(500).json({ error: "Impossible de sauvegarder le résultat." });
+        res.status(500).json({ error: "Impossible de sauvegarder le résultat dans la classe." });
     }
 });
 
