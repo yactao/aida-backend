@@ -1,5 +1,4 @@
 // --- 1. Importations et Configuration ---
-
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
@@ -49,9 +48,9 @@ apiRouter.post('/auth/signup', async (req, res) => {
         const { resource: existingUser } = await usersContainer.item(email, email).read().catch(() => ({ resource: null }));
         if (existingUser) return res.status(409).json({ error: "Cet email est déjà utilisé." });
 
-        const nameParts = email.split('@')[0].split('.');
-        const firstName = nameParts[0] ? nameParts[0].charAt(0).toUpperCase() + nameParts[0].slice(1) : "Nouveau";
-        const lastName = nameParts[1] ? nameParts[1].charAt(0).toUpperCase() + nameParts[1].slice(1) : "Utilisateur";
+        const nameParts = email.split('@')[0].split('.').map(part => part.charAt(0).toUpperCase() + part.slice(1));
+        const firstName = nameParts[0] || "Nouvel";
+        const lastName = nameParts[1] || "Utilisateur";
 
         const newUser = { id: email, email, password, role, classes: [], firstName, lastName };
         await usersContainer.items.create(newUser);
@@ -80,6 +79,26 @@ apiRouter.get('/teacher/classes', async (req, res) => {
     } catch (error) { res.status(500).json({ error: "Impossible de récupérer les classes." }); }
 });
 
+apiRouter.post('/teacher/classes', async (req, res) => {
+    const { className, teacherEmail } = req.body;
+    if (!className || !teacherEmail) return res.status(400).json({ error: "Nom de classe et email du professeur sont requis." });
+    const newClass = {
+        id: `class-${Date.now()}`,
+        className,
+        teacherEmail,
+        students: [],
+        content: [],
+        results: []
+    };
+    try {
+        const { resource: createdClass } = await classesContainer.items.create(newClass);
+        res.status(201).json(createdClass);
+    } catch (error) {
+        res.status(500).json({ error: "Impossible de créer la classe." });
+    }
+});
+
+
 apiRouter.get('/teacher/classes/:classId', async (req, res) => {
     const { classId } = req.params;
     const querySpec = { query: "SELECT * FROM c WHERE c.id = @classId", parameters: [{ name: "@classId", value: classId }] };
@@ -89,6 +108,29 @@ apiRouter.get('/teacher/classes/:classId', async (req, res) => {
         res.status(200).json(resources[0]);
     } catch (error) { res.status(500).json({ error: "Impossible de récupérer les détails de la classe." }); }
 });
+
+apiRouter.post('/teacher/assign-content', async (req, res) => {
+    const { classId, contentData } = req.body;
+    if (!classId || !contentData) return res.status(400).json({ error: "ID de classe et contenu sont requis." });
+
+    try {
+        const querySpec = { query: "SELECT * FROM c WHERE c.id = @classId", parameters: [{ name: "@classId", value: classId }] };
+        const { resources } = await classesContainer.items.query(querySpec).fetchAll();
+        if (resources.length === 0) return res.status(404).json({ error: "Classe non trouvée." });
+        
+        const classDoc = resources[0];
+        const newContent = { ...contentData, id: `content-${Date.now()}`, assignedAt: new Date().toISOString() };
+        
+        if (!classDoc.content) classDoc.content = [];
+        classDoc.content.push(newContent);
+        
+        await classesContainer.item(classDoc.id, classDoc.teacherEmail).replace(classDoc);
+        res.status(200).json(newContent);
+    } catch (error) {
+        res.status(500).json({ error: "Impossible d'assigner le contenu." });
+    }
+});
+
 
 // C. Routes Élève
 apiRouter.get('/student/dashboard', async (req, res) => {
@@ -115,6 +157,28 @@ apiRouter.get('/student/dashboard', async (req, res) => {
     } catch (error) { res.status(500).json({ error: "Impossible de récupérer le tableau de bord." }); }
 });
 
+apiRouter.post('/student/submit-quiz', async (req, res) => {
+    const { studentEmail, classId, contentId, score, totalQuestions } = req.body;
+    if (!studentEmail || !classId || !contentId || score === undefined || !totalQuestions) {
+        return res.status(400).json({ error: "Données de soumission incomplètes." });
+    }
+    const completedItem = {
+        id: `${studentEmail}-${contentId}`,
+        studentEmail,
+        contentId,
+        score,
+        totalQuestions,
+        completedAt: new Date().toISOString()
+    };
+    try {
+        await completedContentContainer.items.upsert(completedItem);
+        res.status(201).json(completedItem);
+    } catch (error) {
+        res.status(500).json({ error: "Impossible de sauvegarder le résultat." });
+    }
+});
+
+
 // D. Routes IA
 apiRouter.post('/ai/generate-content', async (req, res) => {
     const { competences, contentType } = req.body;
@@ -122,8 +186,7 @@ apiRouter.post('/ai/generate-content', async (req, res) => {
     if (!apiKey) return res.status(500).json({ error: "Clé API non configurée." });
 
     const promptMap = {
-        quiz: `Crée un quiz de 5 questions à 4 choix sur: "${competences}". Format JSON : {"title": "Quiz sur ${competences}", "type": "quiz", "questions": [{"question_text": "...", "options": ["A", "B", "C", "D"], "correct_answer_index": 0}]}`,
-        // Ajoutez d'autres types de contenu ici si nécessaire
+        quiz: `Crée un quiz de 3 questions à 4 choix sur: "${competences}". Format JSON : {"title": "Quiz sur ${competences}", "type": "quiz", "questions": [{"question_text": "...", "options": ["A", "B", "C", "D"], "correct_answer_index": 0}]}`,
     };
     try {
         const response = await axios.post('https://api.deepseek.com/chat/completions', 
@@ -133,6 +196,21 @@ apiRouter.post('/ai/generate-content', async (req, res) => {
         let jsonString = response.data.choices[0].message.content.replace(/```json\n|\n```/g, '');
         res.json({ structured_content: JSON.parse(jsonString) });
     } catch (error) { res.status(500).json({ error: "L'IA a donné une réponse inattendue." }); }
+});
+
+apiRouter.post('/ai/playground-chat', async (req, res) => {
+    const { history } = req.body;
+    const apiKey = process.env.DEEPSEEK_API_KEY;
+    if (!apiKey) return res.status(500).json({ error: "Clé API non configurée." });
+    try {
+        const response = await axios.post('https://api.deepseek.com/chat/completions',
+            { model: 'deepseek-chat', messages: history },
+            { headers: { 'Authorization': `Bearer ${apiKey}` } }
+        );
+        res.json({ reply: response.data.choices[0].message.content });
+    } catch (error) {
+        res.status(500).json({ error: "Erreur de communication avec AIDA." });
+    }
 });
 
 
