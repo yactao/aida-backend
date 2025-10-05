@@ -1,0 +1,22 @@
+{
+  "CP": {
+    "francais": {
+      "nom": "Français",
+      "lecture": {
+        "nom": "Lecture",
+        "sous_notions": {
+          "sons": { "nom": "Les sons simples", "competences": ["Identifier le son [a]", "Associer la lettre 'a' au son [a]"] }
+        }
+      }
+    },
+    "maths": {
+      "nom": "Mathématiques",
+      "nombres": {
+        "nom": "Nombres",
+        "sous_notions": {
+          "additions": { "nom": "Additions < 10", "competences": ["Additionner deux nombres dont le résultat est inférieur à 10"] }
+        }
+      }
+    }
+  }
+}

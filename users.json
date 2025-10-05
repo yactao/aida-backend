@@ -1,0 +1,18 @@
+[
+  {
+    "id": "nathalie.dubois@aida.com",
+    "email": "nathalie.dubois@aida.com",
+    "password": "password123",
+    "role": "teacher",
+    "firstName": "Nathalie",
+    "lastName": "Dubois"
+  },
+  {
+    "id": "lea.petit@aida.com",
+    "email": "lea.petit@aida.com",
+    "password": "password123",
+    "role": "student",
+    "firstName": "Léa",
+    "lastName": "Petit"
+  }
+]

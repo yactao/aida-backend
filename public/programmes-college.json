@@ -1,0 +1,13 @@
+{
+  "6eme": {
+    "histoire": {
+      "nom": "Histoire",
+      "antiquite": {
+        "nom": "L'Antiquité",
+        "sous_notions": {
+          "rome": { "nom": "L'Empire romain", "competences": ["Expliquer le rôle de l'empereur", "Décrire la vie d'un citoyen romain"] }
+        }
+      }
+    }
+  }
+}

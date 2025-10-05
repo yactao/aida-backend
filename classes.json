@@ -1,0 +1,22 @@
+[
+  {
+    "id": "cp-classe-1",
+    "className": "Classe de CP",
+    "teacherEmail": "nathalie.dubois@aida.com",
+    "students": ["lea.petit@aida.com"],
+    "content": [
+      {
+        "id": "quiz-maths-cp-1",
+        "type": "quiz",
+        "title": "Quiz: Les additions simples",
+        "assignedAt": "2025-10-01T10:00:00Z",
+        "questions": [
+          { "question_text": "Combien font 2 + 3 ?", "options": ["4", "5", "6", "7"], "correct_answer_index": 1 }
+        ]
+      }
+    ],
+    "results": [
+        { "resultId": "res1", "contentId": "quiz-maths-cp-1", "studentEmail": "lea.petit@aida.com", "score": 1, "totalQuestions": 1, "submittedAt": "2025-10-02T11:00:00Z" }
+    ]
+  }
+]

@@ -1,10 +1,11 @@
 {
-  "name": "aida-backend",
+  "name": "aida-backend-rebuild",
   "version": "1.0.0",
-  "description": "Serveur pour l'application AIDA",
+  "description": "Serveur reconstruit pour l'application AIDA",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "import": "node import-data.js"
   },
   "keywords": [],
   "author": "",

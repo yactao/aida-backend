@@ -1,0 +1,13 @@
+{
+  "Seconde": {
+    "physique": {
+      "nom": "Physique-Chimie",
+      "univers": {
+        "nom": "L'Univers",
+        "sous_notions": {
+          "atomes": { "nom": "Les atomes", "competences": ["Décrire la structure d'un atome", "Comprendre la notion d'élément chimique"] }
+        }
+      }
+    }
+  }
+}
