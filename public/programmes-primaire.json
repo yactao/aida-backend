@@ -1,174 +1,103 @@
 {
-    "CP": {
-        "francais": {
-            "langage_oral": {
-                "nom": "Langage Oral",
-                "competences": "L'élève doit savoir écouter et comprendre un récit, poser des questions et exprimer un point de vue simple. Il doit apprendre à prendre la parole en respectant les autres."
-            },
-            "lecture": {
-                "nom": "Lecture",
-                "competences": "L'élève doit savoir identifier les lettres de l'alphabet et les sons qu'elles produisent (correspondances graphème-phonème). Il doit commencer à déchiffrer des syllabes et des mots simples et réguliers. Il doit comprendre des phrases simples lues par l'enseignant ou lues seul."
-            },
-            "ecriture": {
-                "nom": "Écriture",
-                "competences": "L'élève doit apprendre à tenir correctement son crayon et à former les lettres. Il doit savoir copier des mots et des phrases courtes. Il doit commencer à écrire des mots simples sous la dictée."
-            },
-            "etude_de_la_langue": {
-                "nom": "Étude de la langue",
-                "competences": "L'élève doit commencer à identifier la phrase, le mot et la ligne. Il doit reconnaître le verbe d'action dans des phrases simples."
-            }
-        },
-        "mathematiques": {
-            "nombres_et_calculs": {
-                "nom": "Nombres et Calculs",
-                "competences": "L'élève doit savoir dénombrer, constituer et comparer des collections jusqu'à 100. Il doit connaître la suite des nombres. Il doit commencer à résoudre des problèmes très simples d'addition et de soustraction."
-            },
-            "grandeurs_et_mesures": {
-                "nom": "Grandeurs et Mesures",
-                "competences": "L'élève doit apprendre à comparer des objets selon leur longueur ou leur masse. Il doit se repérer dans la journée (matin, après-midi) et connaître les jours de la semaine."
-            },
-            "espace_et_geometrie": {
-                "nom": "Espace et Géométrie",
-                "competences": "L'élève doit apprendre à se situer et à situer des objets (dessus, dessous, devant, derrière). Il doit reconnaître et nommer des formes simples comme le carré, le triangle et le cercle."
-            }
-        },
-        "questionner_le_monde": {
-            "le_vivant": {
-                "nom": "Le Vivant",
-                "competences": "L'élève doit observer et reconnaître les différentes parties du corps humain. Il doit comprendre les manifestations de la vie chez les animaux et les végétaux (naissance, croissance)."
-            },
-            "le_temps": {
-                "nom": "Le Temps",
-                "competences": "L'élève doit savoir utiliser un calendrier pour se repérer (jour, semaine, mois). Il doit distinguer le passé récent du futur proche."
-            }
+  "CP": {
+    "francais": {
+      "nom": "Français",
+      "etude_de_la_langue": {
+        "nom": "Étude de la langue",
+        "sous_notions": {
+          "sons_simples": { "nom": "Les sons simples", "competences": ["Identifier les sons et les lettres", "Associer graphèmes et phonèmes"] }
         }
+      }
     },
-    "CE1": {
-        "francais": {
-            "langage_oral": {
-                "nom": "Langage Oral",
-                "competences": "L'élève doit savoir écouter pour comprendre un message et prendre la parole à bon escient. Il doit pouvoir raconter, décrire et expliquer avec un vocabulaire adapté."
-            },
-            "lecture_comprehension": {
-                "nom": "Lecture et Compréhension",
-                "competences": "L'élève doit identifier les mots fréquents et les correspondances grapho-phonémiques. Il doit lire à voix haute avec fluidité des textes courts et comprendre l'essentiel d'un texte narratif ou documentaire."
-            },
-            "ecriture": {
-                "nom": "Écriture",
-                "competences": "L'élève doit savoir copier sans erreur un court texte, produire des phrases puis un court paragraphe et orthographier les mots fréquents et les marques simples d'accord."
-            }
-        },
-        "mathematiques": {
-            "nombres_et_calculs": {
-                "nom": "Nombres et Calculs",
-                "competences": "L'élève doit savoir lire, écrire et comparer les nombres jusqu'à 1000. Il doit maîtriser les additions, les soustractions (calcul mental et posé) et les premières tables de multiplication (x2, x5, x10)."
-            },
-            "grandeurs_et_mesures": {
-                "nom": "Grandeurs et Mesures",
-                "competences": "L'élève doit savoir mesurer des longueurs (cm, m), lire l'heure (heures, demi-heures) et utiliser l'euro pour des situations simples."
-            },
-            "espace_et_geometrie": {
-                "nom": "Espace et Géométrie",
-                "competences": "L'élève doit reconnaître et décrire le carré, le rectangle, le triangle et le cercle. Il doit savoir se repérer et se déplacer sur un quadrillage."
-            }
+    "maths": {
+      "nom": "Mathématiques",
+      "nombres_et_calculs": {
+        "nom": "Nombres et Calculs",
+        "sous_notions": {
+          "addition_simple": { "nom": "Addition < 10", "competences": ["Additionner deux nombres inférieurs à 10", "Comprendre le signe +"] }
         }
-    },
-    "CE2": {
-        "mathematiques": {
-            "nombres_et_calculs": {
-                "nom": "Nombres et Calculs",
-                "competences": "L'élève doit savoir lire, écrire et comparer les nombres jusqu'à 1000. Il doit maîtriser les tables d'addition et de multiplication (x2, x3, x4, x5, x10). Il doit savoir poser et calculer des additions et soustractions en colonnes. Il doit pouvoir résoudre des problèmes simples impliquant ces opérations."
-            },
-            "problemes": {
-                "nom": "Résolution de Problèmes",
-                "competences": "L'élève doit être capable de résoudre des problèmes à une ou plusieurs étapes relevant des structures additives et soustractives. Il doit apprendre à modéliser la situation à l'aide d'un schéma ou d'un calcul."
-            },
-            "geometrie": {
-                "nom": "Géométrie",
-                "competences": "L'élève doit savoir reconnaître, nommer et décrire des figures simples comme le carré, le rectangle, le triangle. Il doit être capable de tracer des segments et de reporter des longueurs."
-            },
-            "grandeurs_et_mesures": {
-                "nom": "Grandeurs et Mesures",
-                "competences": "L'élève doit savoir lire l'heure sur une horloge à aiguilles. Il doit connaître les unités de longueur (m, cm) et de masse (g, kg) et savoir les utiliser pour mesurer."
-            }
-        },
-        "francais": {
-            "conjugaison": {
-                "nom": "Conjugaison",
-                "competences": "L'élève doit savoir conjuguer les verbes du 1er groupe, ainsi que les verbes être et avoir au présent de l'indicatif. Il doit identifier le verbe dans la phrase et son infinitif."
-            },
-            "grammaire": {
-                "nom": "Grammaire",
-                "competences": "L'élève doit savoir identifier le nom et le verbe dans une phrase simple. Il doit comprendre et appliquer les accords simples dans le groupe nominal (déterminant, nom, adjectif)."
-            },
-            "orthographe": {
-                "nom": "Orthographe",
-                "competences": "L'élève doit connaître l'orthographe des mots fréquents. Il doit savoir utiliser les homophones grammaticaux courants (a/à, est/et, son/sont, on/ont)."
-            },
-            "comprehension": {
-                "nom": "Compréhension de texte",
-                "competences": "L'élève doit être capable de lire un texte court et de répondre à des questions simples sur les informations explicites du texte (qui, quoi, où, quand)."
-            }
-        }
-    },
-    "CM1": {
-        "francais": {
-            "grammaire": {
-                "nom": "Grammaire",
-                "competences": "L'élève doit identifier les fonctions sujet, verbe, COD, COI et compléments circonstanciels. Il doit analyser la structure de la phrase simple et commencer à aborder la phrase complexe."
-            },
-            "conjugaison": {
-                "nom": "Conjugaison",
-                "competences": "L'élève doit maîtriser le présent, le futur et l'imparfait de l'indicatif pour les verbes fréquents (être, avoir, 1er, 2ème et 3ème groupes)."
-            },
-            "orthographe": {
-                "nom": "Orthographe",
-                "competences": "L'élève doit appliquer les règles d'accord dans le groupe nominal étendu et l'accord sujet-verbe. Il doit mémoriser l'orthographe de mots fréquents et d'homophones grammaticaux."
-            }
-        },
-        "mathematiques": {
-            "nombres_et_calculs": {
-                "nom": "Nombres et Calculs",
-                "competences": "L'élève doit comprendre et utiliser les grands nombres entiers, les fractions simples et les nombres décimaux. Il doit maîtriser les quatre opérations (calcul posé et mental) et résoudre des problèmes de proportionnalité."
-            },
-            "grandeurs_et_mesures": {
-                "nom": "Grandeurs et Mesures",
-                "competences": "L'élève doit savoir convertir les unités de mesure (longueur, masse, capacité). Il doit calculer le périmètre d'un polygone et l'aire d'un rectangle."
-            },
-            "espace_et_geometrie": {
-                "nom": "Espace et Géométrie",
-                "competences": "L'élève doit reconnaître et construire des figures géométriques (triangles, quadrilatères) et des solides. Il doit utiliser les instruments de géométrie (règle, équerre, compas)."
-            }
-        }
-    },
-    "CM2": {
-        "francais": {
-            "etude_de_la_langue": {
-                "nom": "Étude de la langue",
-                "competences": "L'élève doit consolider sa maîtrise de la grammaire (natures et fonctions), de la conjugaison (tous les temps de l'indicatif) et de l'orthographe (accords complexes, homophones). Il doit enrichir son vocabulaire."
-            },
-            "lecture_comprehension": {
-                "nom": "Lecture et Compréhension",
-                "competences": "L'élève doit lire des textes longs et variés (romans, documentaires), comprendre l'implicite et porter un regard critique sur le texte."
-            },
-            "redaction": {
-                "nom": "Rédaction",
-                "competences": "L'élève doit être capable de rédiger des textes de différents types (narratif, descriptif, explicatif) de manière organisée et cohérente, en respectant les règles de la langue."
-            }
-        },
-        "mathematiques": {
-            "nombres_et_calculs": {
-                "nom": "Nombres et Calculs",
-                "competences": "L'élève doit manipuler les fractions et les nombres décimaux dans les quatre opérations. Il doit résoudre des problèmes complexes impliquant la proportionnalité, les pourcentages et les échelles."
-            },
-            "grandeurs_et_mesures": {
-                "nom": "Grandeurs et Mesures",
-                "competences": "L'élève doit maîtriser les conversions d'unités et calculer des aires et des volumes. Il doit résoudre des problèmes impliquant des durées."
-            },
-            "espace_et_geometrie": {
-                "nom": "Espace et Géométrie",
-                "competences": "L'élève doit maîtriser les propriétés des figures et des solides usuels. Il doit être capable de réaliser des constructions géométriques complexes et de raisonner sur des figures."
-            }
-        }
+      }
     }
+  },
+  "CE1": {
+    "francais": {
+      "nom": "Français",
+      "etude_de_la_langue": {
+        "nom": "Étude de la langue",
+        "sous_notions": {
+          "le_verbe": { "nom": "Le verbe", "competences": ["Identifier le verbe dans une phrase", "Conjuguer les verbes du 1er groupe au présent"] }
+        }
+      }
+    },
+    "maths": {
+      "nom": "Mathématiques",
+      "nombres_et_calculs": {
+        "nom": "Nombres et Calculs",
+        "sous_notions": {
+          "multiplication": { "nom": "Initiation à la multiplication", "competences": ["Comprendre le sens de la multiplication", "Connaître les tables de 2 et 5"] }
+        }
+      }
+    }
+  },
+  "CE2": {
+    "francais": { 
+      "nom": "Français", 
+      "etude_de_la_langue": { 
+        "nom": "Étude de la langue", 
+        "sous_notions": { 
+          "accord_sujet_verbe": { "nom": "L'accord sujet-verbe", "competences": ["Accorder le verbe avec son sujet", "Identifier le groupe sujet"] } 
+        } 
+      } 
+    },
+    "maths": { 
+      "nom": "Mathématiques", 
+      "espace_et_geometrie": { 
+        "nom": "Espace et Géométrie", 
+        "sous_notions": { 
+          "polygones": { "nom": "Les polygones", "competences": ["Reconnaître et nommer les polygones usuels (carré, rectangle, triangle)"] } 
+        } 
+      } 
+    }
+  },
+  "CM1": {
+    "histoire": { 
+      "nom": "Histoire", 
+      "temps_des_rois": { 
+        "nom": "Le temps des rois", 
+        "sous_notions": { 
+          "louis_xiv": { "nom": "Louis XIV, le roi Soleil", "competences": ["Décrire la vie à la cour de Versailles", "Expliquer ce qu'est la monarchie absolue"] } 
+        } 
+      } 
+    },
+    "maths": { 
+      "nom": "Mathématiques", 
+      "nombres_et_calculs": { 
+        "nom": "Nombres et Calculs", 
+        "sous_notions": { 
+          "fractions": { "nom": "Les fractions simples", "competences": ["Utiliser des fractions pour représenter des partages", "Comparer des fractions simples"] } 
+        } 
+      } 
+    }
+  },
+  "CM2": {
+    "geographie": { 
+      "nom": "Géographie", 
+      "se_deplacer": { 
+        "nom": "Se déplacer", 
+        "sous_notions": { 
+          "france_europe": { "nom": "Se déplacer en France et en Europe", "competences": ["Identifier les différents modes de transport", "Comprendre les enjeux des transports durables"] } 
+        } 
+      } 
+    },
+    "sciences": { 
+      "nom": "Sciences et Technologie", 
+      "le_vivant": { 
+        "nom": "Le vivant", 
+        "sous_notions": { 
+          "nutrition": { "nom": "La nutrition", "competences": ["Identifier les différentes familles d'aliments", "Expliquer le rôle de l'alimentation pour le corps"] } 
+        } 
+      } 
+    }
+  }
 }
+
