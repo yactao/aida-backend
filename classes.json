@@ -1,22 +1,45 @@
 [
   {
-    "id": "cp-classe-1",
+    "id": "class-cp-1",
     "className": "Classe de CP",
     "teacherEmail": "nathalie.dubois@aida.com",
-    "students": ["lea.petit@aida.com"],
-    "content": [
-      {
-        "id": "quiz-maths-cp-1",
-        "type": "quiz",
-        "title": "Quiz: Les additions simples",
-        "assignedAt": "2025-10-01T10:00:00Z",
-        "questions": [
-          { "question_text": "Combien font 2 + 3 ?", "options": ["4", "5", "6", "7"], "correct_answer_index": 1 }
-        ]
-      }
+    "students": [
+      "lea.petit@aida.com",
+      "hugo.leroy@aida.com",
+      "chloe.moreau@aida.com",
+      "louis.simon@aida.com",
+      "emma.laurent@aida.com"
     ],
-    "results": [
-        { "resultId": "res1", "contentId": "quiz-maths-cp-1", "studentEmail": "lea.petit@aida.com", "score": 1, "totalQuestions": 1, "submittedAt": "2025-10-02T11:00:00Z" }
-    ]
+    "content": [],
+    "results": []
+  },
+  {
+    "id": "class-6eme-1",
+    "className": "Classe de 6ème",
+    "teacherEmail": "karim.martin@aida.com",
+    "students": [
+      "manon.roux@aida.com",
+      "gabriel.fournier@aida.com",
+      "jade.girard@aida.com",
+      "raphael.bonnet@aida.com",
+      "alice.francois@aida.com"
+    ],
+    "content": [],
+    "results": []
+  },
+  {
+    "id": "class-seconde-1",
+    "className": "Classe de Seconde",
+    "teacherEmail": "isabelle.bernard@aida.com",
+    "students": [
+      "arthur.vincent@aida.com",
+      "louise.lefevre@aida.com",
+      "adam.mercier@aida.com",
+      "rose.duval@aida.com",
+      "jules.guerin@aida.com"
+    ],
+    "content": [],
+    "results": []
   }
 ]
+

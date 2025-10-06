@@ -218,16 +218,22 @@ apiRouter.post('/ai/generate-content', async (req, res) => {
     if (!apiKey) return res.status(500).json({ error: "Clé API non configurée." });
 
     const promptMap = {
-        quiz: `Crée un quiz de 3 questions à 4 choix sur: "${competences}". Format JSON : {"title": "Quiz sur ${competences}", "type": "quiz", "questions": [{"question_text": "...", "options": ["A", "B", "C", "D"], "correct_answer_index": 0}]}`,
+        quiz: `Crée un quiz de 3 questions à 4 choix sur: "${competences}". Le format doit être un JSON valide: {"title": "Quiz sur ${competences}", "type": "quiz", "questions": [{"question_text": "...", "options": ["A", "B", "C", "D"], "correct_answer_index": 0}]}`,
+        exercices: `Crée une fiche de 2 exercices avec énoncé et correction sur: "${competences}". Le format doit être un JSON valide: {"title": "Exercices sur ${competences}", "type": "exercices", "content": [{"enonce": "...", "correction": "..."}]}`,
+        plan_de_lecon: `Crée un plan de leçon simple sur: "${competences}". Le format doit être un JSON valide: {"title": "Plan de leçon sur ${competences}", "type": "plan_de_lecon", "objectifs": ["Objectif 1", "Objectif 2"], "deroulement": "Étape 1...", "evaluation": "Comment évaluer les élèves"}`
     };
+
+    const prompt = promptMap[contentType];
+    if (!prompt) return res.status(400).json({ error: "Type de contenu non supporté." });
+
     try {
         const response = await axios.post('https://api.deepseek.com/chat/completions', 
-            { model: 'deepseek-chat', messages: [{ content: promptMap[contentType], role: 'user' }] }, 
+            { model: 'deepseek-chat', messages: [{ content: prompt, role: 'user' }] }, 
             { headers: { 'Authorization': `Bearer ${apiKey}` } }
         );
         let jsonString = response.data.choices[0].message.content.replace(/```json\n|\n```/g, '');
         res.json({ structured_content: JSON.parse(jsonString) });
-    } catch (error) { res.status(500).json({ error: "L'IA a donné une réponse inattendue." }); }
+    } catch (error) { res.status(500).json({ error: "L'IA a généré une réponse invalide." }); }
 });
 
 apiRouter.post('/ai/playground-chat', async (req, res) => {
@@ -248,7 +254,6 @@ apiRouter.post('/ai/playground-chat', async (req, res) => {
 
 app.use('/api', apiRouter);
 
-// Route racine pour vérifier que le serveur est en ligne
 app.get('/', (req, res) => {
     res.send('<h1>Le serveur AIDA est en ligne et fonctionnel !</h1>');
 });
