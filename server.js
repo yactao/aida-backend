@@ -40,18 +40,16 @@ const apiRouter = express.Router();
 
 // --- 4. Routes API ---
 
-// A. Authentification
+// A. Authentification (inchangé)
 apiRouter.post('/auth/signup', async (req, res) => {
     const { email, password, role } = req.body;
     if (!email || !password || !role) return res.status(400).json({ error: "Email, mot de passe et rôle sont requis." });
     try {
         const { resource: existingUser } = await usersContainer.item(email, email).read().catch(() => ({ resource: null }));
         if (existingUser) return res.status(409).json({ error: "Cet email est déjà utilisé." });
-
         const nameParts = email.split('@')[0].split('.').map(part => part.charAt(0).toUpperCase() + part.slice(1));
         const firstName = nameParts[0] || "Nouvel";
         const lastName = nameParts[1] || "Utilisateur";
-
         const newUser = { id: email, email, password, role, classes: [], firstName, lastName };
         await usersContainer.items.create(newUser);
         res.status(201).json({ user: { email, role, firstName } });
@@ -68,7 +66,7 @@ apiRouter.post('/auth/login', async (req, res) => {
     } catch (error) { res.status(500).json({ error: "Erreur lors de la connexion." }); }
 });
 
-// B. Routes Professeur
+// B. Routes Professeur (inchangé)
 apiRouter.get('/teacher/classes', async (req, res) => {
     const { teacherEmail } = req.query;
     if (!teacherEmail) return res.status(400).json({ error: "L'email de l'enseignant est requis." });
@@ -82,20 +80,11 @@ apiRouter.get('/teacher/classes', async (req, res) => {
 apiRouter.post('/teacher/classes', async (req, res) => {
     const { className, teacherEmail } = req.body;
     if (!className || !teacherEmail) return res.status(400).json({ error: "Nom de classe et email du professeur sont requis." });
-    const newClass = {
-        id: `class-${Date.now()}`,
-        className,
-        teacherEmail,
-        students: [],
-        content: [],
-        results: []
-    };
+    const newClass = { id: `class-${Date.now()}`, className, teacherEmail, students: [], content: [], results: [] };
     try {
         const { resource: createdClass } = await classesContainer.items.create(newClass);
         res.status(201).json(createdClass);
-    } catch (error) {
-        res.status(500).json({ error: "Impossible de créer la classe." });
-    }
+    } catch (error) { res.status(500).json({ error: "Impossible de créer la classe." }); }
 });
 
 apiRouter.get('/teacher/classes/:classId', async (req, res) => {
@@ -112,55 +101,37 @@ apiRouter.post('/teacher/classes/:classId/add-student', async (req, res) => {
     const { classId } = req.params;
     const { studentEmail } = req.body;
     if (!studentEmail) return res.status(400).json({ error: "L'email de l'élève est requis." });
-
     try {
         const { resource: student } = await usersContainer.item(studentEmail, studentEmail).read().catch(() => ({ resource: null }));
-        if (!student || student.role !== 'student') {
-            return res.status(404).json({ error: "Aucun élève trouvé avec cet email." });
-        }
-
+        if (!student || student.role !== 'student') return res.status(404).json({ error: "Aucun élève trouvé avec cet email." });
         const querySpec = { query: "SELECT * FROM c WHERE c.id = @classId", parameters: [{ name: "@classId", value: classId }] };
         const { resources } = await classesContainer.items.query(querySpec).fetchAll();
         if (resources.length === 0) return res.status(404).json({ error: "Classe non trouvée." });
-        
         const classDoc = resources[0];
-        if (classDoc.students.includes(studentEmail)) {
-            return res.status(409).json({ error: "Cet élève est déjà dans la classe." });
-        }
-
+        if (classDoc.students.includes(studentEmail)) return res.status(409).json({ error: "Cet élève est déjà dans la classe." });
         classDoc.students.push(studentEmail);
         await classesContainer.item(classDoc.id, classDoc.teacherEmail).replace(classDoc);
-        
         res.status(200).json({ message: "Élève ajouté avec succès." });
-    } catch (error) {
-        res.status(500).json({ error: "Impossible d'ajouter l'élève." });
-    }
+    } catch (error) { res.status(500).json({ error: "Impossible d'ajouter l'élève." }); }
 });
 
 apiRouter.post('/teacher/assign-content', async (req, res) => {
     const { classId, contentData } = req.body;
     if (!classId || !contentData) return res.status(400).json({ error: "ID de classe et contenu sont requis." });
-
     try {
         const querySpec = { query: "SELECT * FROM c WHERE c.id = @classId", parameters: [{ name: "@classId", value: classId }] };
         const { resources } = await classesContainer.items.query(querySpec).fetchAll();
         if (resources.length === 0) return res.status(404).json({ error: "Classe non trouvée." });
-        
         const classDoc = resources[0];
         const newContent = { ...contentData, id: `content-${Date.now()}`, assignedAt: new Date().toISOString() };
-        
         if (!classDoc.content) classDoc.content = [];
         classDoc.content.push(newContent);
-        
         await classesContainer.item(classDoc.id, classDoc.teacherEmail).replace(classDoc);
         res.status(200).json(newContent);
-    } catch (error) {
-        res.status(500).json({ error: "Impossible d'assigner le contenu." });
-    }
+    } catch (error) { res.status(500).json({ error: "Impossible d'assigner le contenu." }); }
 });
 
-
-// C. Routes Élève
+// C. Routes Élève (inchangé)
 apiRouter.get('/student/dashboard', async (req, res) => {
     const { studentEmail } = req.query;
     if (!studentEmail) return res.status(400).json({ error: "L'email de l'élève est requis." });
@@ -168,32 +139,22 @@ apiRouter.get('/student/dashboard', async (req, res) => {
         const classQuery = { query: "SELECT * FROM c WHERE ARRAY_CONTAINS(c.students, @studentEmail)", parameters: [{ name: '@studentEmail', value: studentEmail }] };
         const { resources: classes } = await classesContainer.items.query(classQuery).fetchAll();
         if (!classes || classes.length === 0) return res.status(200).json({ todo: [], completed: [] });
-
         const completedQuery = { query: "SELECT * FROM c WHERE c.studentEmail = @studentEmail", parameters: [{ name: "@studentEmail", value: studentEmail }] };
         const { resources: completedItems } = await completedContentContainer.items.query(completedQuery).fetchAll();
         const completedMap = new Map(completedItems.map(item => [item.contentId, item.completedAt]));
-
         let allContent = [];
-        classes.forEach(c => {
-            (c.content || []).forEach(cont => allContent.push({ ...cont, className: c.className, classId: c.id }));
-        });
-
+        classes.forEach(c => { (c.content || []).forEach(cont => allContent.push({ ...cont, className: c.className, classId: c.id })); });
         const todo = allContent.filter(cont => !completedMap.has(cont.id));
         const completed = allContent.filter(cont => completedMap.has(cont.id)).map(cont => ({ ...cont, completedAt: completedMap.get(cont.id) }));
-
         res.status(200).json({ todo, completed });
     } catch (error) { res.status(500).json({ error: "Impossible de récupérer le tableau de bord." }); }
 });
 
 apiRouter.post('/student/submit-quiz', async (req, res) => {
     const { studentEmail, classId, contentId, title, score, totalQuestions } = req.body;
-    if (!studentEmail || !classId || !contentId || score === undefined || !totalQuestions) {
-        return res.status(400).json({ error: "Données de soumission incomplètes." });
-    }
-    
+    if (!studentEmail || !classId || !contentId || score === undefined || !totalQuestions) return res.status(400).json({ error: "Données de soumission incomplètes." });
     const completedItem = { id: `${studentEmail}-${contentId}`, studentEmail, contentId, completedAt: new Date().toISOString() };
     await completedContentContainer.items.upsert(completedItem);
-
     try {
         const querySpec = { query: "SELECT * FROM c WHERE c.id = @classId", parameters: [{ name: "@classId", value: classId }] };
         const { resources } = await classesContainer.items.query(querySpec).fetchAll();
@@ -205,9 +166,7 @@ apiRouter.post('/student/submit-quiz', async (req, res) => {
             await classesContainer.item(classDoc.id, classDoc.teacherEmail).replace(classDoc);
         }
         res.status(201).json(completedItem);
-    } catch (error) {
-        res.status(500).json({ error: "Impossible de sauvegarder le résultat dans la classe." });
-    }
+    } catch (error) { res.status(500).json({ error: "Impossible de sauvegarder le résultat dans la classe." }); }
 });
 
 
@@ -222,10 +181,8 @@ apiRouter.post('/ai/generate-content', async (req, res) => {
         exercices: `Crée une fiche de 2 exercices avec énoncé et correction sur: "${competences}". Le format doit être un JSON valide: {"title": "Exercices sur ${competences}", "type": "exercices", "content": [{"enonce": "...", "correction": "..."}]}`,
         plan_de_lecon: `Crée un plan de leçon simple sur: "${competences}". Le format doit être un JSON valide: {"title": "Plan de leçon sur ${competences}", "type": "plan_de_lecon", "objectifs": ["Objectif 1", "Objectif 2"], "deroulement": "Étape 1...", "evaluation": "Comment évaluer les élèves"}`
     };
-
     const prompt = promptMap[contentType];
     if (!prompt) return res.status(400).json({ error: "Type de contenu non supporté." });
-
     try {
         const response = await axios.post('https://api.deepseek.com/chat/completions', 
             { model: 'deepseek-chat', messages: [{ content: prompt, role: 'user' }] }, 
@@ -234,6 +191,25 @@ apiRouter.post('/ai/generate-content', async (req, res) => {
         let jsonString = response.data.choices[0].message.content.replace(/```json\n|\n```/g, '');
         res.json({ structured_content: JSON.parse(jsonString) });
     } catch (error) { res.status(500).json({ error: "L'IA a généré une réponse invalide." }); }
+});
+
+// NOUVEAU : Route pour obtenir un indice
+apiRouter.post('/ai/get-hint', async (req, res) => {
+    const { questionText } = req.body;
+    const apiKey = process.env.DEEPSEEK_API_KEY;
+    if (!apiKey || !questionText) return res.status(400).json({ error: "Clé API et question requises." });
+
+    const prompt = `Tu es un assistant pédagogique. Pour la question suivante : "${questionText}", donne un indice simple et court pour aider un élève à trouver la réponse, mais NE DONNE JAMAIS la réponse directement. Encourage l'élève.`;
+    
+    try {
+        const response = await axios.post('https://api.deepseek.com/chat/completions',
+            { model: 'deepseek-chat', messages: [{ role: 'user', content: prompt }] },
+            { headers: { 'Authorization': `Bearer ${apiKey}` } }
+        );
+        res.json({ hint: response.data.choices[0].message.content });
+    } catch (error) {
+        res.status(500).json({ error: "Erreur lors de la génération de l'indice." });
+    }
 });
 
 apiRouter.post('/ai/playground-chat', async (req, res) => {
@@ -246,17 +222,13 @@ apiRouter.post('/ai/playground-chat', async (req, res) => {
             { headers: { 'Authorization': `Bearer ${apiKey}` } }
         );
         res.json({ reply: response.data.choices[0].message.content });
-    } catch (error) {
-        res.status(500).json({ error: "Erreur de communication avec AIDA." });
-    }
+    } catch (error) { res.status(500).json({ error: "Erreur de communication avec AIDA." }); }
 });
 
 
 app.use('/api', apiRouter);
 
-app.get('/', (req, res) => {
-    res.send('<h1>Le serveur AIDA est en ligne et fonctionnel !</h1>');
-});
+app.get('/', (req, res) => { res.send('<h1>Le serveur AIDA est en ligne et fonctionnel !</h1>'); });
 
 // --- 5. Démarrage du serveur ---
 const PORT = process.env.PORT || 3000;
