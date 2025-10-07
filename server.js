@@ -131,7 +131,7 @@ apiRouter.post('/teacher/assign-content', async (req, res) => {
     } catch (error) { res.status(500).json({ error: "Impossible d'assigner le contenu." }); }
 });
 
-// C. Routes Élève (inchangé)
+// C. Routes Élève
 apiRouter.get('/student/dashboard', async (req, res) => {
     const { studentEmail } = req.query;
     if (!studentEmail) return res.status(400).json({ error: "L'email de l'élève est requis." });
@@ -150,9 +150,12 @@ apiRouter.get('/student/dashboard', async (req, res) => {
     } catch (error) { res.status(500).json({ error: "Impossible de récupérer le tableau de bord." }); }
 });
 
+// MODIFIÉ : La soumission de quiz sauvegarde maintenant les réponses détaillées
 apiRouter.post('/student/submit-quiz', async (req, res) => {
-    const { studentEmail, classId, contentId, title, score, totalQuestions } = req.body;
-    if (!studentEmail || !classId || !contentId || score === undefined || !totalQuestions) return res.status(400).json({ error: "Données de soumission incomplètes." });
+    const { studentEmail, classId, contentId, title, score, totalQuestions, answers } = req.body;
+    if (!studentEmail || !classId || !contentId || score === undefined || !totalQuestions || !answers) {
+        return res.status(400).json({ error: "Données de soumission incomplètes." });
+    }
     const completedItem = { id: `${studentEmail}-${contentId}`, studentEmail, contentId, completedAt: new Date().toISOString() };
     await completedContentContainer.items.upsert(completedItem);
     try {
@@ -160,13 +163,15 @@ apiRouter.post('/student/submit-quiz', async (req, res) => {
         const { resources } = await classesContainer.items.query(querySpec).fetchAll();
         if (resources.length > 0) {
             const classDoc = resources[0];
-            const newResult = { studentEmail, contentId, title, score, totalQuestions, submittedAt: completedItem.completedAt };
+            const newResult = { studentEmail, contentId, title, score, totalQuestions, submittedAt: completedItem.completedAt, answers };
             if (!classDoc.results) classDoc.results = [];
             classDoc.results.push(newResult);
             await classesContainer.item(classDoc.id, classDoc.teacherEmail).replace(classDoc);
         }
         res.status(201).json(completedItem);
-    } catch (error) { res.status(500).json({ error: "Impossible de sauvegarder le résultat dans la classe." }); }
+    } catch (error) {
+        res.status(500).json({ error: "Impossible de sauvegarder le résultat dans la classe." });
+    }
 });
 
 
@@ -175,7 +180,6 @@ apiRouter.post('/ai/generate-content', async (req, res) => {
     const { competences, contentType } = req.body;
     const apiKey = process.env.DEEPSEEK_API_KEY;
     if (!apiKey) return res.status(500).json({ error: "Clé API non configurée." });
-
     const promptMap = {
         quiz: `Crée un quiz de 3 questions à 4 choix sur: "${competences}". Le format doit être un JSON valide: {"title": "Quiz sur ${competences}", "type": "quiz", "questions": [{"question_text": "...", "options": ["A", "B", "C", "D"], "correct_answer_index": 0}]}`,
         exercices: `Crée une fiche de 2 exercices avec énoncé et correction sur: "${competences}". Le format doit être un JSON valide: {"title": "Exercices sur ${competences}", "type": "exercices", "content": [{"enonce": "...", "correction": "..."}]}`,
@@ -184,31 +188,39 @@ apiRouter.post('/ai/generate-content', async (req, res) => {
     const prompt = promptMap[contentType];
     if (!prompt) return res.status(400).json({ error: "Type de contenu non supporté." });
     try {
-        const response = await axios.post('https://api.deepseek.com/chat/completions', 
-            { model: 'deepseek-chat', messages: [{ content: prompt, role: 'user' }] }, 
-            { headers: { 'Authorization': `Bearer ${apiKey}` } }
-        );
+        const response = await axios.post('https://api.deepseek.com/chat/completions', { model: 'deepseek-chat', messages: [{ content: prompt, role: 'user' }] }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
         let jsonString = response.data.choices[0].message.content.replace(/```json\n|\n```/g, '');
         res.json({ structured_content: JSON.parse(jsonString) });
     } catch (error) { res.status(500).json({ error: "L'IA a généré une réponse invalide." }); }
 });
 
-// NOUVEAU : Route pour obtenir un indice
 apiRouter.post('/ai/get-hint', async (req, res) => {
     const { questionText } = req.body;
     const apiKey = process.env.DEEPSEEK_API_KEY;
     if (!apiKey || !questionText) return res.status(400).json({ error: "Clé API et question requises." });
-
     const prompt = `Tu es un assistant pédagogique. Pour la question suivante : "${questionText}", donne un indice simple et court pour aider un élève à trouver la réponse, mais NE DONNE JAMAIS la réponse directement. Encourage l'élève.`;
-    
     try {
-        const response = await axios.post('https://api.deepseek.com/chat/completions',
-            { model: 'deepseek-chat', messages: [{ role: 'user', content: prompt }] },
-            { headers: { 'Authorization': `Bearer ${apiKey}` } }
-        );
+        const response = await axios.post('https://api.deepseek.com/chat/completions', { model: 'deepseek-chat', messages: [{ role: 'user', content: prompt }] }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
         res.json({ hint: response.data.choices[0].message.content });
+    } catch (error) { res.status(500).json({ error: "Erreur lors de la génération de l'indice." }); }
+});
+
+// NOUVEAU : Route pour le feedback sur les erreurs
+apiRouter.post('/ai/get-feedback-for-error', async (req, res) => {
+    const { question, userAnswer, correctAnswer } = req.body;
+    const apiKey = process.env.DEEPSEEK_API_KEY;
+    if (!apiKey || !question || !userAnswer || !correctAnswer) {
+        return res.status(400).json({ error: "Données incomplètes pour le feedback." });
+    }
+    const prompt = `Tu es AIDA, une IA pédagogue et bienveillante. Un élève a fait une erreur à un quiz. Explique-lui simplement et gentiment pourquoi sa réponse est incorrecte et pourquoi la bonne réponse est juste. N'utilise pas de termes compliqués.
+    - Question : "${question}"
+    - Sa réponse (incorrecte) : "${userAnswer}"
+    - La bonne réponse : "${correctAnswer}"`;
+    try {
+        const response = await axios.post('https://api.deepseek.com/chat/completions', { model: 'deepseek-chat', messages: [{ role: 'user', content: prompt }] }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
+        res.json({ feedback: response.data.choices[0].message.content });
     } catch (error) {
-        res.status(500).json({ error: "Erreur lors de la génération de l'indice." });
+        res.status(500).json({ error: "Erreur lors de la génération du feedback." });
     }
 });
 
@@ -217,27 +229,16 @@ apiRouter.post('/ai/playground-chat', async (req, res) => {
     const apiKey = process.env.DEEPSEEK_API_KEY;
     if (!apiKey) return res.status(500).json({ error: "Clé API non configurée." });
     try {
-        const response = await axios.post('https://api.deepseek.com/chat/completions',
-            { model: 'deepseek-chat', messages: history },
-            { headers: { 'Authorization': `Bearer ${apiKey}` } }
-        );
+        const response = await axios.post('https://api.deepseek.com/chat/completions', { model: 'deepseek-chat', messages: history }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
         res.json({ reply: response.data.choices[0].message.content });
     } catch (error) { res.status(500).json({ error: "Erreur de communication avec AIDA." }); }
 });
 
-
 app.use('/api', apiRouter);
-
 app.get('/', (req, res) => { res.send('<h1>Le serveur AIDA est en ligne et fonctionnel !</h1>'); });
 
 // --- 5. Démarrage du serveur ---
 const PORT = process.env.PORT || 3000;
-setupDatabase().then(() => {
-    app.listen(PORT, () => {
-        console.log(`\x1b[32m%s\x1b[0m`, `Serveur AIDA démarré sur le port ${PORT}`);
-    });
-}).catch(error => {
-    console.error("\x1b[31m%s\x1b[0m", "[ERREUR CRITIQUE] Démarrage impossible.", error);
-    process.exit(1);
-});
+setupDatabase().then(() => { app.listen(PORT, () => { console.log(`\x1b[32m%s\x1b[0m`, `Serveur AIDA démarré sur le port ${PORT}`); });
+}).catch(error => { console.error("\x1b[31m%s\x1b[0m", "[ERREUR CRITIQUE] Démarrage impossible.", error); process.exit(1); });
 
