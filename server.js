@@ -40,7 +40,7 @@ const apiRouter = express.Router();
 
 // --- 4. Routes API ---
 
-// A. Authentification (inchangé)
+// A. Authentification
 apiRouter.post('/auth/signup', async (req, res) => {
     const { email, password, role } = req.body;
     if (!email || !password || !role) return res.status(400).json({ error: "Email, mot de passe et rôle sont requis." });
@@ -66,7 +66,7 @@ apiRouter.post('/auth/login', async (req, res) => {
     } catch (error) { res.status(500).json({ error: "Erreur lors de la connexion." }); }
 });
 
-// B. Routes Professeur (inchangé)
+// B. Routes Professeur
 apiRouter.get('/teacher/classes', async (req, res) => {
     const { teacherEmail } = req.query;
     if (!teacherEmail) return res.status(400).json({ error: "L'email de l'enseignant est requis." });
@@ -96,6 +96,48 @@ apiRouter.get('/teacher/classes/:classId', async (req, res) => {
         res.status(200).json(resources[0]);
     } catch (error) { res.status(500).json({ error: "Impossible de récupérer les détails de la classe." }); }
 });
+
+// NOUVEAU : Route pour le rapport par compétence
+apiRouter.get('/teacher/classes/:classId/competency-report', async (req, res) => {
+    const { classId } = req.params;
+    try {
+        const querySpec = { query: "SELECT * FROM c WHERE c.id = @classId", parameters: [{ name: "@classId", value: classId }] };
+        const { resources } = await classesContainer.items.query(querySpec).fetchAll();
+        if (resources.length === 0) return res.status(404).json({ error: "Classe non trouvée." });
+
+        const classDoc = resources[0];
+        const stats = {};
+
+        (classDoc.results || []).forEach(result => {
+            const content = (classDoc.content || []).find(c => c.id === result.contentId);
+            if (content && content.competence && content.competence.competence) {
+                const comp = content.competence.competence;
+                if (!stats[comp]) {
+                    stats[comp] = { scores: [], level: content.competence.level };
+                }
+                stats[comp].scores.push(result.score / result.totalQuestions);
+            }
+        });
+
+        const report = Object.entries(stats).map(([competence, data]) => {
+            const average = data.scores.reduce((a, b) => a + b, 0) / data.scores.length;
+            return {
+                competence,
+                level: data.level,
+                averageScore: Math.round(average * 100),
+                studentCount: data.scores.length
+            };
+        });
+
+        report.sort((a, b) => a.averageScore - b.averageScore);
+
+        res.status(200).json(report);
+
+    } catch (error) {
+        res.status(500).json({ error: "Impossible de générer le rapport par compétence." });
+    }
+});
+
 
 apiRouter.post('/teacher/classes/:classId/add-student', async (req, res) => {
     const { classId } = req.params;
@@ -150,7 +192,6 @@ apiRouter.get('/student/dashboard', async (req, res) => {
     } catch (error) { res.status(500).json({ error: "Impossible de récupérer le tableau de bord." }); }
 });
 
-// MODIFIÉ : La soumission de quiz sauvegarde maintenant les réponses détaillées
 apiRouter.post('/student/submit-quiz', async (req, res) => {
     const { studentEmail, classId, contentId, title, score, totalQuestions, answers } = req.body;
     if (!studentEmail || !classId || !contentId || score === undefined || !totalQuestions || !answers) {
@@ -205,7 +246,6 @@ apiRouter.post('/ai/get-hint', async (req, res) => {
     } catch (error) { res.status(500).json({ error: "Erreur lors de la génération de l'indice." }); }
 });
 
-// NOUVEAU : Route pour le feedback sur les erreurs
 apiRouter.post('/ai/get-feedback-for-error', async (req, res) => {
     const { question, userAnswer, correctAnswer } = req.body;
     const apiKey = process.env.DEEPSEEK_API_KEY;
