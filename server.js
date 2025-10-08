@@ -40,6 +40,7 @@ const apiRouter = express.Router();
 
 // --- 4. Routes API ---
 
+// ... (Les routes d'authentification et de gestion des classes restent identiques)
 // A. Authentification
 apiRouter.post('/auth/signup', async (req, res) => {
     const { email, password, role } = req.body;
@@ -97,17 +98,14 @@ apiRouter.get('/teacher/classes/:classId', async (req, res) => {
     } catch (error) { res.status(500).json({ error: "Impossible de récupérer les détails de la classe." }); }
 });
 
-// NOUVEAU : Route pour le rapport par compétence
 apiRouter.get('/teacher/classes/:classId/competency-report', async (req, res) => {
     const { classId } = req.params;
     try {
         const querySpec = { query: "SELECT * FROM c WHERE c.id = @classId", parameters: [{ name: "@classId", value: classId }] };
         const { resources } = await classesContainer.items.query(querySpec).fetchAll();
         if (resources.length === 0) return res.status(404).json({ error: "Classe non trouvée." });
-
         const classDoc = resources[0];
         const stats = {};
-
         (classDoc.results || []).forEach(result => {
             const content = (classDoc.content || []).find(c => c.id === result.contentId);
             if (content && content.competence && content.competence.competence) {
@@ -118,7 +116,6 @@ apiRouter.get('/teacher/classes/:classId/competency-report', async (req, res) =>
                 stats[comp].scores.push(result.score / result.totalQuestions);
             }
         });
-
         const report = Object.entries(stats).map(([competence, data]) => {
             const average = data.scores.reduce((a, b) => a + b, 0) / data.scores.length;
             return {
@@ -128,14 +125,9 @@ apiRouter.get('/teacher/classes/:classId/competency-report', async (req, res) =>
                 studentCount: data.scores.length
             };
         });
-
         report.sort((a, b) => a.averageScore - b.averageScore);
-
         res.status(200).json(report);
-
-    } catch (error) {
-        res.status(500).json({ error: "Impossible de générer le rapport par compétence." });
-    }
+    } catch (error) { res.status(500).json({ error: "Impossible de générer le rapport par compétence." }); }
 });
 
 
@@ -263,6 +255,57 @@ apiRouter.post('/ai/get-feedback-for-error', async (req, res) => {
         res.status(500).json({ error: "Erreur lors de la génération du feedback." });
     }
 });
+
+// NOUVEAU : Route pour générer du contenu à partir d'un document/texte
+apiRouter.post('/ai/generate-from-document', async (req, res) => {
+    const { documentText, contentType } = req.body;
+    const apiKey = process.env.DEEPSEEK_API_KEY;
+    if (!apiKey || !documentText || !contentType) {
+        return res.status(400).json({ error: "Texte du document et type de contenu requis." });
+    }
+
+    const promptMap = {
+        quiz: `À partir du texte suivant, crée un quiz de 3 questions à 4 choix pour vérifier la compréhension. Le format doit être un JSON valide: {"title": "Quiz sur le document", "type": "quiz", "questions": [{"question_text": "...", "options": ["A", "B", "C", "D"], "correct_answer_index": 0}]}. Texte: "${documentText}"`,
+        exercices: `À partir du texte suivant, crée une fiche de 2 exercices avec énoncé et correction. Le format doit être un JSON valide: {"title": "Exercices sur le document", "type": "exercices", "content": [{"enonce": "...", "correction": "..."}]}. Texte: "${documentText}"`
+    };
+
+    const prompt = promptMap[contentType];
+    if (!prompt) return res.status(400).json({ error: "Type de contenu non supporté." });
+
+    try {
+        const response = await axios.post('https://api.deepseek.com/chat/completions', 
+            { model: 'deepseek-chat', messages: [{ content: prompt, role: 'user' }] }, 
+            { headers: { 'Authorization': `Bearer ${apiKey}` } }
+        );
+        let jsonString = response.data.choices[0].message.content.replace(/```json\n|\n```/g, '');
+        res.json({ structured_content: JSON.parse(jsonString) });
+    } catch (error) { res.status(500).json({ error: "L'IA a généré une réponse invalide." }); }
+});
+
+// NOUVEAU : Route pour obtenir de l'aide sur un exercice
+apiRouter.post('/ai/get-hint-from-document', async (req, res) => {
+    const { exerciseText, userQuestion } = req.body;
+    const apiKey = process.env.DEEPSEEK_API_KEY;
+    if (!apiKey || !exerciseText || !userQuestion) {
+        return res.status(400).json({ error: "Texte de l'exercice et question de l'élève requis." });
+    }
+
+    const prompt = `Tu es AIDA, un tuteur IA bienveillant. Un élève a besoin d'aide.
+    Voici son exercice : "${exerciseText}".
+    Voici sa question : "${userQuestion}".
+    Analyse l'exercice et sa question, puis donne un indice utile, une explication simple ou un rappel de cours pour le guider. NE DONNE JAMAIS LA SOLUTION DIRECTEMENT. Sois encourageant.`;
+
+    try {
+        const response = await axios.post('https://api.deepseek.com/chat/completions',
+            { model: 'deepseek-chat', messages: [{ role: 'user', content: prompt }] },
+            { headers: { 'Authorization': `Bearer ${apiKey}` } }
+        );
+        res.json({ hint: response.data.choices[0].message.content });
+    } catch (error) {
+        res.status(500).json({ error: "Erreur lors de la génération de l'indice." });
+    }
+});
+
 
 apiRouter.post('/ai/playground-chat', async (req, res) => {
     const { history } = req.body;
