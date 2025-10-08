@@ -210,12 +210,12 @@ apiRouter.post('/student/submit-quiz', async (req, res) => {
 
 // D. Routes IA
 apiRouter.post('/ai/generate-content', async (req, res) => {
-    const { competences, contentType } = req.body;
+    const { competences, contentType, exerciseCount } = req.body;
     const apiKey = process.env.DEEPSEEK_API_KEY;
     if (!apiKey) return res.status(500).json({ error: "Clé API non configurée." });
     const promptMap = {
         quiz: `Crée un quiz de 3 questions à 4 choix sur: "${competences}". Le format doit être un JSON valide: {"title": "Quiz sur ${competences}", "type": "quiz", "questions": [{"question_text": "...", "options": ["A", "B", "C", "D"], "correct_answer_index": 0}]}`,
-        exercices: `Crée une fiche de 2 exercices avec énoncé et correction sur: "${competences}". Le format doit être un JSON valide: {"title": "Exercices sur ${competences}", "type": "exercices", "content": [{"enonce": "...", "correction": "..."}]}`,
+        exercices: `Crée une fiche de ${exerciseCount || 5} exercices SANS la correction sur: "${competences}". Le format doit être un JSON valide: {"title": "Exercices sur ${competences}", "type": "exercices", "content": [{"enonce": "..."}]}`,
         plan_de_lecon: `Crée un plan de leçon simple sur: "${competences}". Le format doit être un JSON valide: {"title": "Plan de leçon sur ${competences}", "type": "plan_de_lecon", "objectifs": ["Objectif 1", "Objectif 2"], "deroulement": "Étape 1...", "evaluation": "Comment évaluer les élèves"}`
     };
     const prompt = promptMap[contentType];
@@ -257,7 +257,7 @@ apiRouter.post('/ai/get-feedback-for-error', async (req, res) => {
 });
 
 apiRouter.post('/ai/generate-from-document', async (req, res) => {
-    const { documentText, contentType } = req.body;
+    const { documentText, contentType, exerciseCount } = req.body;
     const apiKey = process.env.DEEPSEEK_API_KEY;
     if (!apiKey || !documentText || !contentType) {
         return res.status(400).json({ error: "Texte du document et type de contenu requis." });
@@ -265,7 +265,7 @@ apiRouter.post('/ai/generate-from-document', async (req, res) => {
 
     const promptMap = {
         quiz: `À partir du texte suivant, crée un quiz de 3 questions à 4 choix pour vérifier la compréhension. Le format doit être un JSON valide: {"title": "Quiz sur le document", "type": "quiz", "questions": [{"question_text": "...", "options": ["A", "B", "C", "D"], "correct_answer_index": 0}]}. Texte: "${documentText}"`,
-        exercices: `À partir du texte suivant, crée une fiche de 2 exercices avec énoncé et correction. Le format doit être un JSON valide: {"title": "Exercices sur le document", "type": "exercices", "content": [{"enonce": "...", "correction": "..."}]}. Texte: "${documentText}"`
+        exercices: `À partir du texte suivant, crée une fiche de ${exerciseCount || 5} exercices SANS la correction. Le format doit être un JSON valide: {"title": "Exercices sur le document", "type": "exercices", "content": [{"enonce": "..."}]}. Texte: "${documentText}"`
     };
 
     const prompt = promptMap[contentType];
@@ -281,29 +281,29 @@ apiRouter.post('/ai/generate-from-document', async (req, res) => {
     } catch (error) { res.status(500).json({ error: "L'IA a généré une réponse invalide." }); }
 });
 
-// MODIFIÉ : Renommé en "interactive-lesson"
-apiRouter.post('/ai/interactive-lesson', async (req, res) => {
-    const { exerciseText, userQuestion } = req.body;
+apiRouter.post('/ai/correct-exercise', async (req, res) => {
+    const { exerciseText, studentAnswer } = req.body;
     const apiKey = process.env.DEEPSEEK_API_KEY;
-    if (!apiKey || !exerciseText || !userQuestion) {
-        return res.status(400).json({ error: "Texte de l'exercice et question de l'élève requis." });
+    if (!apiKey || !exerciseText || !studentAnswer) {
+        return res.status(400).json({ error: "Texte de l'exercice et réponse de l'élève requis." });
     }
 
-    const prompt = `Tu es AIDA, un tuteur pour enfants (niveau CP/CE1). Un élève est bloqué. Ta mission est de créer une mini-leçon interactive. Réponds UNIQUEMENT en JSON valide avec la structure suivante : {"explanation": "...", "quiz": {"question_text": "...", "options": ["...", "..."], "correct_answer_index": 0}}.
-    1. **Explication:** Ré-explique le concept de base de manière très simple et imagée. Utilise une analogie (comme une histoire ou un jeu), des phrases courtes, des listes à puces et des emojis 🎨.
-    2. **Quiz:** Pose UNE seule question très facile avec 2 ou 3 choix pour vérifier sa compréhension.
-    Voici son exercice : "${exerciseText}".
-    Voici sa question : "${userQuestion}".`;
+    const prompt = `Tu es AIDA, un tuteur IA bienveillant pour un élève de primaire. L'élève a répondu à un exercice. Ta mission est de le corriger de manière pédagogique.
+    1.  Commence par dire si la réponse est globalement juste ou s'il y a des erreurs, de manière très encourageante (ex: "Bravo, c'est un super début ! 💪" ou "Excellente réponse ! ✨").
+    2.  S'il y a des erreurs, explique-les une par une, très simplement, avec des phrases courtes, des listes à puces et des emojis pour rendre l'explication visuelle et amusante (ex: "✏️ Souviens-toi, pour l'addition...").
+    3.  Termine toujours par une phrase positive pour l'encourager à continuer.
+    
+    Voici l'exercice : "${exerciseText}".
+    Voici sa réponse : "${studentAnswer}".`;
 
     try {
         const response = await axios.post('https://api.deepseek.com/chat/completions',
             { model: 'deepseek-chat', messages: [{ role: 'user', content: prompt }] },
             { headers: { 'Authorization': `Bearer ${apiKey}` } }
         );
-        let jsonString = response.data.choices[0].message.content.replace(/```json\n|\n```/g, '');
-        res.json(JSON.parse(jsonString));
+        res.json({ correction: response.data.choices[0].message.content });
     } catch (error) {
-        res.status(500).json({ error: "Erreur lors de la génération de la leçon interactive." });
+        res.status(500).json({ error: "Erreur lors de la génération de la correction." });
     }
 });
 
