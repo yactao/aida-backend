@@ -244,7 +244,7 @@ apiRouter.post('/ai/get-feedback-for-error', async (req, res) => {
     if (!apiKey || !question || !userAnswer || !correctAnswer) {
         return res.status(400).json({ error: "Données incomplètes pour le feedback." });
     }
-    const prompt = `Tu es AIDA, un tuteur IA super sympa ! Un élève a fait une erreur. Explique-lui son erreur de manière très simple, en phrases courtes. Utilise des listes à puces et un emoji ou deux pour rendre ça plus clair et amusant. NE DONNE PAS simplement la réponse, guide-le. Sois très encourageant.
+    const prompt = `Tu es AIDA, un tuteur IA super sympa ! Un élève (niveau primaire) a fait une erreur. Explique-lui son erreur de manière très simple, en phrases courtes. Utilise des listes à puces et un emoji ou deux pour rendre ça plus clair et amusant. Sois très encourageant.
     - Question : "${question}"
     - Sa réponse (incorrecte) : "${userAnswer}"
     - La bonne réponse : "${correctAnswer}"`;
@@ -281,23 +281,29 @@ apiRouter.post('/ai/generate-from-document', async (req, res) => {
     } catch (error) { res.status(500).json({ error: "L'IA a généré une réponse invalide." }); }
 });
 
-apiRouter.post('/ai/get-hint-from-document', async (req, res) => {
+// MODIFIÉ : Renommé en "interactive-lesson"
+apiRouter.post('/ai/interactive-lesson', async (req, res) => {
     const { exerciseText, userQuestion } = req.body;
     const apiKey = process.env.DEEPSEEK_API_KEY;
     if (!apiKey || !exerciseText || !userQuestion) {
         return res.status(400).json({ error: "Texte de l'exercice et question de l'élève requis." });
     }
 
-    const prompt = `Tu es AIDA, un tuteur IA super sympa ! Un élève est bloqué sur un exercice. Donne-lui un seul indice pour le débloquer. Utilise des phrases très courtes et un langage simple adapté à un enfant (CP/CE1). Sois encourageant mais ne fais jamais le travail à sa place. Voici son exercice : "${exerciseText}". Voici sa question : "${userQuestion}".`;
+    const prompt = `Tu es AIDA, un tuteur pour enfants (niveau CP/CE1). Un élève est bloqué. Ta mission est de créer une mini-leçon interactive. Réponds UNIQUEMENT en JSON valide avec la structure suivante : {"explanation": "...", "quiz": {"question_text": "...", "options": ["...", "..."], "correct_answer_index": 0}}.
+    1. **Explication:** Ré-explique le concept de base de manière très simple et imagée. Utilise une analogie (comme une histoire ou un jeu), des phrases courtes, des listes à puces et des emojis 🎨.
+    2. **Quiz:** Pose UNE seule question très facile avec 2 ou 3 choix pour vérifier sa compréhension.
+    Voici son exercice : "${exerciseText}".
+    Voici sa question : "${userQuestion}".`;
 
     try {
         const response = await axios.post('https://api.deepseek.com/chat/completions',
             { model: 'deepseek-chat', messages: [{ role: 'user', content: prompt }] },
             { headers: { 'Authorization': `Bearer ${apiKey}` } }
         );
-        res.json({ hint: response.data.choices[0].message.content });
+        let jsonString = response.data.choices[0].message.content.replace(/```json\n|\n```/g, '');
+        res.json(JSON.parse(jsonString));
     } catch (error) {
-        res.status(500).json({ error: "Erreur lors de la génération de l'indice." });
+        res.status(500).json({ error: "Erreur lors de la génération de la leçon interactive." });
     }
 });
 
