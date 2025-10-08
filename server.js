@@ -244,7 +244,7 @@ apiRouter.post('/ai/get-feedback-for-error', async (req, res) => {
     if (!apiKey || !question || !userAnswer || !correctAnswer) {
         return res.status(400).json({ error: "Données incomplètes pour le feedback." });
     }
-    const prompt = `Tu es AIDA, une IA pédagogue et bienveillante. Un élève a fait une erreur à un quiz. Explique-lui simplement et gentiment pourquoi sa réponse est incorrecte et pourquoi la bonne réponse est juste. N'utilise pas de termes compliqués.
+    const prompt = `Tu es AIDA, un tuteur IA super sympa ! Un élève a fait une erreur. Explique-lui son erreur de manière très simple, en phrases courtes. Utilise des listes à puces et un emoji ou deux pour rendre ça plus clair et amusant. NE DONNE PAS simplement la réponse, guide-le. Sois très encourageant.
     - Question : "${question}"
     - Sa réponse (incorrecte) : "${userAnswer}"
     - La bonne réponse : "${correctAnswer}"`;
@@ -256,7 +256,6 @@ apiRouter.post('/ai/get-feedback-for-error', async (req, res) => {
     }
 });
 
-// NOUVEAU : Route pour générer du contenu à partir d'un document/texte
 apiRouter.post('/ai/generate-from-document', async (req, res) => {
     const { documentText, contentType } = req.body;
     const apiKey = process.env.DEEPSEEK_API_KEY;
@@ -282,7 +281,6 @@ apiRouter.post('/ai/generate-from-document', async (req, res) => {
     } catch (error) { res.status(500).json({ error: "L'IA a généré une réponse invalide." }); }
 });
 
-// NOUVEAU : Route pour obtenir de l'aide sur un exercice
 apiRouter.post('/ai/get-hint-from-document', async (req, res) => {
     const { exerciseText, userQuestion } = req.body;
     const apiKey = process.env.DEEPSEEK_API_KEY;
@@ -290,10 +288,7 @@ apiRouter.post('/ai/get-hint-from-document', async (req, res) => {
         return res.status(400).json({ error: "Texte de l'exercice et question de l'élève requis." });
     }
 
-    const prompt = `Tu es AIDA, un tuteur IA bienveillant. Un élève a besoin d'aide.
-    Voici son exercice : "${exerciseText}".
-    Voici sa question : "${userQuestion}".
-    Analyse l'exercice et sa question, puis donne un indice utile, une explication simple ou un rappel de cours pour le guider. NE DONNE JAMAIS LA SOLUTION DIRECTEMENT. Sois encourageant.`;
+    const prompt = `Tu es AIDA, un tuteur IA super sympa ! Un élève est bloqué sur un exercice. Donne-lui un seul indice pour le débloquer. Utilise des phrases très courtes et un langage simple adapté à un enfant (CP/CE1). Sois encourageant mais ne fais jamais le travail à sa place. Voici son exercice : "${exerciseText}". Voici sa question : "${userQuestion}".`;
 
     try {
         const response = await axios.post('https://api.deepseek.com/chat/completions',
