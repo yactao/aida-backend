@@ -1,5 +1,4 @@
 // --- 1. Importations et Configuration ---
-
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
@@ -285,7 +284,7 @@ apiRouter.post('/ai/generate-from-document', async (req, res) => {
 apiRouter.post('/ai/correct-exercise', async (req, res) => {
     const { exerciseText, studentAnswer } = req.body;
     const apiKey = process.env.DEEPSEEK_API_KEY;
-    if (!apiKey || !exerciseText || !studentAnswer) {
+    if (!apiKey || !exerciseText || studentAnswer === undefined) {
         return res.status(400).json({ error: "Texte de l'exercice et réponse de l'élève requis." });
     }
 
