@@ -36,12 +36,10 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-const apiRouter = express.Router();
-
 // --- 4. Routes API ---
 
 // A. Authentification
-apiRouter.post('/auth/signup', async (req, res) => {
+app.post('/api/auth/signup', async (req, res) => {
     const { email, password, role } = req.body;
     if (!email || !password || !role) return res.status(400).json({ error: "Email, mot de passe et rôle sont requis." });
     try {
@@ -56,7 +54,7 @@ apiRouter.post('/auth/signup', async (req, res) => {
     } catch (error) { res.status(500).json({ error: "Erreur lors de la création du compte." }); }
 });
 
-apiRouter.post('/auth/login', async (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ error: "Email et mot de passe sont requis." });
     try {
@@ -67,7 +65,7 @@ apiRouter.post('/auth/login', async (req, res) => {
 });
 
 // B. Routes Professeur
-apiRouter.get('/teacher/classes', async (req, res) => {
+app.get('/api/teacher/classes', async (req, res) => {
     const { teacherEmail } = req.query;
     if (!teacherEmail) return res.status(400).json({ error: "L'email de l'enseignant est requis." });
     const querySpec = { query: "SELECT * FROM c WHERE c.teacherEmail = @teacherEmail", parameters: [{ name: "@teacherEmail", value: teacherEmail }] };
@@ -77,7 +75,7 @@ apiRouter.get('/teacher/classes', async (req, res) => {
     } catch (error) { res.status(500).json({ error: "Impossible de récupérer les classes." }); }
 });
 
-apiRouter.post('/teacher/classes', async (req, res) => {
+app.post('/api/teacher/classes', async (req, res) => {
     const { className, teacherEmail } = req.body;
     if (!className || !teacherEmail) return res.status(400).json({ error: "Nom de classe et email du professeur sont requis." });
     const newClass = { id: `class-${Date.now()}`, className, teacherEmail, students: [], content: [], results: [] };
@@ -87,7 +85,7 @@ apiRouter.post('/teacher/classes', async (req, res) => {
     } catch (error) { res.status(500).json({ error: "Impossible de créer la classe." }); }
 });
 
-apiRouter.get('/teacher/classes/:classId', async (req, res) => {
+app.get('/api/teacher/classes/:classId', async (req, res) => {
     const { classId } = req.params;
     const querySpec = { query: "SELECT * FROM c WHERE c.id = @classId", parameters: [{ name: "@classId", value: classId }] };
     try {
@@ -97,7 +95,7 @@ apiRouter.get('/teacher/classes/:classId', async (req, res) => {
     } catch (error) { res.status(500).json({ error: "Impossible de récupérer les détails de la classe." }); }
 });
 
-apiRouter.get('/teacher/classes/:classId/competency-report', async (req, res) => {
+app.get('/api/teacher/classes/:classId/competency-report', async (req, res) => {
     const { classId } = req.params;
     try {
         const querySpec = { query: "SELECT * FROM c WHERE c.id = @classId", parameters: [{ name: "@classId", value: classId }] };
@@ -130,7 +128,7 @@ apiRouter.get('/teacher/classes/:classId/competency-report', async (req, res) =>
 });
 
 
-apiRouter.post('/teacher/classes/:classId/add-student', async (req, res) => {
+app.post('/api/teacher/classes/:classId/add-student', async (req, res) => {
     const { classId } = req.params;
     const { studentEmail } = req.body;
     if (!studentEmail) return res.status(400).json({ error: "L'email de l'élève est requis." });
@@ -148,7 +146,7 @@ apiRouter.post('/teacher/classes/:classId/add-student', async (req, res) => {
     } catch (error) { res.status(500).json({ error: "Impossible d'ajouter l'élève." }); }
 });
 
-apiRouter.post('/teacher/assign-content', async (req, res) => {
+app.post('/api/teacher/assign-content', async (req, res) => {
     const { classId, contentData } = req.body;
     if (!classId || !contentData) return res.status(400).json({ error: "ID de classe et contenu sont requis." });
     try {
@@ -165,7 +163,7 @@ apiRouter.post('/teacher/assign-content', async (req, res) => {
 });
 
 // C. Routes Élève
-apiRouter.get('/student/dashboard', async (req, res) => {
+app.get('/api/student/dashboard', async (req, res) => {
     const { studentEmail } = req.query;
     if (!studentEmail) return res.status(400).json({ error: "L'email de l'élève est requis." });
     try {
@@ -183,7 +181,7 @@ apiRouter.get('/student/dashboard', async (req, res) => {
     } catch (error) { res.status(500).json({ error: "Impossible de récupérer le tableau de bord." }); }
 });
 
-apiRouter.post('/student/submit-quiz', async (req, res) => {
+app.post('/api/student/submit-quiz', async (req, res) => {
     const { studentEmail, classId, contentId, title, score, totalQuestions, answers } = req.body;
     if (!studentEmail || !classId || !contentId || score === undefined || !totalQuestions || !answers) {
         return res.status(400).json({ error: "Données de soumission incomplètes." });
@@ -208,7 +206,7 @@ apiRouter.post('/student/submit-quiz', async (req, res) => {
 
 
 // D. Routes IA
-apiRouter.post('/ai/generate-content', async (req, res) => {
+app.post('/api/ai/generate-content', async (req, res) => {
     const { competences, contentType, exerciseCount } = req.body;
     const apiKey = process.env.DEEPSEEK_API_KEY;
     if (!apiKey) return res.status(500).json({ error: "Clé API non configurée." });
@@ -226,7 +224,7 @@ apiRouter.post('/ai/generate-content', async (req, res) => {
     } catch (error) { res.status(500).json({ error: "L'IA a généré une réponse invalide." }); }
 });
 
-apiRouter.post('/ai/get-hint', async (req, res) => {
+app.post('/api/ai/get-hint', async (req, res) => {
     const { questionText } = req.body;
     const apiKey = process.env.DEEPSEEK_API_KEY;
     if (!apiKey || !questionText) return res.status(400).json({ error: "Clé API et question requises." });
@@ -237,7 +235,7 @@ apiRouter.post('/ai/get-hint', async (req, res) => {
     } catch (error) { res.status(500).json({ error: "Erreur lors de la génération de l'indice." }); }
 });
 
-apiRouter.post('/ai/get-feedback-for-error', async (req, res) => {
+app.post('/api/ai/get-feedback-for-error', async (req, res) => {
     const { question, userAnswer, correctAnswer } = req.body;
     const apiKey = process.env.DEEPSEEK_API_KEY;
     if (!apiKey || !question || !userAnswer || !correctAnswer) {
@@ -255,7 +253,7 @@ apiRouter.post('/ai/get-feedback-for-error', async (req, res) => {
     }
 });
 
-apiRouter.post('/ai/generate-from-document', async (req, res) => {
+app.post('/api/ai/generate-from-document', async (req, res) => {
     const { documentText, contentType, exerciseCount } = req.body;
     const apiKey = process.env.DEEPSEEK_API_KEY;
     if (!apiKey || !documentText || !contentType) {
@@ -280,7 +278,7 @@ apiRouter.post('/ai/generate-from-document', async (req, res) => {
     } catch (error) { res.status(500).json({ error: "L'IA a généré une réponse invalide." }); }
 });
 
-apiRouter.post('/ai/correct-exercise', async (req, res) => {
+app.post('/api/ai/correct-exercise', async (req, res) => {
     const { exerciseText, studentAnswer } = req.body;
     const apiKey = process.env.DEEPSEEK_API_KEY;
     if (!apiKey || !exerciseText || studentAnswer === undefined) {
@@ -307,7 +305,7 @@ apiRouter.post('/ai/correct-exercise', async (req, res) => {
 });
 
 
-apiRouter.post('/ai/playground-chat', async (req, res) => {
+app.post('/api/ai/playground-chat', async (req, res) => {
     const { history } = req.body;
     const apiKey = process.env.DEEPSEEK_API_KEY;
     if (!apiKey) return res.status(500).json({ error: "Clé API non configurée." });
@@ -317,7 +315,6 @@ apiRouter.post('/ai/playground-chat', async (req, res) => {
     } catch (error) { res.status(500).json({ error: "Erreur de communication avec AIDA." }); }
 });
 
-app.use('/api', apiRouter);
 app.get('/', (req, res) => { res.send('<h1>Le serveur AIDA est en ligne et fonctionnel !</h1>'); });
 
 // --- 5. Démarrage du serveur ---
