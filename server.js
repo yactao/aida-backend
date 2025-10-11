@@ -317,7 +317,7 @@ apiRouter.post('/ai/playground-chat', async (req, res) => {
     } catch (error) { res.status(500).json({ error: "Erreur de communication avec AIDA." }); }
 });
 
-app.use(apiRouter);
+app.use('/api', apiRouter);
 app.get('/', (req, res) => { res.send('<h1>Le serveur AIDA est en ligne et fonctionnel !</h1>'); });
 
 // --- 5. Démarrage du serveur ---
