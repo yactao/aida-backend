@@ -40,7 +40,6 @@ const apiRouter = express.Router();
 
 // --- 4. Routes API ---
 
-// ... (Les routes d'authentification et de gestion des classes restent identiques)
 // A. Authentification
 apiRouter.post('/auth/signup', async (req, res) => {
     const { email, password, role } = req.body;
@@ -318,7 +317,7 @@ apiRouter.post('/ai/playground-chat', async (req, res) => {
     } catch (error) { res.status(500).json({ error: "Erreur de communication avec AIDA." }); }
 });
 
-app.use('/api', apiRouter);
+app.use(apiRouter);
 app.get('/', (req, res) => { res.send('<h1>Le serveur AIDA est en ligne et fonctionnel !</h1>'); });
 
 // --- 5. Démarrage du serveur ---
