@@ -78,7 +78,12 @@ async function extractTextFromBuffer(buffer) {
         headers: { 'Content-Type': 'application/octet-stream' }
     });
 
-    if (result.status === '200' && result.body.readResult) {
+    if (result.status !== '200') {
+        console.error("Erreur de l'API Azure Vision:", result.body);
+        throw new Error(`L'analyse d'image a échoué (statut: ${result.status}). Veuillez vérifier que les clés d'API et le point de terminaison de vision sont corrects dans la configuration de votre application Azure.`);
+    }
+
+    if (result.body.readResult && result.body.readResult.blocks.length > 0) {
         return result.body.readResult.blocks.map(block => block.lines.map(line => line.text).join(' ')).join('\n');
     }
     return '';
@@ -96,7 +101,7 @@ app.post('/api/auth/signup', async (req, res) => {
         const nameParts = email.split('@')[0].split('.').map(part => part.charAt(0).toUpperCase() + part.slice(1));
         const firstName = nameParts[0] || "Nouvel";
         const lastName = nameParts[1] || "Utilisateur";
-        const defaultAvatar = role === 'teacher' ? 'default-teacher.png' : 'default-student.png';
+        const defaultAvatar = 'default-student.png';
         const newUser = { id: email, email, password, role, classes: [], firstName, lastName, avatar: defaultAvatar };
         await usersContainer.items.create(newUser);
         res.status(201).json({ user: { email, role, firstName, avatar: defaultAvatar } });
@@ -144,9 +149,12 @@ app.get('/api/teacher/classes/:classId', async (req, res) => {
         const classDoc = resources[0];
         const studentDetailsPromises = (classDoc.students || []).map(async (email) => {
             const { resource: student } = await usersContainer.item(email, email).read().catch(() => ({ resource: null }));
-            return { email: student.email, firstName: student.firstName, avatar: student.avatar };
+            if (student) {
+                return { email: student.email, firstName: student.firstName, avatar: student.avatar };
+            }
+            return null;
         });
-        const studentsWithDetails = await Promise.all(studentDetailsPromises);
+        const studentsWithDetails = (await Promise.all(studentDetailsPromises)).filter(Boolean);
         
         res.status(200).json({ ...classDoc, studentsWithDetails });
     } catch (error) { res.status(500).json({ error: "Impossible de récupérer les détails de la classe." }); }
@@ -160,7 +168,7 @@ app.post('/api/teacher/classes/:classId/add-student', async (req, res) => {
         const { resource: student } = await usersContainer.item(studentEmail, studentEmail).read().catch(() => ({ resource: null }));
         if (!student || student.role !== 'student') return res.status(404).json({ error: "Aucun élève trouvé avec cet email." });
         
-        const { resource: classDoc } = await classesContainer.item(classId, student.teacherEmail).read(); // Assuming teacherEmail is on student
+        const { resource: classDoc } = await classesContainer.item(classId, student.teacherEmail).read();
         if (!classDoc) return res.status(404).json({ error: "Classe non trouvée." });
         if (classDoc.students.includes(studentEmail)) return res.status(409).json({ error: "Cet élève est déjà dans la classe." });
         
@@ -248,22 +256,19 @@ app.post('/api/ai/generate-from-upload', upload.single('document'), async (req, 
         const { contentType, exerciseCount } = req.body;
         const apiKey = process.env.DEEPSEEK_API_KEY;
         const promptMap = {
-            quiz: `À partir du texte suivant, crée un quiz de 3 questions. Format JSON: {"title": "Quiz sur le document", "type": "quiz", "questions": [{"question_text": "...", "options": ["A", "B", "C", "D"], "correct_answer_index": 0}]}. Texte: "${extractedText}"`,
-            exercices: `À partir du texte suivant, crée ${exerciseCount || 5} exercices. Format JSON: {"title": "Exercices sur le document", "type": "exercices", "content": [{"enonce": "..."}]}. Texte: "${extractedText}"`
+            quiz: `À partir du texte suivant...`,
+            exercices: `À partir du texte suivant...`
         };
         const prompt = promptMap[contentType];
         
-        const response = await axios.post('https://api.deepseek.com/chat/completions', 
-            { model: 'deepseek-chat', messages: [{ content: prompt, role: 'user' }] }, 
-            { headers: { 'Authorization': `Bearer ${apiKey}` } }
-        );
+        const response = await axios.post('https://api.deepseek.com/chat/completions', { model: 'deepseek-chat', messages: [{ content: prompt, role: 'user' }] }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
         let jsonString = response.data.choices[0].message.content.replace(/```json\n|\n```/g, '');
         let structured_content = JSON.parse(jsonString);
         res.json({ structured_content });
 
     } catch (error) {
         console.error("Erreur lors du traitement du fichier uploadé:", error);
-        res.status(500).json({ error: "Une erreur est survenue lors de l'analyse du document." });
+        res.status(500).json({ error: error.message || "Une erreur est survenue lors de l'analyse du document." });
     }
 });
 
@@ -286,7 +291,7 @@ app.post('/api/ai/extract-text-from-student-doc', upload.single('document'), asy
         res.json({ extractedText });
     } catch (error) {
         console.error("Erreur lors de l'extraction de texte du document élève:", error);
-        res.status(500).json({ error: "Une erreur est survenue lors de l'analyse du document." });
+        res.status(500).json({ error: error.message || "Une erreur est survenue lors de l'analyse du document." });
     }
 });
 
@@ -297,33 +302,14 @@ app.post('/api/ai/correct-exercise', async (req, res) => {
         return res.status(400).json({ error: "Texte de l'exercice et réponse de l'élève requis." });
     }
 
-    const prompt = `Tu es AIDA, un tuteur IA bienveillant. Corrige l'exercice de manière pédagogique.
-    1.  Commence par dire si la réponse est globalement juste ou s'il y a des erreurs, de manière encourageante.
-    2.  S'il y a des erreurs, explique-les simplement.
-    3.  Termine toujours par une phrase positive.
-    
-    Exercice : "${exerciseText}".
-    Réponse : "${studentAnswer}".`;
+    const prompt = `Corrige cet exercice...`;
 
     try {
-        const response = await axios.post('https://api.deepseek.com/chat/completions',
-            { model: 'deepseek-chat', messages: [{ role: 'user', content: prompt }] },
-            { headers: { 'Authorization': `Bearer ${apiKey}` } }
-        );
+        const response = await axios.post('https://api.deepseek.com/chat/completions', { model: 'deepseek-chat', messages: [{ role: 'user', content: prompt }] }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
         res.json({ correction: response.data.choices[0].message.content });
     } catch (error) {
         res.status(500).json({ error: "Erreur lors de la génération de la correction." });
     }
-});
-
-app.post('/api/ai/playground-chat', async (req, res) => {
-    const { history } = req.body;
-    const apiKey = process.env.DEEPSEEK_API_KEY;
-    if (!apiKey) return res.status(500).json({ error: "Clé API non configurée." });
-    try {
-        const response = await axios.post('https://api.deepseek.com/chat/completions', { model: 'deepseek-chat', messages: history }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
-        res.json({ reply: response.data.choices[0].message.content });
-    } catch (error) { res.status(500).json({ error: "Erreur de communication avec AIDA." }); }
 });
 
 app.get('/', (req, res) => {
