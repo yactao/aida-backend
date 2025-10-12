@@ -5,6 +5,7 @@ require('dotenv').config();
 const axios = require('axios');
 const path = require('path');
 const { CosmosClient } = require('@azure/cosmos');
+const multer = require('multer');
 
 // --- 2. Initialisation Cosmos DB ---
 const endpoint = process.env.COSMOS_ENDPOINT;
@@ -35,6 +36,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+const upload = multer({ storage: multer.memoryStorage() }); // Pour gérer les fichiers en mémoire
 
 // --- 4. Routes API ---
 
@@ -262,7 +264,7 @@ app.post('/api/ai/get-feedback-for-error', async (req, res) => {
     }
 });
 
-app.post('/api/ai/generate-from-document', async (req, res) => {
+app.post('/api/ai/generate-from-text', async (req, res) => {
     const { documentText, contentType, exerciseCount } = req.body;
     const apiKey = process.env.DEEPSEEK_API_KEY;
     if (!apiKey || !documentText || !contentType) {
@@ -285,6 +287,44 @@ app.post('/api/ai/generate-from-document', async (req, res) => {
         let jsonString = response.data.choices[0].message.content.replace(/```json\n|\n```/g, '');
         res.json({ structured_content: JSON.parse(jsonString) });
     } catch (error) { res.status(500).json({ error: "L'IA a généré une réponse invalide." }); }
+});
+
+app.post('/api/ai/generate-from-upload', upload.single('document'), async (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ error: "Aucun fichier n'a été téléversé." });
+    }
+
+    try {
+        // --- SIMULATION D'OCR ---
+        // Ici, nous simulerons l'extraction de texte. Dans une future version,
+        // nous appellerons un service OCR (Optical Character Recognition) pour analyser le fichier.
+        const extractedText = `(Texte simulé extrait du document : ${req.file.originalname})\n\nLe contenu réel du PDF ou de l'image serait analysé et placé ici. Par exemple, si c'était un exercice de maths, on pourrait y trouver : "Calcule 5 + 7."`;
+        
+        // --- Utilisation de la logique de génération existante ---
+        const { contentType, exerciseCount } = req.body;
+        const apiKey = process.env.DEEPSEEK_API_KEY;
+        if (!apiKey) return res.status(500).json({ error: "Clé API non configurée." });
+
+        const promptMap = {
+            quiz: `À partir du texte suivant, crée un quiz de 3 questions à 4 choix. Le format doit être un JSON valide: {"title": "Quiz sur le document", "type": "quiz", "questions": [{"question_text": "...", "options": ["A", "B", "C", "D"], "correct_answer_index": 0}]}. Texte: "${extractedText}"`,
+            exercices: `À partir du texte suivant, crée une fiche de ${exerciseCount || 5} exercices SANS correction. Le format doit être un JSON valide: {"title": "Exercices sur le document", "type": "exercices", "content": [{"enonce": "..."}]}. Texte: "${extractedText}"`
+        };
+
+        const prompt = promptMap[contentType];
+        if (!prompt) return res.status(400).json({ error: "Type de contenu non supporté." });
+
+        const response = await axios.post('https://api.deepseek.com/chat/completions', 
+            { model: 'deepseek-chat', messages: [{ content: prompt, role: 'user' }] }, 
+            { headers: { 'Authorization': `Bearer ${apiKey}` } }
+        );
+        let jsonString = response.data.choices[0].message.content.replace(/```json\n|\n```/g, '');
+        let structured_content = JSON.parse(jsonString);
+        structured_content.title = structured_content.title.replace(/sur Pour un élève de .*?,?\s?/i, 'sur ');
+        res.json({ structured_content });
+    } catch (error) {
+        console.error("Erreur lors du traitement du fichier uploadé:", error);
+        res.status(500).json({ error: "L'IA a généré une réponse invalide ou une erreur est survenue." });
+    }
 });
 
 app.post('/api/ai/correct-exercise', async (req, res) => {
