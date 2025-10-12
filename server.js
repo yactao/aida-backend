@@ -38,7 +38,7 @@ async function setupDatabase() {
 // Azure Blob Storage
 const storageConnectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
 if (!storageConnectionString) {
-    console.warn("La chaîne de connexion Azure Storage n'est pas définie. Le téléversement de fichiers sera désactivé.");
+    console.warn("La chaîne de connexion Azure Storage n'est pas définie.");
 }
 const blobServiceClient = storageConnectionString ? BlobServiceClient.fromConnectionString(storageConnectionString) : null;
 const containerName = 'documents';
@@ -58,12 +58,12 @@ if (visionEndpoint && visionKey) {
     visionClient = ImageAnalysisClient(visionEndpoint, new AzureKeyCredential(visionKey));
     console.log("Client Azure AI Vision prêt.");
 } else {
-    console.warn("Les informations de connexion Azure AI Vision ne sont pas définies. L'analyse de documents sera désactivée.");
+    console.warn("Les informations de connexion Azure AI Vision ne sont pas définies.");
 }
 
 // --- 3. Initialisation Express ---
 const app = express();
-app.use(cors());
+app.use(cors()); // La configuration fine se fait sur le portail Azure.
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 const upload = multer({ storage: multer.memoryStorage() });
@@ -149,9 +149,7 @@ app.get('/api/teacher/classes/:classId', async (req, res) => {
         const classDoc = resources[0];
         const studentDetailsPromises = (classDoc.students || []).map(async (email) => {
             const { resource: student } = await usersContainer.item(email, email).read().catch(() => ({ resource: null }));
-            if (student) {
-                return { email: student.email, firstName: student.firstName, avatar: student.avatar };
-            }
+            if (student) return { email: student.email, firstName: student.firstName, avatar: student.avatar };
             return null;
         });
         const studentsWithDetails = (await Promise.all(studentDetailsPromises)).filter(Boolean);
@@ -168,12 +166,15 @@ app.post('/api/teacher/classes/:classId/add-student', async (req, res) => {
         const { resource: student } = await usersContainer.item(studentEmail, studentEmail).read().catch(() => ({ resource: null }));
         if (!student || student.role !== 'student') return res.status(404).json({ error: "Aucun élève trouvé avec cet email." });
         
-        const { resource: classDoc } = await classesContainer.item(classId, student.teacherEmail).read();
-        if (!classDoc) return res.status(404).json({ error: "Classe non trouvée." });
+        const querySpec = { query: "SELECT * FROM c WHERE c.id = @classId", parameters: [{ name: "@classId", value: classId }] };
+        const { resources } = await classesContainer.items.query(querySpec).fetchAll();
+        if (resources.length === 0) return res.status(404).json({ error: "Classe non trouvée." });
+
+        const classDoc = resources[0];
         if (classDoc.students.includes(studentEmail)) return res.status(409).json({ error: "Cet élève est déjà dans la classe." });
         
         classDoc.students.push(studentEmail);
-        await classesContainer.item(classId, classDoc.teacherEmail).replace(classDoc);
+        await classesContainer.item(classDoc.id, classDoc.teacherEmail).replace(classDoc);
         res.status(200).json({ message: "Élève ajouté avec succès." });
     } catch (error) { res.status(500).json({ error: "Impossible d'ajouter l'élève." }); }
 });
@@ -243,32 +244,26 @@ app.post('/api/ai/generate-from-upload', upload.single('document'), async (req, 
 
     try {
         const blobName = `teacher-upload-${new Date().getTime()}-${req.file.originalname}`;
-        const containerClient = blobServiceClient.getContainerClient(containerName);
-        const blockBlobClient = containerClient.getBlockBlobClient(blobName);
-        await blockBlobClient.uploadData(req.file.buffer);
-        console.log(`Fichier ${blobName} téléversé sur Azure Blob Storage.`);
+        await blobServiceClient.getContainerClient(containerName).getBlockBlobClient(blobName).uploadData(req.file.buffer);
+        console.log(`Fichier ${blobName} téléversé.`);
         
         const extractedText = await extractTextFromBuffer(req.file.buffer);
-        if (!extractedText) {
-            return res.status(400).json({ error: "Impossible d'extraire du texte de ce document." });
-        }
+        if (!extractedText) return res.status(400).json({ error: "Impossible d'extraire du texte de ce document." });
         
         const { contentType, exerciseCount } = req.body;
         const apiKey = process.env.DEEPSEEK_API_KEY;
         const promptMap = {
-            quiz: `À partir du texte suivant...`,
-            exercices: `À partir du texte suivant...`
+            quiz: `À partir du texte suivant, crée un quiz. Format JSON: {"title": "Quiz sur le document", "type": "quiz", "questions": [...]}. Texte: "${extractedText}"`,
+            exercices: `À partir du texte suivant, crée ${exerciseCount || 5} exercices. Format JSON: {"title": "Exercices sur le document", "type": "exercices", "content": [...]}. Texte: "${extractedText}"`
         };
-        const prompt = promptMap[contentType];
         
-        const response = await axios.post('https://api.deepseek.com/chat/completions', { model: 'deepseek-chat', messages: [{ content: prompt, role: 'user' }] }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
-        let jsonString = response.data.choices[0].message.content.replace(/```json\n|\n```/g, '');
-        let structured_content = JSON.parse(jsonString);
+        const response = await axios.post('https://api.deepseek.com/chat/completions', { model: 'deepseek-chat', messages: [{ content: promptMap[contentType], role: 'user' }] }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
+        let structured_content = JSON.parse(response.data.choices[0].message.content.replace(/```json\n|\n```/g, ''));
         res.json({ structured_content });
 
     } catch (error) {
-        console.error("Erreur lors du traitement du fichier uploadé:", error);
-        res.status(500).json({ error: error.message || "Une erreur est survenue lors de l'analyse du document." });
+        console.error("Erreur upload enseignant:", error);
+        res.status(500).json({ error: error.message || "Erreur interne." });
     }
 });
 
@@ -278,38 +273,30 @@ app.post('/api/ai/extract-text-from-student-doc', upload.single('document'), asy
     
     try {
         const blobName = `student-upload-${new Date().getTime()}-${req.file.originalname}`;
-        const containerClient = blobServiceClient.getContainerClient(containerName);
-        const blockBlobClient = containerClient.getBlockBlobClient(blobName);
-        await blockBlobClient.uploadData(req.file.buffer);
-        console.log(`Fichier élève ${blobName} téléversé sur Azure Blob Storage.`);
+        await blobServiceClient.getContainerClient(containerName).getBlockBlobClient(blobName).uploadData(req.file.buffer);
+        console.log(`Fichier élève ${blobName} téléversé.`);
         
         const extractedText = await extractTextFromBuffer(req.file.buffer);
-        if (!extractedText) {
-             return res.status(400).json({ error: "Impossible de lire le texte dans ce document." });
-        }
+        if (!extractedText) return res.status(400).json({ error: "Impossible de lire le texte dans ce document." });
         
         res.json({ extractedText });
     } catch (error) {
-        console.error("Erreur lors de l'extraction de texte du document élève:", error);
-        res.status(500).json({ error: error.message || "Une erreur est survenue lors de l'analyse du document." });
+        console.error("Erreur upload élève:", error);
+        res.status(500).json({ error: error.message || "Erreur interne." });
     }
 });
 
 app.post('/api/ai/correct-exercise', async (req, res) => {
     const { exerciseText, studentAnswer } = req.body;
     const apiKey = process.env.DEEPSEEK_API_KEY;
-    if (!apiKey || !exerciseText || studentAnswer === undefined) {
-        return res.status(400).json({ error: "Texte de l'exercice et réponse de l'élève requis." });
-    }
+    if (!apiKey || !exerciseText) return res.status(400).json({ error: "Données incomplètes." });
 
-    const prompt = `Corrige cet exercice...`;
+    const prompt = `Corrige cet exercice: "${exerciseText}". Réponse de l'élève: "${studentAnswer}". Sois encourageant.`;
 
     try {
         const response = await axios.post('https://api.deepseek.com/chat/completions', { model: 'deepseek-chat', messages: [{ role: 'user', content: prompt }] }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
         res.json({ correction: response.data.choices[0].message.content });
-    } catch (error) {
-        res.status(500).json({ error: "Erreur lors de la génération de la correction." });
-    }
+    } catch (error) { res.status(500).json({ error: "Erreur de correction." }); }
 });
 
 app.get('/', (req, res) => {
