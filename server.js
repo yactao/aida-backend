@@ -327,6 +327,23 @@ app.post('/api/ai/generate-from-upload', upload.single('document'), async (req, 
     }
 });
 
+app.post('/api/ai/extract-text-from-student-doc', upload.single('document'), async (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ error: "Aucun fichier n'a été téléversé." });
+    }
+
+    try {
+        // --- SIMULATION D'OCR ---
+        // Dans une future version, nous appellerons un vrai service OCR.
+        const extractedText = `(Texte simulé extrait de : ${req.file.originalname})\n\nLe contenu du document serait ici. Par exemple : "Quelle est la capitale de la France ?"`;
+        
+        res.json({ extractedText });
+    } catch (error) {
+        console.error("Erreur lors de l'extraction de texte du document élève:", error);
+        res.status(500).json({ error: "Une erreur est survenue lors de l'analyse du document." });
+    }
+});
+
 app.post('/api/ai/correct-exercise', async (req, res) => {
     const { exerciseText, studentAnswer } = req.body;
     const apiKey = process.env.DEEPSEEK_API_KEY;
