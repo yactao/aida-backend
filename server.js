@@ -1,5 +1,4 @@
 // --- 1. Importations et Configuration ---
-
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
@@ -48,9 +47,10 @@ app.post('/api/auth/signup', async (req, res) => {
         const nameParts = email.split('@')[0].split('.').map(part => part.charAt(0).toUpperCase() + part.slice(1));
         const firstName = nameParts[0] || "Nouvel";
         const lastName = nameParts[1] || "Utilisateur";
-        const newUser = { id: email, email, password, role, classes: [], firstName, lastName };
+        const defaultAvatar = role === 'teacher' ? 'default-teacher.png' : 'default-student.png';
+        const newUser = { id: email, email, password, role, classes: [], firstName, lastName, avatar: defaultAvatar };
         await usersContainer.items.create(newUser);
-        res.status(201).json({ user: { email, role, firstName } });
+        res.status(201).json({ user: { email, role, firstName, avatar: defaultAvatar } });
     } catch (error) { res.status(500).json({ error: "Erreur lors de la création du compte." }); }
 });
 
@@ -60,7 +60,7 @@ app.post('/api/auth/login', async (req, res) => {
     try {
         const { resource: user } = await usersContainer.item(email, email).read().catch(() => ({ resource: null }));
         if (!user || user.password !== password) return res.status(401).json({ error: "Email ou mot de passe incorrect." });
-        res.status(200).json({ user: { email: user.email, role: user.role, firstName: user.firstName } });
+        res.status(200).json({ user: { email: user.email, role: user.role, firstName: user.firstName, avatar: user.avatar } });
     } catch (error) { res.status(500).json({ error: "Erreur lors de la connexion." }); }
 });
 
@@ -90,7 +90,19 @@ app.get('/api/teacher/classes/:classId', async (req, res) => {
     try {
         const { resources } = await classesContainer.items.query(querySpec).fetchAll();
         if (resources.length === 0) return res.status(404).json({ error: "Classe non trouvée." });
-        res.status(200).json(resources[0]);
+        
+        const classDoc = resources[0];
+        const studentDetailsPromises = (classDoc.students || []).map(async (email) => {
+            const { resource: student } = await usersContainer.item(email, email).read().catch(() => ({ resource: null }));
+            if (student) {
+                return { email: student.email, firstName: student.firstName, avatar: student.avatar };
+            }
+            return { email, firstName: email.split('@')[0], avatar: 'default-student.png' }; // Fallback
+        });
+        const studentsWithDetails = await Promise.all(studentDetailsPromises);
+        
+        const responseData = { ...classDoc, studentsWithDetails };
+        res.status(200).json(responseData);
     } catch (error) { res.status(500).json({ error: "Impossible de récupérer les détails de la classe." }); }
 });
 
@@ -216,7 +228,7 @@ app.post('/api/ai/generate-content', async (req, res) => {
         const response = await axios.post('https://api.deepseek.com/chat/completions', { model: 'deepseek-chat', messages: [{ content: prompt, role: 'user' }] }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
         let jsonString = response.data.choices[0].message.content.replace(/```json\n|\n```/g, '');
         let structured_content = JSON.parse(jsonString);
-        structured_content.title = structured_content.title.replace(/sur Pour un élève de .*?,/i, 'sur');
+        structured_content.title = structured_content.title.replace(/sur Pour un élève de .*?,?\s?/i, 'sur ');
         res.json({ structured_content });
     } catch (error) { res.status(500).json({ error: "L'IA a généré une réponse invalide." }); }
 });

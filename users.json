@@ -1,11 +1,13 @@
 [
-  {
+  
+{
     "id": "nathalie.dubois@aida.com",
     "email": "nathalie.dubois@aida.com",
     "password": "password123",
     "role": "teacher",
     "firstName": "Nathalie",
-    "lastName": "Dubois"
+    "lastName": "Dubois",
+    "avatar": "nathalie dubois.png"
   },
   {
     "id": "karim.martin@aida.com",
@@ -13,7 +15,107 @@
     "password": "password123",
     "role": "teacher",
     "firstName": "Karim",
-    "lastName": "Martin"
+    "lastName": "Martin",
+    "avatar": "karim.png"
+  },
+  {
+    "id": "lea.petit@aida.com",
+    "email": "lea.petit@aida.com",
+    "password": "password123",
+    "role": "student",
+    "firstName": "Léa",
+    "lastName": "Petit",
+    "avatar": "lea.png"
+  },
+  {
+    "id": "hugo.leroy@aida.com",
+    "email": "hugo.leroy@aida.com",
+    "password": "password123",
+    "role": "student",
+    "firstName": "Hugo",
+    "lastName": "Leroy",
+    "avatar": "hugo.png"
+  },
+  {
+    "id": "chloe.moreau@aida.com",
+    "email": "chloe.moreau@aida.com",
+    "password": "password123",
+    "role": "student",
+    "firstName": "Chloé",
+    "lastName": "Moreau",
+    "avatar": "chloe.png"
+  },
+  {
+    "id": "louis.simon@aida.com",
+    "email": "louis.simon@aida.com",
+    "password": "password123",
+    "role": "student",
+    "firstName": "Louis",
+    "lastName": "Simon",
+    "avatar": "louis.png"
+  },
+  {
+    "id": "emma.laurent@aida.com",
+    "email": "emma.laurent@aida.com",
+    "password": "password123",
+    "role": "student",
+    "firstName": "Emma",
+    "lastName": "Laurent",
+    "avatar": "emma.png"
+  },
+  {
+    "id": "arthur.vincent@aida.com",
+    "email": "arthur.vincent@aida.com",
+    "password": "password123",
+    "role": "student",
+    "firstName": "Arthur",
+    "lastName": "Vincent",
+    "avatar": "arthur.png"
+  },
+  {
+    "id": "alice.francois@aida.com",
+    "email": "alice.francois@aida.com",
+    "password": "password123",
+    "role": "student",
+    "firstName": "Alice",
+    "lastName": "François",
+    "avatar": "alice.png"
+  },
+  {
+    "id": "adam.mercier@aida.com",
+    "email": "adam.mercier@aida.com",
+    "password": "password123",
+    "role": "student",
+    "firstName": "Adam",
+    "lastName": "Mercier",
+    "avatar": "adam.png"
+  },
+    {
+    "id": "jules.guerin@aida.com",
+    "email": "jules.guerin@aida.com",
+    "password": "password123",
+    "role": "student",
+    "firstName": "Jules",
+    "lastName": "Guerin",
+    "avatar": "jules.png"
+  },
+   {
+    "id": "jade.girard@aida.com",
+    "email": "jade.girard@aida.com",
+    "password": "password123",
+    "role": "student",
+    "firstName": "Jade",
+    "lastName": "Girard",
+    "avatar": "jade.png"
+  },
+  {
+    "id": "sohane.aida@aida.com",
+    "email": "sohane.aida@aida.com",
+    "password": "password123",
+    "role": "student",
+    "firstName": "Sohane",
+    "lastName": "Aida",
+    "avatar": "sohane.png"
   },
   {
     "id": "isabelle.bernard@aida.com",
@@ -22,70 +124,6 @@
     "role": "teacher",
     "firstName": "Isabelle",
     "lastName": "Bernard"
-  },
-  {
-    "id": "lea.petit@aida.com",
-    "email": "lea.petit@aida.com",
-    "password": "password123",
-    "role": "student",
-    "firstName": "Léa",
-    "lastName": "Petit"
-  },
-  {
-    "id": "hugo.leroy@aida.com",
-    "email": "hugo.leroy@aida.com",
-    "password": "password123",
-    "role": "student",
-    "firstName": "Hugo",
-    "lastName": "Leroy"
-  },
-  {
-    "id": "chloe.moreau@aida.com",
-    "email": "chloe.moreau@aida.com",
-    "password": "password123",
-    "role": "student",
-    "firstName": "Chloé",
-    "lastName": "Moreau"
-  },
-  {
-    "id": "louis.simon@aida.com",
-    "email": "louis.simon@aida.com",
-    "password": "password123",
-    "role": "student",
-    "firstName": "Louis",
-    "lastName": "Simon"
-  },
-  {
-    "id": "emma.laurent@aida.com",
-    "email": "emma.laurent@aida.com",
-    "password": "password123",
-    "role": "student",
-    "firstName": "Emma",
-    "lastName": "Laurent"
-  },
-  {
-    "id": "manon.roux@aida.com",
-    "email": "manon.roux@aida.com",
-    "password": "password123",
-    "role": "student",
-    "firstName": "Manon",
-    "lastName": "Roux"
-  },
-  {
-    "id": "gabriel.fournier@aida.com",
-    "email": "gabriel.fournier@aida.com",
-    "password": "password123",
-    "role": "student",
-    "firstName": "Gabriel",
-    "lastName": "Fournier"
-  },
-  {
-    "id": "jade.girard@aida.com",
-    "email": "jade.girard@aida.com",
-    "password": "password123",
-    "role": "student",
-    "firstName": "Jade",
-    "lastName": "Girard"
   },
   {
     "id": "raphael.bonnet@aida.com",
@@ -104,44 +142,13 @@
     "lastName": "François"
   },
   {
-    "id": "arthur.vincent@aida.com",
-    "email": "arthur.vincent@aida.com",
-    "password": "password123",
-    "role": "student",
-    "firstName": "Arthur",
-    "lastName": "Vincent"
-  },
-  {
-    "id": "louise.lefevre@aida.com",
-    "email": "louise.lefevre@aida.com",
-    "password": "password123",
-    "role": "student",
-    "firstName": "Louise",
-    "lastName": "Lefevre"
-  },
-  {
-    "id": "adam.mercier@aida.com",
-    "email": "adam.mercier@aida.com",
-    "password": "password123",
-    "role": "student",
-    "firstName": "Adam",
-    "lastName": "Mercier"
-  },
-  {
     "id": "rose.duval@aida.com",
     "email": "rose.duval@aida.com",
     "password": "password123",
     "role": "student",
     "firstName": "Rose",
     "lastName": "Duval"
-  },
-  {
-    "id": "jules.guerin@aida.com",
-    "email": "jules.guerin@aida.com",
-    "password": "password123",
-    "role": "student",
-    "firstName": "Jules",
-    "lastName": "Guerin"
   }
+  
 ]
 
