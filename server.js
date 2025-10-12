@@ -6,7 +6,8 @@ const axios = require('axios');
 const path = require('path');
 const { CosmosClient } = require('@azure/cosmos');
 const { BlobServiceClient } = require('@azure/storage-blob');
-const ImageAnalysisClient = require('@azure-rest/ai-vision-image-analysis').default;
+// NOUVELLE IMPORTATION pour Document Intelligence
+const { DocumentAnalysisClient } = require("@azure/ai-form-recognizer");
 const { AzureKeyCredential } = require('@azure/core-auth');
 const multer = require('multer');
 
@@ -24,6 +25,7 @@ const completedContentContainerId = 'CompletedContent';
 let usersContainer, classesContainer, completedContentContainer;
 
 async function setupDatabase() {
+    // ... (code inchangé)
     const { database } = await client.databases.createIfNotExists({ id: databaseId });
     const { container: uc } = await database.containers.createIfNotExists({ id: usersContainerId, partitionKey: { paths: ["/email"] } });
     const { container: cc } = await database.containers.createIfNotExists({ id: classesContainerId, partitionKey: { paths: ["/teacherEmail"] } });
@@ -44,21 +46,22 @@ const blobServiceClient = storageConnectionString ? BlobServiceClient.fromConnec
 const containerName = 'documents';
 
 async function setupBlobStorage() {
+    // ... (code inchangé)
     if (!blobServiceClient) return;
     const containerClient = blobServiceClient.getContainerClient(containerName);
     await containerClient.createIfNotExists();
     console.log("Conteneur Blob Storage prêt.");
 }
 
-// Azure AI Vision
-const visionEndpoint = process.env.AZURE_VISION_ENDPOINT;
-const visionKey = process.env.AZURE_VISION_KEY;
-let visionClient;
-if (visionEndpoint && visionKey) {
-    visionClient = ImageAnalysisClient(visionEndpoint, new AzureKeyCredential(visionKey));
-    console.log("Client Azure AI Vision prêt.");
+// NOUVELLE CONFIGURATION : Azure AI Document Intelligence
+const docIntelEndpoint = process.env.AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT;
+const docIntelKey = process.env.AZURE_DOCUMENT_INTELLIGENCE_KEY;
+let docIntelClient;
+if (docIntelEndpoint && docIntelKey) {
+    docIntelClient = new DocumentAnalysisClient(docIntelEndpoint, new AzureKeyCredential(docIntelKey));
+    console.log("Client Azure Document Intelligence prêt.");
 } else {
-    console.warn("Les informations de connexion Azure AI Vision ne sont pas définies.");
+    console.warn("Les informations de connexion Azure Document Intelligence ne sont pas définies.");
 }
 
 // --- 3. Initialisation Express ---
@@ -68,30 +71,26 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 const upload = multer({ storage: multer.memoryStorage() });
 
-// --- 4. Fonctions Utilitaires ---
+// --- 4. Fonctions Utilitaires (MISE À JOUR) ---
 async function extractTextFromBuffer(buffer) {
-    if (!visionClient) throw new Error("Le service d'analyse d'image n'est pas configuré.");
+    if (!docIntelClient) {
+        throw new Error("Le service d'analyse de documents n'est pas configuré.");
+    }
     
-    const result = await visionClient.path('/imageanalysis:analyze').post({
-        body: buffer,
-        queryParameters: { features: ['read'] },
-        headers: { 'Content-Type': 'application/octet-stream' }
-    });
-
-    if (result.status !== '200') {
-        console.error("Erreur de l'API Azure Vision:", result.body);
-        throw new Error(`L'analyse d'image a échoué (statut: ${result.status}). Veuillez vérifier que les clés d'API et le point de terminaison de vision sont corrects dans la configuration de votre application Azure.`);
+    try {
+        const poller = await docIntelClient.beginAnalyzeDocument("prebuilt-read", buffer);
+        const { content } = await poller.pollUntilDone();
+        return content;
+    } catch (error) {
+        console.error("Erreur détaillée de Document Intelligence:", error);
+        throw new Error("L'analyse du document a échoué. Vérifiez que le format du fichier est supporté (PDF, JPEG, PNG, DOCX...) et que les clés d'API sont correctes.");
     }
-
-    if (result.body.readResult && result.body.readResult.blocks.length > 0) {
-        return result.body.readResult.blocks.map(block => block.lines.map(line => line.text).join(' ')).join('\n');
-    }
-    return '';
 }
 
 // --- 5. Routes API ---
+// Le reste des routes est identique. Seules les routes d'upload utilisent la nouvelle fonction.
 
-// AUTHENTIFICATION
+// AUTHENTIFICATION (inchangé)
 app.post('/api/auth/signup', async (req, res) => {
     const { email, password, role } = req.body;
     if (!email || !password || !role) return res.status(400).json({ error: "Email, mot de passe et rôle sont requis." });
@@ -118,7 +117,57 @@ app.post('/api/auth/login', async (req, res) => {
     } catch (error) { res.status(500).json({ error: "Erreur lors de la connexion." }); }
 });
 
-// ENSEIGNANT
+
+// IA (ROUTES MISES À JOUR)
+app.post('/api/ai/generate-from-upload', upload.single('document'), async (req, res) => {
+    if (!blobServiceClient || !docIntelClient) return res.status(500).json({ error: "Les services Azure ne sont pas configurés." });
+    if (!req.file) return res.status(400).json({ error: "Aucun fichier n'a été téléversé." });
+
+    try {
+        const blobName = `teacher-upload-${new Date().getTime()}-${req.file.originalname}`;
+        await blobServiceClient.getContainerClient(containerName).getBlockBlobClient(blobName).uploadData(req.file.buffer);
+        console.log(`Fichier ${blobName} téléversé.`);
+        
+        const extractedText = await extractTextFromBuffer(req.file.buffer);
+        if (!extractedText) return res.status(400).json({ error: "Impossible d'extraire du texte de ce document." });
+        
+        // ... reste de la logique de génération (inchangée) ...
+        const { contentType, exerciseCount } = req.body;
+        const apiKey = process.env.DEEPSEEK_API_KEY;
+        const promptMap = {
+            quiz: `À partir du texte suivant, crée un quiz. Format JSON: {"title": "Quiz sur le document", "type": "quiz", "questions": [...]}. Texte: "${extractedText}"`,
+            exercices: `À partir du texte suivant, crée ${exerciseCount || 5} exercices. Format JSON: {"title": "Exercices sur le document", "type": "exercices", "content": [...]}. Texte: "${extractedText}"`
+        };
+        const response = await axios.post('https://api.deepseek.com/chat/completions', { model: 'deepseek-chat', messages: [{ content: promptMap[contentType], role: 'user' }] }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
+        let structured_content = JSON.parse(response.data.choices[0].message.content.replace(/```json\n|\n```/g, ''));
+        res.json({ structured_content });
+
+    } catch (error) {
+        console.error("Erreur upload enseignant:", error);
+        res.status(500).json({ error: error.message || "Erreur interne." });
+    }
+});
+
+app.post('/api/ai/extract-text-from-student-doc', upload.single('document'), async (req, res) => {
+    if (!blobServiceClient || !docIntelClient) return res.status(500).json({ error: "Les services Azure ne sont pas configurés." });
+    if (!req.file) return res.status(400).json({ error: "Aucun fichier n'a été téléversé." });
+    
+    try {
+        const blobName = `student-upload-${new Date().getTime()}-${req.file.originalname}`;
+        await blobServiceClient.getContainerClient(containerName).getBlockBlobClient(blobName).uploadData(req.file.buffer);
+        console.log(`Fichier élève ${blobName} téléversé.`);
+        
+        const extractedText = await extractTextFromBuffer(req.file.buffer);
+        if (!extractedText) return res.status(400).json({ error: "Impossible de lire le texte dans ce document." });
+        
+        res.json({ extractedText });
+    } catch (error) {
+        console.error("Erreur upload élève:", error);
+        res.status(500).json({ error: error.message || "Erreur interne." });
+    }
+});
+
+// ... (toutes les autres routes restent ici, inchangées) ...
 app.get('/api/teacher/classes', async (req, res) => {
     const { teacherEmail } = req.query;
     if (!teacherEmail) return res.status(400).json({ error: "L'email de l'enseignant est requis." });
@@ -197,7 +246,6 @@ app.post('/api/teacher/assign-content', async (req, res) => {
     } catch (error) { res.status(500).json({ error: "Impossible d'assigner le contenu." }); }
 });
 
-// ÉLÈVE
 app.get('/api/student/dashboard', async (req, res) => {
     const { studentEmail } = req.query;
     if (!studentEmail) return res.status(400).json({ error: "L'email de l'élève est requis." });
@@ -235,55 +283,6 @@ app.post('/api/student/submit-quiz', async (req, res) => {
         await classesContainer.item(classDoc.id, classDoc.teacherEmail).replace(classDoc);
     }
     res.status(201).json(completedItem);
-});
-
-// IA
-app.post('/api/ai/generate-from-upload', upload.single('document'), async (req, res) => {
-    if (!blobServiceClient || !visionClient) return res.status(500).json({ error: "Les services Azure ne sont pas configurés." });
-    if (!req.file) return res.status(400).json({ error: "Aucun fichier n'a été téléversé." });
-
-    try {
-        const blobName = `teacher-upload-${new Date().getTime()}-${req.file.originalname}`;
-        await blobServiceClient.getContainerClient(containerName).getBlockBlobClient(blobName).uploadData(req.file.buffer);
-        console.log(`Fichier ${blobName} téléversé.`);
-        
-        const extractedText = await extractTextFromBuffer(req.file.buffer);
-        if (!extractedText) return res.status(400).json({ error: "Impossible d'extraire du texte de ce document." });
-        
-        const { contentType, exerciseCount } = req.body;
-        const apiKey = process.env.DEEPSEEK_API_KEY;
-        const promptMap = {
-            quiz: `À partir du texte suivant, crée un quiz. Format JSON: {"title": "Quiz sur le document", "type": "quiz", "questions": [...]}. Texte: "${extractedText}"`,
-            exercices: `À partir du texte suivant, crée ${exerciseCount || 5} exercices. Format JSON: {"title": "Exercices sur le document", "type": "exercices", "content": [...]}. Texte: "${extractedText}"`
-        };
-        
-        const response = await axios.post('https://api.deepseek.com/chat/completions', { model: 'deepseek-chat', messages: [{ content: promptMap[contentType], role: 'user' }] }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
-        let structured_content = JSON.parse(response.data.choices[0].message.content.replace(/```json\n|\n```/g, ''));
-        res.json({ structured_content });
-
-    } catch (error) {
-        console.error("Erreur upload enseignant:", error);
-        res.status(500).json({ error: error.message || "Erreur interne." });
-    }
-});
-
-app.post('/api/ai/extract-text-from-student-doc', upload.single('document'), async (req, res) => {
-    if (!blobServiceClient || !visionClient) return res.status(500).json({ error: "Les services Azure ne sont pas configurés." });
-    if (!req.file) return res.status(400).json({ error: "Aucun fichier n'a été téléversé." });
-    
-    try {
-        const blobName = `student-upload-${new Date().getTime()}-${req.file.originalname}`;
-        await blobServiceClient.getContainerClient(containerName).getBlockBlobClient(blobName).uploadData(req.file.buffer);
-        console.log(`Fichier élève ${blobName} téléversé.`);
-        
-        const extractedText = await extractTextFromBuffer(req.file.buffer);
-        if (!extractedText) return res.status(400).json({ error: "Impossible de lire le texte dans ce document." });
-        
-        res.json({ extractedText });
-    } catch (error) {
-        console.error("Erreur upload élève:", error);
-        res.status(500).json({ error: error.message || "Erreur interne." });
-    }
 });
 
 app.post('/api/ai/correct-exercise', async (req, res) => {
