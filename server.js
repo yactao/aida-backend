@@ -84,8 +84,9 @@ async function extractTextFromBuffer(buffer) {
     return '';
 }
 
-// --- 5. Routes API (le reste du code est inchangé) ---
+// --- 5. Routes API ---
 
+// AUTHENTIFICATION
 app.post('/api/auth/signup', async (req, res) => {
     const { email, password, role } = req.body;
     if (!email || !password || !role) return res.status(400).json({ error: "Email, mot de passe et rôle sont requis." });
@@ -112,6 +113,122 @@ app.post('/api/auth/login', async (req, res) => {
     } catch (error) { res.status(500).json({ error: "Erreur lors de la connexion." }); }
 });
 
+// ENSEIGNANT
+app.get('/api/teacher/classes', async (req, res) => {
+    const { teacherEmail } = req.query;
+    if (!teacherEmail) return res.status(400).json({ error: "L'email de l'enseignant est requis." });
+    const querySpec = { query: "SELECT * FROM c WHERE c.teacherEmail = @teacherEmail", parameters: [{ name: "@teacherEmail", value: teacherEmail }] };
+    try {
+        const { resources: classes } = await classesContainer.items.query(querySpec).fetchAll();
+        res.status(200).json(classes);
+    } catch (error) { res.status(500).json({ error: "Impossible de récupérer les classes." }); }
+});
+
+app.post('/api/teacher/classes', async (req, res) => {
+    const { className, teacherEmail } = req.body;
+    if (!className || !teacherEmail) return res.status(400).json({ error: "Nom de classe et email du professeur sont requis." });
+    const newClass = { id: `class-${Date.now()}`, className, teacherEmail, students: [], content: [], results: [] };
+    try {
+        const { resource: createdClass } = await classesContainer.items.create(newClass);
+        res.status(201).json(createdClass);
+    } catch (error) { res.status(500).json({ error: "Impossible de créer la classe." }); }
+});
+
+app.get('/api/teacher/classes/:classId', async (req, res) => {
+    const { classId } = req.params;
+    const querySpec = { query: "SELECT * FROM c WHERE c.id = @classId", parameters: [{ name: "@classId", value: classId }] };
+    try {
+        const { resources } = await classesContainer.items.query(querySpec).fetchAll();
+        if (resources.length === 0) return res.status(404).json({ error: "Classe non trouvée." });
+        
+        const classDoc = resources[0];
+        const studentDetailsPromises = (classDoc.students || []).map(async (email) => {
+            const { resource: student } = await usersContainer.item(email, email).read().catch(() => ({ resource: null }));
+            return { email: student.email, firstName: student.firstName, avatar: student.avatar };
+        });
+        const studentsWithDetails = await Promise.all(studentDetailsPromises);
+        
+        res.status(200).json({ ...classDoc, studentsWithDetails });
+    } catch (error) { res.status(500).json({ error: "Impossible de récupérer les détails de la classe." }); }
+});
+
+app.post('/api/teacher/classes/:classId/add-student', async (req, res) => {
+    const { classId } = req.params;
+    const { studentEmail } = req.body;
+    if (!studentEmail) return res.status(400).json({ error: "L'email de l'élève est requis." });
+    try {
+        const { resource: student } = await usersContainer.item(studentEmail, studentEmail).read().catch(() => ({ resource: null }));
+        if (!student || student.role !== 'student') return res.status(404).json({ error: "Aucun élève trouvé avec cet email." });
+        
+        const { resource: classDoc } = await classesContainer.item(classId, student.teacherEmail).read(); // Assuming teacherEmail is on student
+        if (!classDoc) return res.status(404).json({ error: "Classe non trouvée." });
+        if (classDoc.students.includes(studentEmail)) return res.status(409).json({ error: "Cet élève est déjà dans la classe." });
+        
+        classDoc.students.push(studentEmail);
+        await classesContainer.item(classId, classDoc.teacherEmail).replace(classDoc);
+        res.status(200).json({ message: "Élève ajouté avec succès." });
+    } catch (error) { res.status(500).json({ error: "Impossible d'ajouter l'élève." }); }
+});
+
+app.post('/api/teacher/assign-content', async (req, res) => {
+    const { classId, contentData } = req.body;
+    if (!classId || !contentData) return res.status(400).json({ error: "ID de classe et contenu sont requis." });
+    try {
+        const querySpec = { query: "SELECT * FROM c WHERE c.id = @classId", parameters: [{ name: "@classId", value: classId }] };
+        const { resources } = await classesContainer.items.query(querySpec).fetchAll();
+        if (resources.length === 0) return res.status(404).json({ error: "Classe non trouvée." });
+
+        const classDoc = resources[0];
+        const newContent = { ...contentData, id: `content-${Date.now()}`, assignedAt: new Date().toISOString() };
+        if (!classDoc.content) classDoc.content = [];
+        classDoc.content.push(newContent);
+        
+        await classesContainer.item(classDoc.id, classDoc.teacherEmail).replace(classDoc);
+        res.status(200).json(newContent);
+    } catch (error) { res.status(500).json({ error: "Impossible d'assigner le contenu." }); }
+});
+
+// ÉLÈVE
+app.get('/api/student/dashboard', async (req, res) => {
+    const { studentEmail } = req.query;
+    if (!studentEmail) return res.status(400).json({ error: "L'email de l'élève est requis." });
+    try {
+        const classQuery = { query: "SELECT * FROM c WHERE ARRAY_CONTAINS(c.students, @studentEmail)", parameters: [{ name: '@studentEmail', value: studentEmail }] };
+        const { resources: classes } = await classesContainer.items.query(classQuery).fetchAll();
+        
+        const completedQuery = { query: "SELECT * FROM c WHERE c.studentEmail = @studentEmail", parameters: [{ name: "@studentEmail", value: studentEmail }] };
+        const { resources: completedItems } = await completedContentContainer.items.query(completedQuery).fetchAll();
+        const completedMap = new Map(completedItems.map(item => [item.contentId, item.completedAt]));
+
+        let allContent = [];
+        classes.forEach(c => { (c.content || []).forEach(cont => allContent.push({ ...cont, className: c.className, classId: c.id })); });
+        
+        const todo = allContent.filter(cont => !completedMap.has(cont.id));
+        const completed = allContent.filter(cont => completedMap.has(cont.id)).map(cont => ({ ...cont, completedAt: completedMap.get(cont.id) }));
+        
+        res.status(200).json({ todo, completed });
+    } catch (error) { res.status(500).json({ error: "Impossible de récupérer le tableau de bord." }); }
+});
+
+app.post('/api/student/submit-quiz', async (req, res) => {
+    const { studentEmail, classId, contentId, title, score, totalQuestions, answers } = req.body;
+    
+    const completedItem = { id: `${studentEmail}-${contentId}`, studentEmail, contentId, completedAt: new Date().toISOString() };
+    await completedContentContainer.items.upsert(completedItem);
+
+    const querySpec = { query: "SELECT * FROM c WHERE c.id = @classId", parameters: [{ name: "@classId", value: classId }] };
+    const { resources } = await classesContainer.items.query(querySpec).fetchAll();
+    if (resources.length > 0) {
+        const classDoc = resources[0];
+        const newResult = { studentEmail, contentId, title, score, totalQuestions, submittedAt: completedItem.completedAt, answers };
+        if (!classDoc.results) classDoc.results = [];
+        classDoc.results.push(newResult);
+        await classesContainer.item(classDoc.id, classDoc.teacherEmail).replace(classDoc);
+    }
+    res.status(201).json(completedItem);
+});
+
+// IA
 app.post('/api/ai/generate-from-upload', upload.single('document'), async (req, res) => {
     if (!blobServiceClient || !visionClient) return res.status(500).json({ error: "Les services Azure ne sont pas configurés." });
     if (!req.file) return res.status(400).json({ error: "Aucun fichier n'a été téléversé." });
@@ -173,6 +290,45 @@ app.post('/api/ai/extract-text-from-student-doc', upload.single('document'), asy
     }
 });
 
+app.post('/api/ai/correct-exercise', async (req, res) => {
+    const { exerciseText, studentAnswer } = req.body;
+    const apiKey = process.env.DEEPSEEK_API_KEY;
+    if (!apiKey || !exerciseText || studentAnswer === undefined) {
+        return res.status(400).json({ error: "Texte de l'exercice et réponse de l'élève requis." });
+    }
+
+    const prompt = `Tu es AIDA, un tuteur IA bienveillant. Corrige l'exercice de manière pédagogique.
+    1.  Commence par dire si la réponse est globalement juste ou s'il y a des erreurs, de manière encourageante.
+    2.  S'il y a des erreurs, explique-les simplement.
+    3.  Termine toujours par une phrase positive.
+    
+    Exercice : "${exerciseText}".
+    Réponse : "${studentAnswer}".`;
+
+    try {
+        const response = await axios.post('https://api.deepseek.com/chat/completions',
+            { model: 'deepseek-chat', messages: [{ role: 'user', content: prompt }] },
+            { headers: { 'Authorization': `Bearer ${apiKey}` } }
+        );
+        res.json({ correction: response.data.choices[0].message.content });
+    } catch (error) {
+        res.status(500).json({ error: "Erreur lors de la génération de la correction." });
+    }
+});
+
+app.post('/api/ai/playground-chat', async (req, res) => {
+    const { history } = req.body;
+    const apiKey = process.env.DEEPSEEK_API_KEY;
+    if (!apiKey) return res.status(500).json({ error: "Clé API non configurée." });
+    try {
+        const response = await axios.post('https://api.deepseek.com/chat/completions', { model: 'deepseek-chat', messages: history }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
+        res.json({ reply: response.data.choices[0].message.content });
+    } catch (error) { res.status(500).json({ error: "Erreur de communication avec AIDA." }); }
+});
+
+app.get('/', (req, res) => {
+    res.send('<h1>Le serveur AIDA est en ligne !</h1>');
+});
 
 // --- 6. Démarrage du serveur ---
 const PORT = process.env.PORT || 3000;
