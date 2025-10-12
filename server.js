@@ -6,7 +6,7 @@ const axios = require('axios');
 const path = require('path');
 const { CosmosClient } = require('@azure/cosmos');
 const { BlobServiceClient } = require('@azure/storage-blob');
-const { ImageAnalysisClient, VisualFeatures } = require('@azure/ai-vision-image-analysis');
+const ImageAnalysisClient = require('@azure-rest/ai-vision-image-analysis').default;
 const { AzureKeyCredential } = require('@azure/core-auth');
 const multer = require('multer');
 
@@ -55,7 +55,7 @@ const visionEndpoint = process.env.AZURE_VISION_ENDPOINT;
 const visionKey = process.env.AZURE_VISION_KEY;
 let visionClient;
 if (visionEndpoint && visionKey) {
-    visionClient = new ImageAnalysisClient(visionEndpoint, new AzureKeyCredential(visionKey));
+    visionClient = ImageAnalysisClient(visionEndpoint, new AzureKeyCredential(visionKey));
     console.log("Client Azure AI Vision prêt.");
 } else {
     console.warn("Les informations de connexion Azure AI Vision ne sont pas définies. L'analyse de documents sera désactivée.");
@@ -72,18 +72,45 @@ const upload = multer({ storage: multer.memoryStorage() });
 async function extractTextFromBuffer(buffer) {
     if (!visionClient) throw new Error("Le service d'analyse d'image n'est pas configuré.");
     
-    const result = await visionClient.analyze(buffer, [VisualFeatures.Read]);
+    const result = await visionClient.path('/imageanalysis:analyze').post({
+        body: buffer,
+        queryParameters: { features: ['read'] },
+        headers: { 'Content-Type': 'application/octet-stream' }
+    });
 
-    if (result.read && result.read.blocks && result.read.blocks.length > 0) {
-        return result.read.blocks.map(block => block.lines.map(line => line.text).join(' ')).join('\n');
+    if (result.status === '200' && result.body.readResult) {
+        return result.body.readResult.blocks.map(block => block.lines.map(line => line.text).join(' ')).join('\n');
     }
     return '';
 }
 
-// --- 5. Routes API ---
+// --- 5. Routes API (le reste du code est inchangé) ---
 
-// Les routes d'authentification, de gestion des classes, etc. restent ici...
-// ... (code des autres routes omis pour la clarté)
+app.post('/api/auth/signup', async (req, res) => {
+    const { email, password, role } = req.body;
+    if (!email || !password || !role) return res.status(400).json({ error: "Email, mot de passe et rôle sont requis." });
+    try {
+        const { resource: existingUser } = await usersContainer.item(email, email).read().catch(() => ({ resource: null }));
+        if (existingUser) return res.status(409).json({ error: "Cet email est déjà utilisé." });
+        const nameParts = email.split('@')[0].split('.').map(part => part.charAt(0).toUpperCase() + part.slice(1));
+        const firstName = nameParts[0] || "Nouvel";
+        const lastName = nameParts[1] || "Utilisateur";
+        const defaultAvatar = role === 'teacher' ? 'default-teacher.png' : 'default-student.png';
+        const newUser = { id: email, email, password, role, classes: [], firstName, lastName, avatar: defaultAvatar };
+        await usersContainer.items.create(newUser);
+        res.status(201).json({ user: { email, role, firstName, avatar: defaultAvatar } });
+    } catch (error) { res.status(500).json({ error: "Erreur lors de la création du compte." }); }
+});
+
+app.post('/api/auth/login', async (req, res) => {
+    const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ error: "Email et mot de passe sont requis." });
+    try {
+        const { resource: user } = await usersContainer.item(email, email).read().catch(() => ({ resource: null }));
+        if (!user || user.password !== password) return res.status(401).json({ error: "Email ou mot de passe incorrect." });
+        res.status(200).json({ user: { email: user.email, role: user.role, firstName: user.firstName, avatar: user.avatar } });
+    } catch (error) { res.status(500).json({ error: "Erreur lors de la connexion." }); }
+});
 
 app.post('/api/ai/generate-from-upload', upload.single('document'), async (req, res) => {
     if (!blobServiceClient || !visionClient) return res.status(500).json({ error: "Les services Azure ne sont pas configurés." });
