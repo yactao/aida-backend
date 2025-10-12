@@ -38,7 +38,6 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // --- 4. Routes API ---
 
-// A. Authentification
 app.post('/api/auth/signup', async (req, res) => {
     const { email, password, role } = req.body;
     if (!email || !password || !role) return res.status(400).json({ error: "Email, mot de passe et rôle sont requis." });
@@ -64,7 +63,6 @@ app.post('/api/auth/login', async (req, res) => {
     } catch (error) { res.status(500).json({ error: "Erreur lors de la connexion." }); }
 });
 
-// B. Routes Professeur
 app.get('/api/teacher/classes', async (req, res) => {
     const { teacherEmail } = req.query;
     if (!teacherEmail) return res.status(400).json({ error: "L'email de l'enseignant est requis." });
@@ -148,7 +146,7 @@ app.post('/api/teacher/classes/:classId/add-student', async (req, res) => {
 
 app.post('/api/teacher/assign-content', async (req, res) => {
     const { classId, contentData } = req.body;
-    if (!classId || !contentData) return res.status(400).json({ error: "ID de classe et contenu sont requis." });
+    if (!classId || !contentData || !contentData.dueDate) return res.status(400).json({ error: "ID de classe, contenu et date limite sont requis." });
     try {
         const querySpec = { query: "SELECT * FROM c WHERE c.id = @classId", parameters: [{ name: "@classId", value: classId }] };
         const { resources } = await classesContainer.items.query(querySpec).fetchAll();
@@ -162,7 +160,6 @@ app.post('/api/teacher/assign-content', async (req, res) => {
     } catch (error) { res.status(500).json({ error: "Impossible d'assigner le contenu." }); }
 });
 
-// C. Routes Élève
 app.get('/api/student/dashboard', async (req, res) => {
     const { studentEmail } = req.query;
     if (!studentEmail) return res.status(400).json({ error: "L'email de l'élève est requis." });
@@ -204,8 +201,6 @@ app.post('/api/student/submit-quiz', async (req, res) => {
     }
 });
 
-
-// D. Routes IA
 app.post('/api/ai/generate-content', async (req, res) => {
     const { competences, contentType, exerciseCount } = req.body;
     const apiKey = process.env.DEEPSEEK_API_KEY;
@@ -213,14 +208,15 @@ app.post('/api/ai/generate-content', async (req, res) => {
     const promptMap = {
         quiz: `Crée un quiz de 3 questions à 4 choix sur: "${competences}". Le format doit être un JSON valide: {"title": "Quiz sur ${competences}", "type": "quiz", "questions": [{"question_text": "...", "options": ["A", "B", "C", "D"], "correct_answer_index": 0}]}`,
         exercices: `Crée une fiche de ${exerciseCount || 5} exercices SANS la correction sur: "${competences}". Le format doit être un JSON valide: {"title": "Exercices sur ${competences}", "type": "exercices", "content": [{"enonce": "..."}]}`,
-        plan_de_lecon: `Crée un plan de leçon simple sur: "${competences}". Le format doit être un JSON valide: {"title": "Plan de leçon sur ${competences}", "type": "plan_de_lecon", "objectifs": ["Objectif 1", "Objectif 2"], "deroulement": "Étape 1...", "evaluation": "Comment évaluer les élèves"}`
     };
     const prompt = promptMap[contentType];
     if (!prompt) return res.status(400).json({ error: "Type de contenu non supporté." });
     try {
         const response = await axios.post('https://api.deepseek.com/chat/completions', { model: 'deepseek-chat', messages: [{ content: prompt, role: 'user' }] }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
         let jsonString = response.data.choices[0].message.content.replace(/```json\n|\n```/g, '');
-        res.json({ structured_content: JSON.parse(jsonString) });
+        let structured_content = JSON.parse(jsonString);
+        structured_content.title = structured_content.title.replace(/sur Pour un élève de .*?,/i, 'sur');
+        res.json({ structured_content });
     } catch (error) { res.status(500).json({ error: "L'IA a généré une réponse invalide." }); }
 });
 
