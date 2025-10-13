@@ -373,6 +373,26 @@ app.post('/api/ai/correct-exercise', async (req, res) => {
     } catch (error) { res.status(500).json({ error: "Erreur de correction." }); }
 });
 
+app.post('/api/ai/get-hint', async (req, res) => {
+    const { questionText } = req.body;
+    const apiKey = process.env.DEEPSEEK_API_KEY;
+    if (!apiKey || !questionText) {
+        return res.status(400).json({ error: "Texte de la question requis." });
+    }
+
+    const prompt = `Pour la question suivante: "${questionText}", donne un indice simple et court qui aide à réfléchir sans donner la réponse.`;
+
+    try {
+        const response = await axios.post('https://api.deepseek.com/chat/completions', 
+            { model: 'deepseek-chat', messages: [{ role: 'user', content: prompt }] },
+            { headers: { 'Authorization': `Bearer ${apiKey}` } }
+        );
+        res.json({ hint: response.data.choices[0].message.content });
+    } catch (error) {
+        res.status(500).json({ error: "Erreur lors de la génération de l'indice." });
+    }
+});
+
 app.post('/api/ai/playground-chat', async (req, res) => {
     const { history } = req.body;
     const apiKey = process.env.DEEPSEEK_API_KEY;
