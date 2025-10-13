@@ -325,9 +325,10 @@ app.post('/api/ai/generate-from-upload', upload.single('document'), async (req, 
         
         const { contentType, exerciseCount } = req.body;
         const apiKey = process.env.DEEPSEEK_API_KEY;
+        
         const promptMap = {
-            quiz: `À partir du texte suivant, crée un quiz. Format JSON: {"title": "Quiz sur le document", "type": "quiz", "questions": [...]}. Texte: "${extractedText}"`,
-            exercices: `À partir du texte suivant, crée ${exerciseCount || 5} exercices. Format JSON: {"title": "Exercices sur le document", "type": "exercices", "content": [...]}. Texte: "${extractedText}"`
+            quiz: `À partir du texte suivant, crée un quiz. Le format de la réponse DOIT ÊTRE un JSON valide et rien d'autre. Le JSON doit avoir cette structure exacte : {"title": "Quiz sur le document", "type": "quiz", "questions": [{"question_text": "Texte de la question", "options": ["Option A", "Option B", "Option C", "Option D"], "correct_answer_index": 0}]}. Ne change AUCUN nom de clé. Voici le texte: "${extractedText}"`,
+            exercices: `À partir du texte suivant, crée une fiche de ${exerciseCount || 5} exercices. Le format de la réponse DOIT ÊTRE un JSON valide et rien d'autre. Le JSON doit avoir cette structure exacte : {"title": "Exercices sur le document", "type": "exercices", "content": [{"enonce": "Énoncé de l'exercice 1"}, {"enonce": "Énoncé de l'exercice 2"}, ...]}. Ne change AUCUN nom de clé. Voici le texte: "${extractedText}"`
         };
         
         const response = await axios.post('https://api.deepseek.com/chat/completions', { model: 'deepseek-chat', messages: [{ content: promptMap[contentType], role: 'user' }] }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
