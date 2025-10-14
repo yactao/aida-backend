@@ -159,6 +159,285 @@
         }
       }
     },
+    "arts": {
+      "nom": "Éducation artistique",
+      "arts_plastiques": {
+        "nom": "Arts plastiques & Musique",
+        "sous_notions": {
+          "creer": {
+            "nom": "Création artistique",
+            "competences": [
+              "Expérimenter techniques et matériaux ; produire une œuvre personnelle."
+            ]
+          },
+          "musique": {
+            "nom": "Pratiques musicales",
+            "competences": [
+              "Chanter juste, pratiquer des percussions/corps, écouter et décrire."
+            ]
+          }
+        }
+      }
+    },
+    "eps": {
+      "nom": "Éducation physique et sportive",
+      "eps": {
+        "nom": "EPS",
+        "sous_notions": {
+          "motricite": {
+            "nom": "Motricité",
+            "competences": [
+              "Réaliser une performance mesurée et adaptée."
+            ]
+          },
+          "jeux": {
+            "nom": "Jeux et coopération",
+            "competences": [
+              "Coopérer et s’opposer individuellement et collectivement."
+            ]
+          },
+          "sante": {
+            "nom": "Santé",
+            "competences": [
+              "Partager des règles d’hygiène de vie, sécurité, gestion de l’effort."
+            ]
+          }
+        }
+      }
+    },
+    "numerique": {
+      "nom": "Éducation au numérique",
+      "numerique": {
+        "nom": "Numérique",
+        "sous_notions": {
+          "usages": {
+            "nom": "Usages du numérique",
+            "competences": [
+              "Utiliser de façon responsable les outils numériques (tablette/ordinateur)."
+            ]
+          },
+          "citoyen": {
+            "nom": "Citoyenneté numérique",
+            "competences": [
+              "Connaître les règles d’hygiène numérique et de citoyenneté en ligne."
+            ]
+          },
+          "coder": {
+            "nom": "Initiation au code",
+            "competences": [
+              "S’initier à la pensée informatique (débranché puis Scratch)."
+            ]
+          }
+        }
+      }
+    }
+  },
+  "CE1": {
+    "francais": {
+      "nom": "Français",
+      "lecture": {
+        "nom": "Lecture",
+        "sous_notions": {
+          "decoder_lire": {
+            "nom": "Décoder et lire à voix haute",
+            "competences": [
+              "Décoder et lire à voix haute des mots réguliers et irréguliers fréquents."
+            ]
+          },
+          "comprendre_textes": {
+            "nom": "Comprendre des textes courts",
+            "competences": [
+              "Comprendre des textes courts lus par l’enseignant ou par l’élève."
+            ]
+          }
+        }
+      },
+      "ecriture": {
+        "nom": "Écriture",
+        "sous_notions": {
+          "produire_phrases": {
+            "nom": "Produire des phrases simples",
+            "competences": [
+              "Produire des phrases simples correctes (majuscule/point, accords élémentaires)."
+            ]
+          },
+          "copier": {
+            "nom": "Copier un texte",
+            "competences": [
+              "Copier sans erreur un court texte et soigner la présentation."
+            ]
+          }
+        }
+      },
+      "vocabulaire": {
+        "nom": "Vocabulaire",
+        "sous_notions": {
+          "enrichir": {
+            "nom": "Enrichir le vocabulaire",
+            "competences": [
+              "Enrichir le vocabulaire usuel (thèmes de la vie scolaire et quotidienne)."
+            ]
+          }
+        }
+      },
+      "oral": {
+        "nom": "Oral",
+        "sous_notions": {
+          "prendre_parole": {
+            "nom": "Prendre la parole",
+            "competences": [
+              "Prendre la parole de façon audible et respecter les tours de parole."
+            ]
+          }
+        }
+      }
+    },
+    "maths": {
+      "nom": "Mathématiques",
+      "nombres_et_calculs": {
+        "nom": "Nombres et Calculs",
+        "sous_notions": {
+          "nombres_jusqua_1000": {
+            "nom": "Nombres jusqu'à 1000",
+            "competences": [
+              "Comprendre et utiliser les nombres jusqu’à 1000 (selon le niveau du cycle 2)."
+            ]
+          },
+          "operations": {
+            "nom": "Opérations",
+            "competences": [
+              "Poser et effectuer des additions et soustractions ; initiation à la multiplication."
+            ]
+          },
+          "problemes": {
+            "nom": "Résolution de problèmes",
+            "competences": [
+              "Résoudre des problèmes additifs et soustractifs ; premiers problèmes multiplicatifs."
+            ]
+          }
+        }
+      },
+      "grandeurs_et_mesures": {
+        "nom": "Grandeurs et Mesures",
+        "sous_notions": {
+          "estimer_mesurer": {
+            "nom": "Estimer et mesurer",
+            "competences": [
+              "Estimer, mesurer des longueurs, masses, contenances, durées ; lire l’heure."
+            ]
+          }
+        }
+      },
+      "espace_et_geometrie": {
+        "nom": "Espace et Géométrie",
+        "sous_notions": {
+          "reconnaitre_decrire": {
+            "nom": "Reconnaître et décrire des figures",
+            "competences": [
+              "Reconnaître et décrire des figures (segment, carré, rectangle, triangle, cercle)."
+            ]
+          }
+        }
+      }
+    },
+    "sciences": {
+      "nom": "Questionner le monde (Sciences)",
+      "le_vivant": {
+        "nom": "Le vivant, la matière, les objets",
+        "sous_notions": {
+          "vivant": {
+            "nom": "Le vivant",
+            "competences": [
+              "Identifier besoins des êtres vivants ; hygiène et santé."
+            ]
+          },
+          "matiere": {
+            "nom": "La matière",
+            "competences": [
+              "Découvrir états de la matière et changements."
+            ]
+          },
+          "objets": {
+            "nom": "Les objets techniques",
+            "competences": [
+              "Comprendre le fonctionnement d’objets et mécanismes simples."
+            ]
+          },
+          "terre": {
+            "nom": "La Terre",
+            "competences": [
+              "Observer cycles jour/nuit, saisons, météo."
+            ]
+          }
+        }
+      }
+    },
+    "langues_vivantes": {
+      "nom": "Langues vivantes (Anglais)",
+      "anglais": {
+        "nom": "Anglais",
+        "sous_notions": {
+          "oral": {
+            "nom": "Compréhension et expression orale",
+            "competences": [
+              "Comprendre et utiliser des expressions courantes."
+            ]
+          },
+          "lexique": {
+            "nom": "Lexique",
+            "competences": [
+              "Lexique de la classe, famille, couleurs, nombres."
+            ]
+          }
+        }
+      }
+    },
+    "arts": {
+      "nom": "Éducation artistique",
+      "arts_plastiques": {
+        "nom": "Arts plastiques & Musique",
+        "sous_notions": {
+          "creer": {
+            "nom": "Création artistique",
+            "competences": [
+              "Expérimenter techniques et matériaux ; produire une œuvre personnelle."
+            ]
+          },
+          "musique": {
+            "nom": "Pratiques musicales",
+            "competences": [
+              "Chanter juste, pratiquer des percussions/corps, écouter et décrire."
+            ]
+          }
+        }
+      }
+    },
+    "eps": {
+      "nom": "Éducation physique et sportive",
+      "eps": {
+        "nom": "EPS",
+        "sous_notions": {
+          "motricite": {
+            "nom": "Motricité",
+            "competences": [
+              "Réaliser une performance mesurée et adaptée."
+            ]
+          },
+          "jeux": {
+            "nom": "Jeux et coopération",
+            "competences": [
+              "Coopérer et s’opposer individuellement et collectivement."
+            ]
+          },
+          "sante": {
+            "nom": "Santé",
+            "competences": [
+              "Partager des règles d’hygiène de vie, sécurité, gestion de l’effort."
+            ]
+          }
+        }
+      }
+    },
     "numerique": {
       "nom": "Éducation au numérique",
       "numerique": {
@@ -341,6 +620,52 @@
             "nom": "Lexique",
             "competences": [
               "Lexique de la classe, famille, couleurs, nombres."
+            ]
+          }
+        }
+      }
+    },
+    "arts": {
+      "nom": "Éducation artistique",
+      "arts_plastiques": {
+        "nom": "Arts plastiques & Musique",
+        "sous_notions": {
+          "creer": {
+            "nom": "Création artistique",
+            "competences": [
+              "Expérimenter techniques et matériaux ; produire une œuvre personnelle."
+            ]
+          },
+          "musique": {
+            "nom": "Pratiques musicales",
+            "competences": [
+              "Chanter juste, pratiquer des percussions/corps, écouter et décrire."
+            ]
+          }
+        }
+      }
+    },
+    "eps": {
+      "nom": "Éducation physique et sportive",
+      "eps": {
+        "nom": "EPS",
+        "sous_notions": {
+          "motricite": {
+            "nom": "Motricité",
+            "competences": [
+              "Réaliser une performance mesurée et adaptée."
+            ]
+          },
+          "jeux": {
+            "nom": "Jeux et coopération",
+            "competences": [
+              "Coopérer et s’opposer individuellement et collectivement."
+            ]
+          },
+          "sante": {
+            "nom": "Santé",
+            "competences": [
+              "Partager des règles d’hygiène de vie, sécurité, gestion de l’effort."
             ]
           }
         }
@@ -575,6 +900,52 @@
         }
       }
     },
+    "arts": {
+      "nom": "Éducation artistique",
+      "arts_plastiques": {
+        "nom": "Arts plastiques & Musique",
+        "sous_notions": {
+          "creer": {
+            "nom": "Création artistique",
+            "competences": [
+              "Expérimenter techniques et matériaux ; produire une œuvre personnelle."
+            ]
+          },
+          "musique": {
+            "nom": "Pratiques musicales",
+            "competences": [
+              "Chanter juste, pratiquer des percussions/corps, écouter et décrire."
+            ]
+          }
+        }
+      }
+    },
+    "eps": {
+      "nom": "Éducation physique et sportive",
+      "eps": {
+        "nom": "EPS",
+        "sous_notions": {
+          "motricite": {
+            "nom": "Motricité",
+            "competences": [
+              "Réaliser une performance mesurée et adaptée."
+            ]
+          },
+          "jeux": {
+            "nom": "Jeux et coopération",
+            "competences": [
+              "Coopérer et s’opposer individuellement et collectivement."
+            ]
+          },
+          "sante": {
+            "nom": "Santé",
+            "competences": [
+              "Partager des règles d’hygiène de vie, sécurité, gestion de l’effort."
+            ]
+          }
+        }
+      }
+    },
     "numerique": {
       "nom": "Éducation au numérique",
       "numerique": {
@@ -804,6 +1175,52 @@
         }
       }
     },
+    "arts": {
+      "nom": "Éducation artistique",
+      "arts_plastiques": {
+        "nom": "Arts plastiques & Musique",
+        "sous_notions": {
+          "creer": {
+            "nom": "Création artistique",
+            "competences": [
+              "Expérimenter techniques et matériaux ; produire une œuvre personnelle."
+            ]
+          },
+          "musique": {
+            "nom": "Pratiques musicales",
+            "competences": [
+              "Chanter juste, pratiquer des percussions/corps, écouter et décrire."
+            ]
+          }
+        }
+      }
+    },
+    "eps": {
+      "nom": "Éducation physique et sportive",
+      "eps": {
+        "nom": "EPS",
+        "sous_notions": {
+          "motricite": {
+            "nom": "Motricité",
+            "competences": [
+              "Réaliser une performance mesurée et adaptée."
+            ]
+          },
+          "jeux": {
+            "nom": "Jeux et coopération",
+            "competences": [
+              "Coopérer et s’opposer individuellement et collectivement."
+            ]
+          },
+          "sante": {
+            "nom": "Santé",
+            "competences": [
+              "Partager des règles d’hygiène de vie, sécurité, gestion de l’effort."
+            ]
+          }
+        }
+      }
+    },
     "numerique": {
       "nom": "Éducation au numérique",
       "numerique": {
@@ -832,5 +1249,4 @@
     }
   }
 }
-
 
