@@ -186,6 +186,37 @@ app.post('/api/teacher/classes/:classId/add-student', async (req, res) => {
     } catch (error) { res.status(500).json({ error: "Impossible d'ajouter l'élève." }); }
 });
 
+app.post('/api/teacher/classes/:classId/remove-student', async (req, res) => {
+    const { classId } = req.params;
+    const { studentEmail } = req.body;
+    if (!studentEmail) return res.status(400).json({ error: "L'email de l'élève est requis." });
+
+    try {
+        const querySpec = { query: "SELECT * FROM c WHERE c.id = @classId", parameters: [{ name: "@classId", value: classId }] };
+        const { resources } = await classesContainer.items.query(querySpec).fetchAll();
+        if (resources.length === 0) return res.status(404).json({ error: "Classe non trouvée." });
+
+        const classDoc = resources[0];
+
+        const initialStudentCount = (classDoc.students || []).length;
+        classDoc.students = (classDoc.students || []).filter(email => email !== studentEmail);
+        if (classDoc.students.length === initialStudentCount) {
+            console.log(`L'élève ${studentEmail} n'a pas été trouvé dans la liste des élèves de la classe ${classId}.`);
+        }
+
+        classDoc.results = (classDoc.results || []).filter(result => result.studentEmail !== studentEmail);
+
+        await classesContainer.item(classDoc.id, classDoc.teacherEmail).replace(classDoc);
+        
+        res.status(200).json({ message: "Élève supprimé avec succès." });
+
+    } catch (error) {
+        console.error("Erreur suppression élève:", error);
+        res.status(500).json({ error: "Impossible de supprimer l'élève." });
+    }
+});
+
+
 app.post('/api/teacher/assign-content', async (req, res) => {
     const { classId, contentData } = req.body;
     if (!classId || !contentData) return res.status(400).json({ error: "ID de classe et contenu sont requis." });
