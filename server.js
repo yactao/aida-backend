@@ -329,7 +329,18 @@ app.post('/api/student/submit-quiz', async (req, res) => {
     const { resources } = await classesContainer.items.query(querySpec).fetchAll();
     if (resources.length > 0) {
         const classDoc = resources[0];
-        const newResult = { studentEmail, contentId, title, score, totalQuestions, submittedAt: completedItem.completedAt, answers, helpUsed };
+        // --- MODIFICATION : Ajout du statut pour la validation ---
+        const newResult = { 
+            studentEmail, 
+            contentId, 
+            title, 
+            score, 
+            totalQuestions, 
+            submittedAt: completedItem.completedAt, 
+            answers, 
+            helpUsed,
+            status: 'pending_validation' // Statut par défaut
+        };
         if (!classDoc.results) classDoc.results = [];
         classDoc.results.push(newResult);
         await classesContainer.item(classDoc.id, classDoc.teacherEmail).replace(classDoc);
