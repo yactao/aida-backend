@@ -122,7 +122,7 @@ app.post('/api/auth/login', async (req, res) => {
     try {
         const { resource: user } = await usersContainer.item(email, email).read().catch(() => ({ resource: null }));
         if (!user || user.password !== password) return res.status(401).json({ error: "Email ou mot de passe incorrect." });
-        res.status(200).json({ user: { email: user.email, role: user.role, firstName: user.firstName, avatar: user.avatar } });
+        res.status(200).json({ user });
     } catch (error) { res.status(500).json({ error: "Erreur lors de la connexion." }); }
 });
 
@@ -144,6 +144,29 @@ app.post('/api/teacher/classes', async (req, res) => {
         const { resource: createdClass } = await classesContainer.items.create(newClass);
         res.status(201).json(createdClass);
     } catch (error) { res.status(500).json({ error: "Impossible de créer la classe." }); }
+});
+
+app.post('/api/teacher/classes/reorder', async (req, res) => {
+    const { teacherEmail, classOrder } = req.body;
+    if (!teacherEmail || !Array.isArray(classOrder)) {
+        return res.status(400).json({ error: "L'email de l'enseignant et un ordre de classe sont requis." });
+    }
+
+    try {
+        const { resource: user } = await usersContainer.item(teacherEmail, teacherEmail).read();
+        if (!user) {
+            return res.status(404).json({ error: "Enseignant non trouvé." });
+        }
+
+        user.classOrder = classOrder;
+
+        const { resource: updatedUser } = await usersContainer.item(teacherEmail, teacherEmail).replace(user);
+
+        res.status(200).json({ message: "L'ordre des classes a été sauvegardé.", classOrder: updatedUser.classOrder });
+    } catch (error) {
+        console.error("Erreur lors de la réorganisation des classes:", error);
+        res.status(500).json({ error: "Impossible de sauvegarder le nouvel ordre des classes." });
+    }
 });
 
 app.get('/api/teacher/classes/:classId', async (req, res) => {
