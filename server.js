@@ -451,6 +451,27 @@ app.post('/api/ai/get-hint', async (req, res) => {
     }
 });
 
+app.post('/api/ai/get-feedback-for-error', async (req, res) => {
+    const { question, userAnswer, correctAnswer } = req.body;
+    const apiKey = process.env.DEEPSEEK_API_KEY;
+    if (!apiKey || !question || !correctAnswer) {
+        return res.status(400).json({ error: "Données incomplètes pour la correction." });
+    }
+
+    const prompt = `Pour la question "${question}", l'élève a répondu "${userAnswer}" alors que la bonne réponse était "${correctAnswer}". Explique simplement et de manière encourageante pourquoi sa réponse est incorrecte et pourquoi l'autre est correcte, sans être trop long.`;
+
+    try {
+        const response = await axios.post('https://api.deepseek.com/chat/completions', 
+            { model: 'deepseek-chat', messages: [{ role: 'user', content: prompt }] },
+            { headers: { 'Authorization': `Bearer ${apiKey}` } }
+        );
+        res.json({ feedback: response.data.choices[0].message.content });
+    } catch (error) {
+        console.error("Erreur lors de la génération du feedback:", error);
+        res.status(500).json({ error: "Erreur lors de la génération du feedback." });
+    }
+});
+
 app.post('/api/ai/playground-chat', async (req, res) => {
     const { history } = req.body;
     const apiKey = process.env.DEEPSEEK_API_KEY;
