@@ -2,514 +2,1254 @@
   "6eme": {
     "francais": {
       "nom": "Français",
-      "etude_de_la_langue": {
+      "lecture": {
+        "nom": "Lecture et Compréhension",
+        "sous_notions": {
+          "lire_comprendre": {
+            "nom": "Lire et comprendre des œuvres et textes variés",
+            "competences": ["Lire et comprendre des œuvres et textes variés (narratif, théâtre, poésie, argumentatif)."]
+          }
+        }
+      },
+      "ecriture": {
+        "nom": "Écriture",
+        "sous_notions": {
+          "rediger": {
+            "nom": "Rédiger des textes organisés et cohérents",
+            "competences": ["Rédiger des textes organisés et cohérents (récit, description, argumentation)."]
+          }
+        }
+      },
+      "oral": {
+        "nom": "Expression Orale",
+        "sous_notions": {
+          "prendre_parole": {
+            "nom": "Prendre la parole en public",
+            "competences": ["Prendre la parole dans des échanges ou en continu (exposé, débat)."]
+          }
+        }
+      },
+      "langue": {
         "nom": "Étude de la langue",
         "sous_notions": {
-          "grammaire_phrase_verbe": {
-            "nom": "Phrase, verbe et sujet",
-            "competences": ["Identifier les types et formes de phrases", "Distinguer phrase simple et complexe", "Identifier le verbe, son infinitif et son groupe", "Identifier le sujet et maîtriser l'accord sujet-verbe"]
-          },
-          "grammaire_constituants": {
-            "nom": "Constituants du groupe nominal",
-            "competences": ["Identifier nom, déterminant, adjectif", "Comprendre la fonction épithète", "Maîtriser les accords dans le groupe nominal"]
-          },
-          "conjugaison_temps_simples": {
-            "nom": "Conjugaison : temps simples de l'indicatif",
-            "competences": ["Maîtriser le présent, l'imparfait, le futur simple et le passé simple"]
+          "maitriser_notions": {
+            "nom": "Maîtriser les notions de grammaire, conjugaison, lexique",
+            "competences": ["Maîtriser les notions de langue (grammaire, conjugaison, lexique)."]
           }
         }
       }
     },
-    "mathematiques": {
+    "maths": {
       "nom": "Mathématiques",
       "nombres_calculs": {
         "nom": "Nombres et Calculs",
         "sous_notions": {
-          "nombres_decimaux": {
-            "nom": "Nombres décimaux et fractions",
-            "competences": ["Lire, écrire et comparer les nombres entiers et décimaux", "Utiliser la notion de fraction simple"]
-          },
-          "operations": {
-            "nom": "Opérations sur les nombres",
-            "competences": ["Maîtriser les 4 opérations sur les nombres entiers", "Calculer mentalement et estimer un ordre de grandeur"]
+          "nombres_decimaux_fractions": {
+            "nom": "Nombres entiers, décimaux et fractions",
+            "competences": ["Utiliser les nombres entiers & décimaux; fractions et pourcentages."]
           }
         }
       },
       "geometrie": {
         "nom": "Espace et Géométrie",
         "sous_notions": {
-          "figures_planes": {
-            "nom": "Figures planes usuelles",
-            "competences": ["Reconnaître, nommer, décrire et construire les figures usuelles (triangle, carré, cercle)"]
-          },
-          "symetrie_axiale": {
-            "nom": "Symétrie axiale",
-            "competences": ["Construire le symétrique d'une figure par rapport à un axe"]
-          }
-        }
-      }
-    },
-    "histoire": {
-      "nom": "Histoire",
-      "longue_histoire": {
-        "nom": "La longue histoire de l'humanité et des migrations",
-        "sous_notions": {
-          "premieres_civilisations": {
-            "nom": "Les débuts de l'humanité et les premières civilisations",
-            "competences": ["Connaître les grandes étapes de la préhistoire", "Situer les premières civilisations (Mésopotamie, Égypte)"]
-          },
-          "antiquite_grecque": {
-            "nom": "L'Antiquité grecque",
-            "competences": ["Décrire le fonctionnement de la cité d'Athènes à l'époque classique", "Identifier les grands mythes grecs"]
-          },
-          "antiquite_romaine": {
-            "nom": "L'Antiquité romaine",
-            "competences": ["Expliquer la naissance et l'expansion de l'Empire romain", "Décrire la vie des habitants dans l'Empire"]
-          }
-        }
-      }
-    },
-    "geographie": {
-      "nom": "Géographie",
-      "habiter_monde": {
-        "nom": "Habiter un monde de plus en plus urbanisé",
-        "sous_notions": {
-          "metropoles": {
-            "nom": "Habiter une métropole",
-            "competences": ["Décrire les paysages d'une métropole et les manières d'y vivre", "Comprendre le phénomène d'urbanisation dans le monde"]
-          },
-          "espaces_faible_densite": {
-            "nom": "Habiter un espace de faible densité",
-            "competences": ["Identifier les contraintes et les atouts des espaces à faible densité (agricoles, montagnards, etc.)"]
-          }
-        }
-      }
-    },
-    "technologie": {
-        "nom": "Technologie",
-        "materiaux_objets": {
-            "nom": "Matériaux et objets techniques",
-            "sous_notions": {
-                "analyse_fonctionnement": {
-                    "nom": "Analyse du fonctionnement d'un objet technique",
-                    "competences": ["Identifier la fonction d'un objet", "Décrire son principe de fonctionnement", "Représenter le fonctionnement par un schéma"]
-                }
-            }
-        }
-    }
-  },
-  "5eme": {
-    "francais": {
-      "nom": "Français",
-      "etude_de_la_langue": {
-        "nom": "Étude de la langue",
-        "sous_notions": {
-          "grammaire_fonctions": {
-            "nom": "Les fonctions dans la phrase",
-            "competences": ["Identifier les fonctions sujet, COD, COI, attribut du sujet", "Analyser la phrase simple"]
-          },
-          "conjugaison_temps_composes": {
-            "nom": "Conjugaison : temps composés",
-            "competences": ["Maîtriser le passé composé", "Comprendre la concordance des temps dans le récit"]
-          }
-        }
-      }
-    },
-    "mathematiques": {
-      "nom": "Mathématiques",
-      "nombres_calculs": {
-        "nom": "Nombres et Calculs",
-        "sous_notions": {
-          "nombres_relatifs": {
-            "nom": "Nombres relatifs",
-            "competences": ["Repérer et comparer des nombres relatifs", "Additionner et soustraire des nombres relatifs"]
-          },
-          "calcul_litteral": {
-            "nom": "Calcul littéral (introduction)",
-            "competences": ["Utiliser des lettres pour représenter des nombres", "Tester une égalité"]
+          "figures_proprietes": {
+            "nom": "Figures, propriétés et transformations",
+            "competences": ["Maîtriser les figures, propriétés, transformations; et s'initier aux démonstrations simples."]
           }
         }
       },
-      "geometrie": {
-        "nom": "Espace et Géométrie",
+      "mesures": {
+        "nom": "Grandeurs et Mesures",
         "sous_notions": {
-          "triangles_angles": {
-            "nom": "Triangles et angles",
-            "competences": ["Connaître et utiliser la somme des angles d'un triangle", "Construire des triangles"]
-          },
-          "symetrie_centrale": {
-            "nom": "Symétrie centrale",
-            "competences": ["Construire le symétrique d'une figure par rapport à un point"]
+          "perimetres_aires_volumes": {
+            "nom": "Périmètres, aires et volumes",
+            "competences": ["Calculer des périmètres, aires, volumes; maîtriser les grandeurs et conversions."]
+          }
+        }
+      },
+      "donnees": {
+        "nom": "Gestion de données",
+        "sous_notions": {
+          "statistiques_proba": {
+            "nom": "Statistiques et probabilités",
+            "competences": ["Organisation et gestion de données; statistiques; initiation aux probabilités."]
+          }
+        }
+      },
+      "algorithmique": {
+        "nom": "Algorithmique et Programmation",
+        "sous_notions": {
+          "initiation_programmation": {
+            "nom": "Introduction à l'algorithmique",
+            "competences": ["S'initier à l'algorithmique et à la programmation (Python/Blockly)."]
           }
         }
       }
     },
-    "histoire": {
-      "nom": "Histoire",
-      "chretiente_islam": {
-        "nom": "Chrétientés et Islam (VIe-XIIIe siècles)",
+    "histoire_geo": {
+      "nom": "Histoire-Géographie",
+      "geographie": {
+        "nom": "Géographie",
         "sous_notions": {
-          "mondes_en_contact": {
-            "nom": "Des mondes en contact",
-            "competences": ["Situer les empires byzantin, carolingien et le monde musulman", "Décrire les contacts en Méditerranée"]
-          },
-          "societe_feodale": {
-            "nom": "La société féodale en Occident",
-            "competences": ["Expliquer les relations entre seigneurs et paysans", "Comprendre le rôle de l'Église"]
+          "organisation_espace": {
+            "nom": "Organisation de l'espace",
+            "competences": ["Localiser, décrire et expliquer des organisations de l’espace."]
+          }
+        }
+      },
+      "histoire": {
+        "nom": "Histoire",
+        "sous_notions": {
+          "reperes_temporels": {
+            "nom": "Repères temporels",
+            "competences": ["Se repérer dans le temps; raconter et expliquer des faits historiques."]
+          }
+        }
+      },
+      "emi": {
+        "nom": "Éducation aux Médias",
+        "sous_notions": {
+          "analyse_sources": {
+            "nom": "Analyse des sources",
+            "competences": ["Analyser des médias et des sources d'information."]
           }
         }
       }
     },
-    "geographie": {
-      "nom": "Géographie",
-      "ressources": {
-        "nom": "Des ressources limitées, à gérer et à renouveler",
+    "svt": {
+      "nom": "SVT",
+      "vivant": {
+        "nom": "Le Vivant et son évolution",
         "sous_notions": {
-          "eau_energie": {
-            "nom": "L'énergie, l'eau : des ressources à ménager",
-            "competences": ["Comprendre l'inégale disponibilité des ressources", "Étudier des exemples de gestion durable"]
+          "corps_humain": {
+            "nom": "Corps humain et santé",
+            "competences": ["Comprendre le fonctionnement du corps humain, la santé et la reproduction."]
           },
-          "alimentation": {
-            "nom": "Nourrir les hommes",
-            "competences": ["Identifier les différents types d'agriculture dans le monde", "Comprendre les enjeux de la sécurité alimentaire"]
+          "biodiversite": {
+            "nom": "Biodiversité",
+            "competences": ["Étudier la biodiversité, l'évolution et les relations entre les êtres vivants et leur milieu."]
+          }
+        }
+      },
+      "terre": {
+        "nom": "La Planète Terre",
+        "sous_notions": {
+          "geologie": {
+            "nom": "Géologie",
+            "competences": ["Comprendre la géologie, les risques et les phénomènes naturels."]
+          }
+        }
+      },
+      "demarche": {
+        "nom": "Démarche Scientifique",
+        "sous_notions": {
+          "experimentation": {
+            "nom": "Mener une démarche d'investigation",
+            "competences": ["Appliquer une démarche scientifique : hypothèse, protocole, résultat."]
           }
         }
       }
-    },
-    "technologie": {
-        "nom": "Technologie",
-        "programmation": {
-            "nom": "Algorithmique et Programmation",
-            "sous_notions": {
-                "deplacements_simples": {
-                    "nom": "Programmer des déplacements simples",
-                    "competences": ["Écrire un script pour déplacer un personnage ou un robot", "Utiliser des instructions séquentielles", "Découvrir les boucles"]
-                }
-            }
-        }
     },
     "physique_chimie": {
       "nom": "Physique-Chimie",
       "matiere": {
-        "nom": "Organisation et transformations de la matière",
+        "nom": "La matière, ses transformations",
         "sous_notions": {
-          "melanges_changements_etat": {
-            "nom": "Mélanges et changements d'état",
-            "competences": ["Identifier un mélange et un corps pur", "Décrire les changements d'état de la matière", "Comprendre la conservation de la masse"]
+          "etats_melanges": {
+            "nom": "États et mélanges",
+            "competences": ["Étudier les états, changements d’état, mélanges/solutions et les modèles particulaires."]
           }
         }
       },
       "energie": {
         "nom": "L'énergie et ses conversions",
         "sous_notions": {
-          "sources_conversions": {
-            "nom": "Sources et conversions d'énergie",
-            "competences": ["Identifier différentes sources et formes d'énergie", "Réaliser un diagramme de conversion d'énergie"]
+          "chaines_energie": {
+            "nom": "Chaînes d'énergie",
+            "competences": ["Comprendre les chaînes d’énergie, les transferts, les conversions et la puissance."]
+          }
+        }
+      },
+      "electricite": {
+        "nom": "L'électricité",
+        "sous_notions": {
+          "circuits": {
+            "nom": "Circuits électriques",
+            "competences": ["Analyser des circuits simples et connaître les lois de base (U, I, R)."]
+          }
+        }
+      },
+      "lumiere": {
+        "nom": "La lumière",
+        "sous_notions": {
+          "propagation": {
+            "nom": "Propagation et couleurs",
+            "competences": ["Étudier la propagation rectiligne, les ombres, les couleurs et les lentilles."]
+          }
+        }
+      }
+    },
+    "technologie": {
+      "nom": "Technologie",
+      "objets": {
+        "nom": "Analyse d'objets techniques",
+        "sous_notions": {
+          "fonctionnement": {
+            "nom": "Fonctionnement et architecture",
+            "competences": ["Analyser le fonctionnement et l’architecture d’un objet technique."]
+          }
+        }
+      },
+      "projet": {
+        "nom": "Conduite de projet",
+        "sous_notions": {
+          "prototypage": {
+            "nom": "Du cahier des charges au prototype",
+            "competences": ["Conduire un projet : cahier des charges, prototypage, test."]
+          }
+        }
+      },
+      "numerique": {
+        "nom": "Numérique et Programmation",
+        "sous_notions": {
+          "systemes_embarques": {
+            "nom": "Systèmes embarqués",
+            "competences": ["Programmation et systèmes (capteurs/actionneurs, IA initiations)."]
+          }
+        }
+      },
+      "ecodesign": {
+        "nom": "Éco-conception",
+        "sous_notions": {
+          "impact_environnemental": {
+            "nom": "Impact environnemental des matériaux",
+            "competences": ["Analyser les matériaux, les contraintes et l'impact environnemental."]
+          }
+        }
+      }
+    },
+    "anglais_lv1": {
+      "nom": "Anglais (LV1)",
+      "communication": {
+        "nom": "Communiquer",
+        "sous_notions": {
+          "comprehension": {
+            "nom": "Compréhension orale et écrite",
+            "competences": ["Comprendre des documents variés."]
+          },
+          "interaction": {
+            "nom": "Interaction orale",
+            "competences": ["Interagir à l'oral (jeux de rôle, conversation)."]
+          },
+          "production": {
+            "nom": "Production écrite et orale",
+            "competences": ["Produire des textes et des discours courts et organisés."]
+          }
+        }
+      },
+      "culture": {
+        "nom": "Culture",
+        "sous_notions": {
+          "aires_culturelles": {
+            "nom": "Aires culturelles et médiations",
+            "competences": ["Découvrir les aires culturelles et faire des médiations."]
+          }
+        }
+      }
+    },
+    "espagnol_lv2": {
+      "nom": "Espagnol (LV2)",
+      "communication": {
+        "nom": "Communiquer",
+        "sous_notions": {
+          "comprehension": {
+            "nom": "Compréhension orale et écrite",
+            "competences": ["Comprendre des documents variés."]
+          },
+          "interaction": {
+            "nom": "Interaction orale",
+            "competences": ["Interagir à l'oral (jeux de rôle, conversation)."]
+          },
+          "production": {
+            "nom": "Production écrite et orale",
+            "competences": ["Produire des textes et des discours courts et organisés."]
+          }
+        }
+      },
+      "culture": {
+        "nom": "Culture",
+        "sous_notions": {
+          "aires_culturelles": {
+            "nom": "Aires culturelles et médiations",
+            "competences": ["Découvrir les aires culturelles et faire des médiations."]
+          }
+        }
+      }
+    },
+    "emi_numerique": {
+      "nom": "EMI & Numérique",
+      "emi": {
+        "nom": "Éducation aux Médias",
+        "sous_notions": {
+          "recherche_info": {
+            "nom": "Recherche d'information",
+            "competences": ["Rechercher, trier, citer des informations de sources fiables."]
+          },
+          "citoyennete_numerique": {
+            "nom": "Citoyenneté numérique",
+            "competences": ["Connaître les usages responsables du numérique."]
+          }
+        }
+      },
+      "programmation": {
+        "nom": "Programmation",
+        "sous_notions": {
+          "algorithmique": {
+            "nom": "Algorithmique",
+            "competences": ["S'initier à l'algorithmique et à la programmation."]
+          }
+        }
+      }
+    }
+  },
+  "5eme": {
+     "francais": {
+      "nom": "Français",
+      "lecture": {
+        "nom": "Lecture et Compréhension",
+        "sous_notions": {
+          "lire_comprendre": {
+            "nom": "Lire et comprendre des œuvres et textes variés",
+            "competences": ["Lire et comprendre des œuvres et textes variés (narratif, théâtre, poésie, argumentatif)."]
+          }
+        }
+      },
+      "ecriture": {
+        "nom": "Écriture",
+        "sous_notions": {
+          "rediger": {
+            "nom": "Rédiger des textes organisés et cohérents",
+            "competences": ["Rédiger des textes organisés et cohérents (récit, description, argumentation)."]
+          }
+        }
+      },
+      "oral": {
+        "nom": "Expression Orale",
+        "sous_notions": {
+          "prendre_parole": {
+            "nom": "Prendre la parole en public",
+            "competences": ["Prendre la parole dans des échanges ou en continu (exposé, débat)."]
+          }
+        }
+      },
+      "langue": {
+        "nom": "Étude de la langue",
+        "sous_notions": {
+          "maitriser_notions": {
+            "nom": "Maîtriser les notions de grammaire, conjugaison, lexique",
+            "competences": ["Maîtriser les notions de langue (grammaire, conjugaison, lexique)."]
+          }
+        }
+      }
+    },
+    "maths": {
+      "nom": "Mathématiques",
+      "nombres_calculs": {
+        "nom": "Nombres et Calculs",
+        "sous_notions": {
+          "nombres_decimaux_fractions": {
+            "nom": "Nombres entiers, décimaux et fractions",
+            "competences": ["Utiliser les nombres entiers & décimaux; fractions et pourcentages."]
+          }
+        }
+      },
+      "geometrie": {
+        "nom": "Espace et Géométrie",
+        "sous_notions": {
+          "figures_proprietes": {
+            "nom": "Figures, propriétés et transformations",
+            "competences": ["Maîtriser les figures, propriétés, transformations; et s'initier aux démonstrations simples."]
+          }
+        }
+      },
+      "mesures": {
+        "nom": "Grandeurs et Mesures",
+        "sous_notions": {
+          "perimetres_aires_volumes": {
+            "nom": "Périmètres, aires et volumes",
+            "competences": ["Calculer des périmètres, aires, volumes; maîtriser les grandeurs et conversions."]
+          }
+        }
+      },
+      "donnees": {
+        "nom": "Gestion de données",
+        "sous_notions": {
+          "statistiques_proba": {
+            "nom": "Statistiques et probabilités",
+            "competences": ["Organisation et gestion de données; statistiques; initiation aux probabilités."]
+          }
+        }
+      },
+      "algorithmique": {
+        "nom": "Algorithmique et Programmation",
+        "sous_notions": {
+          "initiation_programmation": {
+            "nom": "Introduction à l'algorithmique",
+            "competences": ["S'initier à l'algorithmique et à la programmation (Python/Blockly)."]
+          }
+        }
+      }
+    },
+    "histoire_geo": {
+      "nom": "Histoire-Géographie",
+      "geographie": {
+        "nom": "Géographie",
+        "sous_notions": {
+          "organisation_espace": {
+            "nom": "Organisation de l'espace",
+            "competences": ["Localiser, décrire et expliquer des organisations de l’espace."]
+          }
+        }
+      },
+      "histoire": {
+        "nom": "Histoire",
+        "sous_notions": {
+          "reperes_temporels": {
+            "nom": "Repères temporels",
+            "competences": ["Se repérer dans le temps; raconter et expliquer des faits historiques."]
+          }
+        }
+      },
+      "emi": {
+        "nom": "Éducation aux Médias",
+        "sous_notions": {
+          "analyse_sources": {
+            "nom": "Analyse des sources",
+            "competences": ["Analyser des médias et des sources d'information."]
           }
         }
       }
     },
     "svt": {
       "nom": "SVT",
-      "planete_terre": {
-        "nom": "La planète Terre, l'environnement et l'action humaine",
+      "vivant": {
+        "nom": "Le Vivant et son évolution",
         "sous_notions": {
-          "meteorologie_climat": {
-            "nom": "Météorologie et climat",
-            "competences": ["Distinguer météo et climat", "Comprendre les phénomènes météorologiques (vents, précipitations)", "Expliquer l'évolution du climat"]
+          "corps_humain": {
+            "nom": "Corps humain et santé",
+            "competences": ["Comprendre le fonctionnement du corps humain, la santé et la reproduction."]
+          },
+          "biodiversite": {
+            "nom": "Biodiversité",
+            "competences": ["Étudier la biodiversité, l'évolution et les relations entre les êtres vivants et leur milieu."]
           }
         }
       },
-      "vivant_evolution": {
-        "nom": "Le vivant et son évolution",
+      "terre": {
+        "nom": "La Planète Terre",
         "sous_notions": {
-          "respiration_milieux_vie": {
-            "nom": "Respiration et milieux de vie",
-            "competences": ["Identifier les organes respiratoires chez différents êtres vivants", "Relier les conditions de la respiration aux caractéristiques du milieu de vie"]
+          "geologie": {
+            "nom": "Géologie",
+            "competences": ["Comprendre la géologie, les risques et les phénomènes naturels."]
           }
         }
       },
-      "corps_humain_sante": {
-        "nom": "Le corps humain et la santé",
+      "demarche": {
+        "nom": "Démarche Scientifique",
         "sous_notions": {
-          "fonctionnement_organisme": {
-            "nom": "Fonctionnement de l'organisme",
-            "competences": ["Expliquer le trajet et la transformation des aliments (digestion)", "Relier la respiration et la circulation sanguine", "Comprendre les modifications du corps à la puberté"]
+          "experimentation": {
+            "nom": "Mener une démarche d'investigation",
+            "competences": ["Appliquer une démarche scientifique : hypothèse, protocole, résultat."]
+          }
+        }
+      }
+    },
+    "physique_chimie": {
+      "nom": "Physique-Chimie",
+      "matiere": {
+        "nom": "La matière, ses transformations",
+        "sous_notions": {
+          "etats_melanges": {
+            "nom": "États et mélanges",
+            "competences": ["Étudier les états, changements d’état, mélanges/solutions et les modèles particulaires."]
+          }
+        }
+      },
+      "energie": {
+        "nom": "L'énergie et ses conversions",
+        "sous_notions": {
+          "chaines_energie": {
+            "nom": "Chaînes d'énergie",
+            "competences": ["Comprendre les chaînes d’énergie, les transferts, les conversions et la puissance."]
+          }
+        }
+      },
+      "electricite": {
+        "nom": "L'électricité",
+        "sous_notions": {
+          "circuits": {
+            "nom": "Circuits électriques",
+            "competences": ["Analyser des circuits simples et connaître les lois de base (U, I, R)."]
+          }
+        }
+      },
+      "lumiere": {
+        "nom": "La lumière",
+        "sous_notions": {
+          "propagation": {
+            "nom": "Propagation et couleurs",
+            "competences": ["Étudier la propagation rectiligne, les ombres, les couleurs et les lentilles."]
+          }
+        }
+      }
+    },
+    "technologie": {
+      "nom": "Technologie",
+      "objets": {
+        "nom": "Analyse d'objets techniques",
+        "sous_notions": {
+          "fonctionnement": {
+            "nom": "Fonctionnement et architecture",
+            "competences": ["Analyser le fonctionnement et l’architecture d’un objet technique."]
+          }
+        }
+      },
+      "projet": {
+        "nom": "Conduite de projet",
+        "sous_notions": {
+          "prototypage": {
+            "nom": "Du cahier des charges au prototype",
+            "competences": ["Conduire un projet : cahier des charges, prototypage, test."]
+          }
+        }
+      },
+      "numerique": {
+        "nom": "Numérique et Programmation",
+        "sous_notions": {
+          "systemes_embarques": {
+            "nom": "Systèmes embarqués",
+            "competences": ["Programmation et systèmes (capteurs/actionneurs, IA initiations)."]
+          }
+        }
+      },
+      "ecodesign": {
+        "nom": "Éco-conception",
+        "sous_notions": {
+          "impact_environnemental": {
+            "nom": "Impact environnemental des matériaux",
+            "competences": ["Analyser les matériaux, les contraintes et l'impact environnemental."]
+          }
+        }
+      }
+    },
+    "anglais_lv1": {
+      "nom": "Anglais (LV1)",
+      "communication": {
+        "nom": "Communiquer",
+        "sous_notions": {
+          "comprehension": {
+            "nom": "Compréhension orale et écrite",
+            "competences": ["Comprendre des documents variés."]
+          },
+          "interaction": {
+            "nom": "Interaction orale",
+            "competences": ["Interagir à l'oral (jeux de rôle, conversation)."]
+          },
+          "production": {
+            "nom": "Production écrite et orale",
+            "competences": ["Produire des textes et des discours courts et organisés."]
+          }
+        }
+      },
+      "culture": {
+        "nom": "Culture",
+        "sous_notions": {
+          "aires_culturelles": {
+            "nom": "Aires culturelles et médiations",
+            "competences": ["Découvrir les aires culturelles et faire des médiations."]
+          }
+        }
+      }
+    },
+    "espagnol_lv2": {
+      "nom": "Espagnol (LV2)",
+      "communication": {
+        "nom": "Communiquer",
+        "sous_notions": {
+          "comprehension": {
+            "nom": "Compréhension orale et écrite",
+            "competences": ["Comprendre des documents variés."]
+          },
+          "interaction": {
+            "nom": "Interaction orale",
+            "competences": ["Interagir à l'oral (jeux de rôle, conversation)."]
+          },
+          "production": {
+            "nom": "Production écrite et orale",
+            "competences": ["Produire des textes et des discours courts et organisés."]
+          }
+        }
+      },
+      "culture": {
+        "nom": "Culture",
+        "sous_notions": {
+          "aires_culturelles": {
+            "nom": "Aires culturelles et médiations",
+            "competences": ["Découvrir les aires culturelles et faire des médiations."]
+          }
+        }
+      }
+    },
+    "emi_numerique": {
+      "nom": "EMI & Numérique",
+      "emi": {
+        "nom": "Éducation aux Médias",
+        "sous_notions": {
+          "recherche_info": {
+            "nom": "Recherche d'information",
+            "competences": ["Rechercher, trier, citer des informations de sources fiables."]
+          },
+          "citoyennete_numerique": {
+            "nom": "Citoyenneté numérique",
+            "competences": ["Connaître les usages responsables du numérique."]
+          }
+        }
+      },
+      "programmation": {
+        "nom": "Programmation",
+        "sous_notions": {
+          "algorithmique": {
+            "nom": "Algorithmique",
+            "competences": ["S'initier à l'algorithmique et à la programmation."]
           }
         }
       }
     }
   },
   "4eme": {
-    "francais": {
+     "francais": {
       "nom": "Français",
-      "etude_de_la_langue": {
+      "lecture": {
+        "nom": "Lecture et Compréhension",
+        "sous_notions": {
+          "lire_comprendre": {
+            "nom": "Lire et comprendre des œuvres et textes variés",
+            "competences": ["Lire et comprendre des œuvres et textes variés (narratif, théâtre, poésie, argumentatif)."]
+          }
+        }
+      },
+      "ecriture": {
+        "nom": "Écriture",
+        "sous_notions": {
+          "rediger": {
+            "nom": "Rédiger des textes organisés et cohérents",
+            "competences": ["Rédiger des textes organisés et cohérents (récit, description, argumentation)."]
+          }
+        }
+      },
+      "oral": {
+        "nom": "Expression Orale",
+        "sous_notions": {
+          "prendre_parole": {
+            "nom": "Prendre la parole en public",
+            "competences": ["Prendre la parole dans des échanges ou en continu (exposé, débat)."]
+          }
+        }
+      },
+      "langue": {
         "nom": "Étude de la langue",
         "sous_notions": {
-          "grammaire_phrase_complexe": {
-            "nom": "La phrase complexe",
-            "competences": ["Identifier les propositions subordonnées (relative, complétive, circonstancielle)", "Comprendre les liens logiques"]
-          },
-          "conjugaison_subjonctif_conditionnel": {
-            "nom": "Conjugaison : subjonctif et conditionnel",
-            "competences": ["Maîtriser le présent du subjonctif et du conditionnel", "Comprendre leurs valeurs et emplois"]
+          "maitriser_notions": {
+            "nom": "Maîtriser les notions de grammaire, conjugaison, lexique",
+            "competences": ["Maîtriser les notions de langue (grammaire, conjugaison, lexique)."]
           }
         }
       }
     },
-    "mathematiques": {
+    "maths": {
       "nom": "Mathématiques",
       "nombres_calculs": {
         "nom": "Nombres et Calculs",
         "sous_notions": {
-          "calcul_litteral_developpement": {
-            "nom": "Calcul littéral : développement et factorisation",
-            "competences": ["Développer et réduire des expressions (simple et double distributivité)", "Factoriser des expressions simples"]
-          },
-          "equations": {
-            "nom": "Équations du premier degré",
-            "competences": ["Résoudre une équation du premier degré à une inconnue"]
+          "nombres_decimaux_fractions": {
+            "nom": "Nombres entiers, décimaux et fractions",
+            "competences": ["Utiliser les nombres entiers & décimaux; fractions et pourcentages."]
           }
         }
       },
       "geometrie": {
         "nom": "Espace et Géométrie",
         "sous_notions": {
-          "theoreme_pythagore": {
-            "nom": "Théorème de Pythagore",
-            "competences": ["Calculer la longueur d'un côté d'un triangle rectangle", "Vérifier si un triangle est rectangle"]
-          },
-          "trigonometrie": {
-            "nom": "Trigonométrie (cosinus)",
-            "competences": ["Utiliser le cosinus d'un angle aigu pour calculer une longueur"]
-          }
-        }
-      }
-    },
-    "histoire": {
-      "nom": "Histoire",
-      "temps_modernes": {
-        "nom": "Le XVIIIe siècle. Expansions, Lumières et révolutions",
-        "sous_notions": {
-          "lumieres_revolution": {
-            "nom": "Bourgeoisies, Lumières et Révolution française",
-            "competences": ["Décrire l'essor du commerce au XVIIIe siècle", "Connaître les idées des Lumières", "Expliquer les grandes étapes de la Révolution française"]
-          }
-        }
-      }
-    },
-    "geographie": {
-      "nom": "Géographie",
-      "mondialisation": {
-        "nom": "L'urbanisation du monde",
-        "sous_notions": {
-          "espaces_urbanises": {
-            "nom": "Les espaces et paysages de l'urbanisation",
-            "competences": ["Identifier les différents espaces d'une ville (centre, périphérie)", "Comprendre les dynamiques d'étalement urbain"]
-          },
-          "mondialisation_acteurs": {
-            "nom": "La mondialisation et ses acteurs",
-            "competences": ["Identifier les acteurs de la mondialisation (firmes, États)", "Décrire les flux (marchandises, informations)"]
-          }
-        }
-      }
-    },
-     "technologie": {
-        "nom": "Technologie",
-        "programmation": {
-            "nom": "Algorithmique et Programmation",
-            "sous_notions": {
-                "evenements_conditions": {
-                    "nom": "Événements et instructions conditionnelles",
-                    "competences": ["Déclencher une action suite à un événement (clic, touche pressée)", "Utiliser des instructions conditionnelles (si... alors... sinon)"]
-                }
-            }
-        }
-    },
-    "physique_chimie": {
-      "nom": "Physique-Chimie",
-      "matiere": {
-        "nom": "Organisation et transformations de la matière",
-        "sous_notions": {
-          "atomes_molecules_reactions": {
-            "nom": "Atomes, molécules et réactions chimiques",
-            "competences": ["Décrire la constitution de la matière (atomes, molécules)", "Modéliser une transformation chimique", "Comprendre la conservation des atomes"]
+          "figures_proprietes": {
+            "nom": "Figures, propriétés et transformations",
+            "competences": ["Maîtriser les figures, propriétés, transformations; et s'initier aux démonstrations simples."]
           }
         }
       },
-      "mouvement_signaux": {
-        "nom": "Mouvements et signaux",
+      "mesures": {
+        "nom": "Grandeurs et Mesures",
         "sous_notions": {
-          "vitesse_lumiere": {
-            "nom": "Vitesse et lumière",
-            "competences": ["Calculer une vitesse", "Décrire la propagation de la lumière", "Comprendre les signaux lumineux et sonores"]
+          "perimetres_aires_volumes": {
+            "nom": "Périmètres, aires et volumes",
+            "competences": ["Calculer des périmètres, aires, volumes; maîtriser les grandeurs et conversions."]
+          }
+        }
+      },
+      "donnees": {
+        "nom": "Gestion de données",
+        "sous_notions": {
+          "statistiques_proba": {
+            "nom": "Statistiques et probabilités",
+            "competences": ["Organisation et gestion de données; statistiques; initiation aux probabilités."]
+          }
+        }
+      },
+      "algorithmique": {
+        "nom": "Algorithmique et Programmation",
+        "sous_notions": {
+          "initiation_programmation": {
+            "nom": "Introduction à l'algorithmique",
+            "competences": ["S'initier à l'algorithmique et à la programmation (Python/Blockly)."]
+          }
+        }
+      }
+    },
+    "histoire_geo": {
+      "nom": "Histoire-Géographie",
+      "geographie": {
+        "nom": "Géographie",
+        "sous_notions": {
+          "organisation_espace": {
+            "nom": "Organisation de l'espace",
+            "competences": ["Localiser, décrire et expliquer des organisations de l’espace."]
+          }
+        }
+      },
+      "histoire": {
+        "nom": "Histoire",
+        "sous_notions": {
+          "reperes_temporels": {
+            "nom": "Repères temporels",
+            "competences": ["Se repérer dans le temps; raconter et expliquer des faits historiques."]
+          }
+        }
+      },
+      "emi": {
+        "nom": "Éducation aux Médias",
+        "sous_notions": {
+          "analyse_sources": {
+            "nom": "Analyse des sources",
+            "competences": ["Analyser des médias et des sources d'information."]
           }
         }
       }
     },
     "svt": {
       "nom": "SVT",
-      "planete_terre": {
-        "nom": "La planète Terre, l'environnement et l'action humaine",
+      "vivant": {
+        "nom": "Le Vivant et son évolution",
         "sous_notions": {
-          "activite_interne_globe": {
-            "nom": "L'activité interne du globe",
-            "competences": ["Expliquer l'origine des séismes et des volcans", "Comprendre la tectonique des plaques"]
+          "corps_humain": {
+            "nom": "Corps humain et santé",
+            "competences": ["Comprendre le fonctionnement du corps humain, la santé et la reproduction."]
+          },
+          "biodiversite": {
+            "nom": "Biodiversité",
+            "competences": ["Étudier la biodiversité, l'évolution et les relations entre les êtres vivants et leur milieu."]
           }
         }
       },
-      "vivant_evolution": {
-        "nom": "Le vivant et son évolution",
+      "terre": {
+        "nom": "La Planète Terre",
         "sous_notions": {
-          "reproduction": {
-            "nom": "Reproduction et sexualité",
-            "competences": ["Comparer reproduction sexuée et asexuée", "Décrire les étapes de la reproduction humaine"]
+          "geologie": {
+            "nom": "Géologie",
+            "competences": ["Comprendre la géologie, les risques et les phénomènes naturels."]
           }
         }
       },
-      "corps_humain_sante": {
-        "nom": "Le corps humain et la santé",
+      "demarche": {
+        "nom": "Démarche Scientifique",
         "sous_notions": {
-          "systeme_nerveux": {
-            "nom": "Le système nerveux",
-            "competences": ["Comprendre la communication nerveuse (organes des sens, nerfs, cerveau)", "Expliquer le fonctionnement d'un mouvement volontaire"]
+          "experimentation": {
+            "nom": "Mener une démarche d'investigation",
+            "competences": ["Appliquer une démarche scientifique : hypothèse, protocole, résultat."]
+          }
+        }
+      }
+    },
+    "physique_chimie": {
+      "nom": "Physique-Chimie",
+      "matiere": {
+        "nom": "La matière, ses transformations",
+        "sous_notions": {
+          "etats_melanges": {
+            "nom": "États et mélanges",
+            "competences": ["Étudier les états, changements d’état, mélanges/solutions et les modèles particulaires."]
+          }
+        }
+      },
+      "energie": {
+        "nom": "L'énergie et ses conversions",
+        "sous_notions": {
+          "chaines_energie": {
+            "nom": "Chaînes d'énergie",
+            "competences": ["Comprendre les chaînes d’énergie, les transferts, les conversions et la puissance."]
+          }
+        }
+      },
+      "electricite": {
+        "nom": "L'électricité",
+        "sous_notions": {
+          "circuits": {
+            "nom": "Circuits électriques",
+            "competences": ["Analyser des circuits simples et connaître les lois de base (U, I, R)."]
+          }
+        }
+      },
+      "lumiere": {
+        "nom": "La lumière",
+        "sous_notions": {
+          "propagation": {
+            "nom": "Propagation et couleurs",
+            "competences": ["Étudier la propagation rectiligne, les ombres, les couleurs et les lentilles."]
+          }
+        }
+      }
+    },
+    "technologie": {
+      "nom": "Technologie",
+      "objets": {
+        "nom": "Analyse d'objets techniques",
+        "sous_notions": {
+          "fonctionnement": {
+            "nom": "Fonctionnement et architecture",
+            "competences": ["Analyser le fonctionnement et l’architecture d’un objet technique."]
+          }
+        }
+      },
+      "projet": {
+        "nom": "Conduite de projet",
+        "sous_notions": {
+          "prototypage": {
+            "nom": "Du cahier des charges au prototype",
+            "competences": ["Conduire un projet : cahier des charges, prototypage, test."]
+          }
+        }
+      },
+      "numerique": {
+        "nom": "Numérique et Programmation",
+        "sous_notions": {
+          "systemes_embarques": {
+            "nom": "Systèmes embarqués",
+            "competences": ["Programmation et systèmes (capteurs/actionneurs, IA initiations)."]
+          }
+        }
+      },
+      "ecodesign": {
+        "nom": "Éco-conception",
+        "sous_notions": {
+          "impact_environnemental": {
+            "nom": "Impact environnemental des matériaux",
+            "competences": ["Analyser les matériaux, les contraintes et l'impact environnemental."]
+          }
+        }
+      }
+    },
+    "anglais_lv1": {
+      "nom": "Anglais (LV1)",
+      "communication": {
+        "nom": "Communiquer",
+        "sous_notions": {
+          "comprehension": {
+            "nom": "Compréhension orale et écrite",
+            "competences": ["Comprendre des documents variés."]
+          },
+          "interaction": {
+            "nom": "Interaction orale",
+            "competences": ["Interagir à l'oral (jeux de rôle, conversation)."]
+          },
+          "production": {
+            "nom": "Production écrite et orale",
+            "competences": ["Produire des textes et des discours courts et organisés."]
+          }
+        }
+      },
+      "culture": {
+        "nom": "Culture",
+        "sous_notions": {
+          "aires_culturelles": {
+            "nom": "Aires culturelles et médiations",
+            "competences": ["Découvrir les aires culturelles et faire des médiations."]
+          }
+        }
+      }
+    },
+    "espagnol_lv2": {
+      "nom": "Espagnol (LV2)",
+      "communication": {
+        "nom": "Communiquer",
+        "sous_notions": {
+          "comprehension": {
+            "nom": "Compréhension orale et écrite",
+            "competences": ["Comprendre des documents variés."]
+          },
+          "interaction": {
+            "nom": "Interaction orale",
+            "competences": ["Interagir à l'oral (jeux de rôle, conversation)."]
+          },
+          "production": {
+            "nom": "Production écrite et orale",
+            "competences": ["Produire des textes et des discours courts et organisés."]
+          }
+        }
+      },
+      "culture": {
+        "nom": "Culture",
+        "sous_notions": {
+          "aires_culturelles": {
+            "nom": "Aires culturelles et médiations",
+            "competences": ["Découvrir les aires culturelles et faire des médiations."]
+          }
+        }
+      }
+    },
+    "emi_numerique": {
+      "nom": "EMI & Numérique",
+      "emi": {
+        "nom": "Éducation aux Médias",
+        "sous_notions": {
+          "recherche_info": {
+            "nom": "Recherche d'information",
+            "competences": ["Rechercher, trier, citer des informations de sources fiables."]
+          },
+          "citoyennete_numerique": {
+            "nom": "Citoyenneté numérique",
+            "competences": ["Connaître les usages responsables du numérique."]
+          }
+        }
+      },
+      "programmation": {
+        "nom": "Programmation",
+        "sous_notions": {
+          "algorithmique": {
+            "nom": "Algorithmique",
+            "competences": ["S'initier à l'algorithmique et à la programmation."]
           }
         }
       }
     }
   },
   "3eme": {
-    "francais": {
+     "francais": {
       "nom": "Français",
-      "etude_de_la_langue": {
+      "lecture": {
+        "nom": "Lecture et Compréhension",
+        "sous_notions": {
+          "lire_comprendre": {
+            "nom": "Lire et comprendre des œuvres et textes variés",
+            "competences": ["Lire et comprendre des œuvres et textes variés (narratif, théâtre, poésie, argumentatif)."]
+          }
+        }
+      },
+      "ecriture": {
+        "nom": "Écriture",
+        "sous_notions": {
+          "rediger": {
+            "nom": "Rédiger des textes organisés et cohérents",
+            "competences": ["Rédiger des textes organisés et cohérents (récit, description, argumentation)."]
+          }
+        }
+      },
+      "oral": {
+        "nom": "Expression Orale",
+        "sous_notions": {
+          "prendre_parole": {
+            "nom": "Prendre la parole en public",
+            "competences": ["Prendre la parole dans des échanges ou en continu (exposé, débat)."]
+          }
+        }
+      },
+      "langue": {
         "nom": "Étude de la langue",
         "sous_notions": {
-          "grammaire_analyse_phrase": {
-            "nom": "Analyse de la phrase complexe",
-            "competences": ["Maîtriser l'analyse des propositions subordonnées", "Exprimer la cause, la conséquence, le but, etc."]
-          },
-          "brevet": {
-            "nom": "Préparation au Brevet",
-            "competences": ["Savoir répondre aux questions de grammaire et de compréhension", "Rédiger une dictée", "Écrire une rédaction argumentée"]
+          "maitriser_notions": {
+            "nom": "Maîtriser les notions de grammaire, conjugaison, lexique",
+            "competences": ["Maîtriser les notions de langue (grammaire, conjugaison, lexique)."]
           }
         }
       }
     },
-    "mathematiques": {
+    "maths": {
       "nom": "Mathématiques",
       "nombres_calculs": {
         "nom": "Nombres et Calculs",
         "sous_notions": {
-          "calcul_litteral_identites": {
-            "nom": "Calcul littéral et identités remarquables",
-            "competences": ["Maîtriser le développement et la factorisation (identités remarquables)", "Résoudre des équations-produits"]
-          },
-          "fonctions": {
-            "nom": "Notion de fonction",
-            "competences": ["Comprendre les notions de fonction, d'antécédent, d'image", "Étudier les fonctions linéaires et affines"]
+          "nombres_decimaux_fractions": {
+            "nom": "Nombres entiers, décimaux et fractions",
+            "competences": ["Utiliser les nombres entiers & décimaux; fractions et pourcentages."]
           }
         }
       },
       "geometrie": {
         "nom": "Espace et Géométrie",
         "sous_notions": {
-          "theoreme_thales": {
-            "nom": "Théorème de Thalès",
-            "competences": ["Calculer une longueur en utilisant le théorème de Thalès"]
-          },
-          "trigonometrie_avancee": {
-            "nom": "Trigonométrie",
-            "competences": ["Utiliser le cosinus, le sinus et la tangente pour calculer des longueurs et des angles"]
+          "figures_proprietes": {
+            "nom": "Figures, propriétés et transformations",
+            "competences": ["Maîtriser les figures, propriétés, transformations; et s'initier aux démonstrations simples."]
+          }
+        }
+      },
+      "mesures": {
+        "nom": "Grandeurs et Mesures",
+        "sous_notions": {
+          "perimetres_aires_volumes": {
+            "nom": "Périmètres, aires et volumes",
+            "competences": ["Calculer des périmètres, aires, volumes; maîtriser les grandeurs et conversions."]
+          }
+        }
+      },
+      "donnees": {
+        "nom": "Gestion de données",
+        "sous_notions": {
+          "statistiques_proba": {
+            "nom": "Statistiques et probabilités",
+            "competences": ["Organisation et gestion de données; statistiques; initiation aux probabilités."]
+          }
+        }
+      },
+      "algorithmique": {
+        "nom": "Algorithmique et Programmation",
+        "sous_notions": {
+          "initiation_programmation": {
+            "nom": "Introduction à l'algorithmique",
+            "competences": ["S'initier à l'algorithmique et à la programmation (Python/Blockly)."]
           }
         }
       }
     },
-    "histoire": {
-      "nom": "Histoire",
-      "xx_siecle": {
-        "nom": "L'Europe, un théâtre majeur des guerres totales (1914-1945)",
+    "histoire_geo": {
+      "nom": "Histoire-Géographie",
+      "geographie": {
+        "nom": "Géographie",
         "sous_notions": {
-          "guerres_totalitaires": {
-            "nom": "Guerres mondiales et régimes totalitaires",
-            "competences": ["Décrire les caractéristiques des guerres mondiales", "Expliquer la montée des régimes totalitaires"]
-          },
-          "guerre_froide": {
-            "nom": "Le monde depuis 1945",
-            "competences": ["Expliquer les enjeux de la Guerre Froide", "Comprendre la construction européenne"]
+          "organisation_espace": {
+            "nom": "Organisation de l'espace",
+            "competences": ["Localiser, décrire et expliquer des organisations de l’espace."]
           }
         }
-      }
-    },
-    "geographie": {
-      "nom": "Géographie",
-      "amenagement_territoire": {
-        "nom": "Aménager le territoire français",
+      },
+      "histoire": {
+        "nom": "Histoire",
         "sous_notions": {
-          "territoires_francais": {
-            "nom": "Dynamiques territoriales de la France",
-            "competences": ["Décrire la répartition de la population et des activités", "Comprendre les dynamiques des aires urbaines"]
-          },
-          "union_europeenne": {
-            "nom": "La France et l'Union Européenne",
-            "competences": ["Situer la France dans l'UE", "Comprendre le fonctionnement et les enjeux de l'UE"]
+          "reperes_temporels": {
+            "nom": "Repères temporels",
+            "competences": ["Se repérer dans le temps; raconter et expliquer des faits historiques."]
           }
         }
-      }
-    },
-     "technologie": {
-        "nom": "Technologie",
-        "programmation": {
-            "nom": "Algorithmique et Programmation",
-            "sous_notions": {
-                "variables_boucles": {
-                    "nom": "Variables et boucles",
-                    "competences": ["Utiliser des variables pour stocker une information (un score, une position)", "Maîtriser les boucles (répéter un nombre de fois, répéter indéfiniment)"]
-                }
-            }
-        }
-    },
-    "physique_chimie": {
-      "nom": "Physique-Chimie",
-      "matiere_energie": {
-        "nom": "Matière et énergie",
+      },
+      "emi": {
+        "nom": "Éducation aux Médias",
         "sous_notions": {
-          "ions_acidite_electricite": {
-            "nom": "Ions, acidité et électricité",
-            "competences": ["Identifier les ions", "Comprendre la notion de pH", "Décrire le courant électrique dans les métaux et les solutions"]
-          },
-          "energie_nucleaire": {
-            "nom": "Énergie nucléaire",
-            "competences": ["Comprendre la notion de radioactivité", "Expliquer le principe de la fission et de la fusion nucléaire"]
+          "analyse_sources": {
+            "nom": "Analyse des sources",
+            "competences": ["Analyser des médias et des sources d'information."]
           }
         }
       }
     },
     "svt": {
       "nom": "SVT",
-      "planete_terre": {
-        "nom": "La planète Terre, l'environnement et l'action humaine",
+      "vivant": {
+        "nom": "Le Vivant et son évolution",
         "sous_notions": {
-          "responsabilite_humaine": {
-            "nom": "Responsabilité humaine : santé et environnement",
-            "competences": ["Analyser l'impact des activités humaines sur les écosystèmes", "Comprendre les enjeux du développement durable"]
+          "corps_humain": {
+            "nom": "Corps humain et santé",
+            "competences": ["Comprendre le fonctionnement du corps humain, la santé et la reproduction."]
+          },
+          "biodiversite": {
+            "nom": "Biodiversité",
+            "competences": ["Étudier la biodiversité, l'évolution et les relations entre les êtres vivants et leur milieu."]
           }
         }
       },
-      "vivant_evolution": {
-        "nom": "Le vivant et son évolution",
+      "terre": {
+        "nom": "La Planète Terre",
         "sous_notions": {
-          "genetique_evolution": {
-            "nom": "Génétique et évolution",
-            "competences": ["Comprendre la notion d'ADN, de gène et de chromosome", "Expliquer l'origine de la diversité génétique", "Relier parenté et évolution des espèces"]
+          "geologie": {
+            "nom": "Géologie",
+            "competences": ["Comprendre la géologie, les risques et les phénomènes naturels."]
           }
         }
       },
-      "corps_humain_sante": {
-        "nom": "Le corps humain et la santé",
+      "demarche": {
+        "nom": "Démarche Scientifique",
         "sous_notions": {
-          "systeme_immunitaire": {
-            "nom": "Le système immunitaire",
-            "competences": ["Expliquer les réactions immunitaires (réaction inflammatoire, phagocytose, anticorps)", "Comprendre le principe de la vaccination"]
+          "experimentation": {
+            "nom": "Mener une démarche d'investigation",
+            "competences": ["Appliquer une démarche scientifique : hypothèse, protocole, résultat."]
+          }
+        }
+      }
+    },
+    "physique_chimie": {
+      "nom": "Physique-Chimie",
+      "matiere": {
+        "nom": "La matière, ses transformations",
+        "sous_notions": {
+          "etats_melanges": {
+            "nom": "États et mélanges",
+            "competences": ["Étudier les états, changements d’état, mélanges/solutions et les modèles particulaires."]
+          }
+        }
+      },
+      "energie": {
+        "nom": "L'énergie et ses conversions",
+        "sous_notions": {
+          "chaines_energie": {
+            "nom": "Chaînes d'énergie",
+            "competences": ["Comprendre les chaînes d’énergie, les transferts, les conversions et la puissance."]
+          }
+        }
+      },
+      "electricite": {
+        "nom": "L'électricité",
+        "sous_notions": {
+          "circuits": {
+            "nom": "Circuits électriques",
+            "competences": ["Analyser des circuits simples et connaître les lois de base (U, I, R)."]
+          }
+        }
+      },
+      "lumiere": {
+        "nom": "La lumière",
+        "sous_notions": {
+          "propagation": {
+            "nom": "Propagation et couleurs",
+            "competences": ["Étudier la propagation rectiligne, les ombres, les couleurs et les lentilles."]
+          }
+        }
+      }
+    },
+    "technologie": {
+      "nom": "Technologie",
+      "objets": {
+        "nom": "Analyse d'objets techniques",
+        "sous_notions": {
+          "fonctionnement": {
+            "nom": "Fonctionnement et architecture",
+            "competences": ["Analyser le fonctionnement et l’architecture d’un objet technique."]
+          }
+        }
+      },
+      "projet": {
+        "nom": "Conduite de projet",
+        "sous_notions": {
+          "prototypage": {
+            "nom": "Du cahier des charges au prototype",
+            "competences": ["Conduire un projet : cahier des charges, prototypage, test."]
+          }
+        }
+      },
+      "numerique": {
+        "nom": "Numérique et Programmation",
+        "sous_notions": {
+          "systemes_embarques": {
+            "nom": "Systèmes embarqués",
+            "competences": ["Programmation et systèmes (capteurs/actionneurs, IA initiations)."]
+          }
+        }
+      },
+      "ecodesign": {
+        "nom": "Éco-conception",
+        "sous_notions": {
+          "impact_environnemental": {
+            "nom": "Impact environnemental des matériaux",
+            "competences": ["Analyser les matériaux, les contraintes et l'impact environnemental."]
+          }
+        }
+      }
+    },
+    "anglais_lv1": {
+      "nom": "Anglais (LV1)",
+      "communication": {
+        "nom": "Communiquer",
+        "sous_notions": {
+          "comprehension": {
+            "nom": "Compréhension orale et écrite",
+            "competences": ["Comprendre des documents variés."]
+          },
+          "interaction": {
+            "nom": "Interaction orale",
+            "competences": ["Interagir à l'oral (jeux de rôle, conversation)."]
+          },
+          "production": {
+            "nom": "Production écrite et orale",
+            "competences": ["Produire des textes et des discours courts et organisés."]
+          }
+        }
+      },
+      "culture": {
+        "nom": "Culture",
+        "sous_notions": {
+          "aires_culturelles": {
+            "nom": "Aires culturelles et médiations",
+            "competences": ["Découvrir les aires culturelles et faire des médiations."]
+          }
+        }
+      }
+    },
+    "espagnol_lv2": {
+      "nom": "Espagnol (LV2)",
+      "communication": {
+        "nom": "Communiquer",
+        "sous_notions": {
+          "comprehension": {
+            "nom": "Compréhension orale et écrite",
+            "competences": ["Comprendre des documents variés."]
+          },
+          "interaction": {
+            "nom": "Interaction orale",
+            "competences": ["Interagir à l'oral (jeux de rôle, conversation)."]
+          },
+          "production": {
+            "nom": "Production écrite et orale",
+            "competences": ["Produire des textes et des discours courts et organisés."]
+          }
+        }
+      },
+      "culture": {
+        "nom": "Culture",
+        "sous_notions": {
+          "aires_culturelles": {
+            "nom": "Aires culturelles et médiations",
+            "competences": ["Découvrir les aires culturelles et faire des médiations."]
+          }
+        }
+      }
+    },
+    "emi_numerique": {
+      "nom": "EMI & Numérique",
+      "emi": {
+        "nom": "Éducation aux Médias",
+        "sous_notions": {
+          "recherche_info": {
+            "nom": "Recherche d'information",
+            "competences": ["Rechercher, trier, citer des informations de sources fiables."]
+          },
+          "citoyennete_numerique": {
+            "nom": "Citoyenneté numérique",
+            "competences": ["Connaître les usages responsables du numérique."]
+          }
+        }
+      },
+      "programmation": {
+        "nom": "Programmation",
+        "sous_notions": {
+          "algorithmique": {
+            "nom": "Algorithmique",
+            "competences": ["S'initier à l'algorithmique et à la programmation."]
           }
         }
       }
