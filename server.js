@@ -320,7 +320,7 @@ app.get('/api/student/dashboard', async (req, res) => {
 });
 
 app.post('/api/student/submit-quiz', async (req, res) => {
-    const { studentEmail, classId, contentId, title, score, totalQuestions, answers } = req.body;
+    const { studentEmail, classId, contentId, title, score, totalQuestions, answers, helpUsed } = req.body;
     
     const completedItem = { id: `${studentEmail}-${contentId}`, studentEmail, contentId, completedAt: new Date().toISOString() };
     await completedContentContainer.items.upsert(completedItem);
@@ -329,7 +329,7 @@ app.post('/api/student/submit-quiz', async (req, res) => {
     const { resources } = await classesContainer.items.query(querySpec).fetchAll();
     if (resources.length > 0) {
         const classDoc = resources[0];
-        const newResult = { studentEmail, contentId, title, score, totalQuestions, submittedAt: completedItem.completedAt, answers };
+        const newResult = { studentEmail, contentId, title, score, totalQuestions, submittedAt: completedItem.completedAt, answers, helpUsed };
         if (!classDoc.results) classDoc.results = [];
         classDoc.results.push(newResult);
         await classesContainer.item(classDoc.id, classDoc.teacherEmail).replace(classDoc);
@@ -345,8 +345,10 @@ app.post('/api/ai/generate-content', async (req, res) => {
     }
 
     const promptMap = {
-        quiz: `À partir de la compétence suivante: "${competences}", crée un quiz de 3 questions avec 4 options de réponse pour chacune. Le format doit être un JSON valide comme suit: {"title": "Quiz sur la compétence", "type": "quiz", "questions": [{"question_text": "...", "options": ["A", "B", "C", "D"], "correct_answer_index": 0}]}`,
-        exercices: `À partir de la compétence suivante: "${competences}", crée une fiche de ${exerciseCount || 5} exercices. Le format doit être un JSON valide comme suit: {"title": "Exercices sur la compétence", "type": "exercices", "content": [{"enonce": "..."}]}`
+        quiz: `Crée un quiz de ${exerciseCount} questions sur "${competences}". Format JSON: {"title": "Titre", "type": "quiz", "questions": [{"question_text": "...", "options": ["A", "B", "C", "D"], "correct_answer_index": 0}]}`,
+        exercices: `Crée une fiche de ${exerciseCount} exercices sur "${competences}". Format JSON: {"title": "Titre", "type": "exercices", "content": [{"enonce": "..."}]}`,
+        revision: `Crée une fiche de révision synthétique sur "${competences}". Format JSON: {"title": "Titre", "type": "revision", "content": "Texte de la fiche..."}`,
+        dm: `Crée un devoir maison de ${exerciseCount} exercices approfondis sur "${competences}". Format JSON: {"title": "Titre", "type": "dm", "content": [{"enonce": "..."}]}`
     };
     const prompt = promptMap[contentType];
     if (!prompt) return res.status(400).json({ error: "Type de contenu non valide." });
@@ -381,8 +383,10 @@ app.post('/api/ai/generate-from-upload', upload.single('document'), async (req, 
         const apiKey = process.env.DEEPSEEK_API_KEY;
         
         const promptMap = {
-            quiz: `À partir du texte suivant, crée un quiz. Le format de la réponse DOIT ÊTRE un JSON valide et rien d'autre. Le JSON doit avoir cette structure exacte : {"title": "Quiz sur le document", "type": "quiz", "questions": [{"question_text": "Texte de la question", "options": ["Option A", "Option B", "Option C", "Option D"], "correct_answer_index": 0}]}. Ne change AUCUN nom de clé. Voici le texte: "${extractedText}"`,
-            exercices: `À partir du texte suivant, crée une fiche de ${exerciseCount || 5} exercices. Le format de la réponse DOIT ÊTRE un JSON valide et rien d'autre. Le JSON doit avoir cette structure exacte : {"title": "Exercices sur le document", "type": "exercices", "content": [{"enonce": "Énoncé de l'exercice 1"}, {"enonce": "Énoncé de l'exercice 2"}, ...]}. Ne change AUCUN nom de clé. Voici le texte: "${extractedText}"`
+            quiz: `À partir du texte suivant, crée un quiz de ${exerciseCount} questions. Le format de la réponse DOIT ÊTRE un JSON valide et rien d'autre. Le JSON doit avoir cette structure exacte : {"title": "Quiz sur le document", "type": "quiz", "questions": [{"question_text": "Texte de la question", "options": ["Option A", "Option B", "Option C", "Option D"], "correct_answer_index": 0}]}. Ne change AUCUN nom de clé. Voici le texte: "${extractedText}"`,
+            exercices: `À partir du texte suivant, crée une fiche de ${exerciseCount} exercices. Format JSON: {"title": "Titre", "type": "exercices", "content": [{"enonce": "..."}]}. Voici le texte: "${extractedText}"`,
+            revision: `À partir du texte suivant, crée une fiche de révision synthétique. Format JSON: {"title": "Titre", "type": "revision", "content": "Texte de la fiche..."}. Voici le texte: "${extractedText}"`,
+            dm: `À partir du texte suivant, crée un devoir maison de ${exerciseCount} exercices approfondis. Format JSON: {"title": "Titre", "type": "dm", "content": [{"enonce": "..."}]}. Voici le texte: "${extractedText}"`
         };
         
         const response = await axios.post('https://api.deepseek.com/chat/completions', { model: 'deepseek-chat', messages: [{ content: promptMap[contentType], role: 'user' }] }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
