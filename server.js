@@ -305,47 +305,67 @@ app.get('/api/student/dashboard', async (req, res) => {
         const classQuery = { query: "SELECT * FROM c WHERE ARRAY_CONTAINS(c.students, @studentEmail)", parameters: [{ name: '@studentEmail', value: studentEmail }] };
         const { resources: classes } = await classesContainer.items.query(classQuery).fetchAll();
         
-        const completedQuery = { query: "SELECT * FROM c WHERE c.studentEmail = @studentEmail", parameters: [{ name: "@studentEmail", value: studentEmail }] };
-        const { resources: completedItems } = await completedContentContainer.items.query(completedQuery).fetchAll();
-        const completedMap = new Map(completedItems.map(item => [item.contentId, item.completedAt]));
-
         let allContent = [];
-        classes.forEach(c => { (c.content || []).forEach(cont => allContent.push({ ...cont, className: c.className, classId: c.id })); });
+        let studentResults = [];
+        classes.forEach(c => { 
+            (c.content || []).forEach(cont => allContent.push({ ...cont, className: c.className, classId: c.id })); 
+            (c.results || []).filter(r => r && r.studentEmail === studentEmail).forEach(res => studentResults.push(res));
+        });
+
+        const resultMap = new Map(studentResults.map(res => [res.contentId, res]));
+
+        const todo = [];
+        const pending = [];
+        const completed = [];
+
+        allContent.forEach(content => {
+            if (resultMap.has(content.id)) {
+                const result = resultMap.get(content.id);
+                if (result && result.submittedAt) {
+                    const item = { ...content, completedAt: result.submittedAt };
+                    if (result.status === 'pending_validation') {
+                        pending.push(item);
+                    } else {
+                        completed.push(item);
+                    }
+                }
+            } else {
+                todo.push(content);
+            }
+        });
         
-        const todo = allContent.filter(cont => !completedMap.has(cont.id));
-        const completed = allContent.filter(cont => completedMap.has(cont.id)).map(cont => ({ ...cont, completedAt: completedMap.get(cont.id) }));
-        
-        res.status(200).json({ todo, completed });
-    } catch (error) { res.status(500).json({ error: "Impossible de récupérer le tableau de bord." }); }
+        res.status(200).json({ todo, pending, completed });
+    } catch (error) { 
+        console.error("Erreur API /student/dashboard:", error);
+        res.status(500).json({ error: "Impossible de récupérer le tableau de bord." }); 
+    }
 });
 
 app.post('/api/student/submit-quiz', async (req, res) => {
     const { studentEmail, classId, contentId, title, score, totalQuestions, answers, helpUsed } = req.body;
-    
-    const completedItem = { id: `${studentEmail}-${contentId}`, studentEmail, contentId, completedAt: new Date().toISOString() };
-    await completedContentContainer.items.upsert(completedItem);
 
     const querySpec = { query: "SELECT * FROM c WHERE c.id = @classId", parameters: [{ name: "@classId", value: classId }] };
     const { resources } = await classesContainer.items.query(querySpec).fetchAll();
     if (resources.length > 0) {
         const classDoc = resources[0];
-        // --- MODIFICATION : Ajout du statut pour la validation ---
         const newResult = { 
             studentEmail, 
             contentId, 
             title, 
             score, 
             totalQuestions, 
-            submittedAt: completedItem.completedAt, 
+            submittedAt: new Date().toISOString(), 
             answers, 
             helpUsed,
-            status: 'pending_validation' // Statut par défaut
+            status: 'pending_validation'
         };
         if (!classDoc.results) classDoc.results = [];
         classDoc.results.push(newResult);
         await classesContainer.item(classDoc.id, classDoc.teacherEmail).replace(classDoc);
+        res.status(201).json(newResult);
+    } else {
+        res.status(404).json({error: "Classe non trouvée lors de la soumission."})
     }
-    res.status(201).json(completedItem);
 });
 
 app.post('/api/ai/generate-content', async (req, res) => {
