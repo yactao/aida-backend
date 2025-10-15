@@ -319,7 +319,7 @@ app.get('/api/student/dashboard', async (req, res) => {
             if (resultMap.has(content.id)) {
                 const result = resultMap.get(content.id);
                 if (result && result.submittedAt) {
-                    const item = { ...content, completedAt: result.submittedAt };
+                    const item = { ...content, ...result, completedAt: result.submittedAt };
                     if (result.status === 'pending_validation') {
                         pending.push(item);
                     } else {
