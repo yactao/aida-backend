@@ -18,19 +18,16 @@ const client = new CosmosClient({ endpoint: cosmosEndpoint, key: cosmosKey });
 const databaseId = 'AidaDB';
 const usersContainerId = 'Users';
 const classesContainerId = 'Classes';
-const completedContentContainerId = 'CompletedContent';
 
-let usersContainer, classesContainer, completedContentContainer;
+let usersContainer, classesContainer;
 
 async function setupDatabase() {
     const { database } = await client.databases.createIfNotExists({ id: databaseId });
     const { container: uc } = await database.containers.createIfNotExists({ id: usersContainerId, partitionKey: { paths: ["/email"] } });
     const { container: cc } = await database.containers.createIfNotExists({ id: classesContainerId, partitionKey: { paths: ["/teacherEmail"] } });
-    const { container: ccc } = await database.containers.createIfNotExists({ id: completedContentContainerId, partitionKey: { paths: ["/studentEmail"] } });
     
     usersContainer = uc;
     classesContainer = cc;
-    completedContentContainer = ccc;
     console.log("Base de données et conteneurs prêts.");
 }
 
@@ -367,6 +364,39 @@ app.post('/api/student/submit-quiz', async (req, res) => {
         res.status(404).json({error: "Classe non trouvée lors de la soumission."})
     }
 });
+
+app.post('/api/teacher/validate-result', async (req, res) => {
+    const { classId, teacherEmail, studentEmail, contentId, appreciation, comment } = req.body;
+    if (!classId || !teacherEmail || !studentEmail || !contentId || !appreciation) {
+        return res.status(400).json({ error: "Données de validation incomplètes." });
+    }
+
+    try {
+        const { resource: classDoc } = await classesContainer.item(classId, teacherEmail).read();
+        if (!classDoc) {
+            return res.status(404).json({ error: "Classe non trouvée." });
+        }
+
+        const resultIndex = (classDoc.results || []).findIndex(r => r.studentEmail === studentEmail && r.contentId === contentId);
+        if (resultIndex === -1) {
+            return res.status(404).json({ error: "Résultat non trouvé." });
+        }
+
+        classDoc.results[resultIndex].status = 'validated';
+        classDoc.results[resultIndex].appreciation = appreciation;
+        classDoc.results[resultIndex].teacherComment = comment || '';
+        classDoc.results[resultIndex].validatedAt = new Date().toISOString();
+
+        await classesContainer.item(classId, teacherEmail).replace(classDoc);
+
+        res.status(200).json({ message: "Validation enregistrée." });
+
+    } catch (error) {
+        console.error("Erreur lors de la validation:", error);
+        res.status(500).json({ error: "Erreur serveur lors de la validation." });
+    }
+});
+
 
 app.post('/api/ai/generate-content', async (req, res) => {
     const { competences, contentType, exerciseCount } = req.body;
