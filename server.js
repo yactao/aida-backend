@@ -255,6 +255,28 @@ app.post('/api/teacher/assign-content', async (req, res) => {
     } catch (error) { res.status(500).json({ error: "Impossible d'assigner le contenu." }); }
 });
 
+app.delete('/api/teacher/classes/:classId/content/:contentId', async (req, res) => {
+    const { classId, contentId } = req.params;
+    try {
+        const querySpec = { query: "SELECT * FROM c WHERE c.id = @classId", parameters: [{ name: "@classId", value: classId }] };
+        const { resources } = await classesContainer.items.query(querySpec).fetchAll();
+        
+        if (resources.length === 0) {
+            return res.status(404).json({ error: "Classe non trouvée." });
+        }
+
+        const classDoc = resources[0];
+        classDoc.content = (classDoc.content || []).filter(c => c.id !== contentId);
+        classDoc.results = (classDoc.results || []).filter(r => r.contentId !== contentId);
+
+        await classesContainer.item(classDoc.id, classDoc.teacherEmail).replace(classDoc);
+        res.status(200).json({ message: "Contenu supprimé avec succès." });
+    } catch (error) {
+        console.error("Erreur lors de la suppression du contenu:", error);
+        res.status(500).json({ error: "Erreur serveur lors de la suppression du contenu." });
+    }
+});
+
 app.get('/api/teacher/classes/:classId/competency-report', async (req, res) => {
     const { classId } = req.params;
     try {
