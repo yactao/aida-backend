@@ -18,7 +18,7 @@ const client = new CosmosClient({ endpoint: cosmosEndpoint, key: cosmosKey });
 const databaseId = 'AidaDB';
 const usersContainerId = 'Users';
 const classesContainerId = 'Classes';
-const libraryContainerId = 'Library'; // Nouveau conteneur pour la bibliothèque
+const libraryContainerId = 'Library';
 
 let usersContainer, classesContainer, libraryContainer;
 
@@ -26,13 +26,71 @@ async function setupDatabase() {
     const { database } = await client.databases.createIfNotExists({ id: databaseId });
     const { container: uc } = await database.containers.createIfNotExists({ id: usersContainerId, partitionKey: { paths: ["/email"] } });
     const { container: cc } = await database.containers.createIfNotExists({ id: classesContainerId, partitionKey: { paths: ["/teacherEmail"] } });
-    const { container: lc } = await database.containers.createIfNotExists({ id: libraryContainerId, partitionKey: { paths: ["/subject"] } }); // Nouveau
+    const { container: lc } = await database.containers.createIfNotExists({ id: libraryContainerId, partitionKey: { paths: ["/subject"] } });
     
     usersContainer = uc;
     classesContainer = cc;
-    libraryContainer = lc; // Nouveau
+    libraryContainer = lc;
     console.log("Base de données et conteneurs (y compris Bibliothèque) prêts.");
+    await seedLibraryIfEmpty(); // Ajout de la fonction de peuplement
 }
+
+// --- NOUVELLE FONCTION : PEUPLER LA BIBLIOTHEQUE ---
+async function seedLibraryIfEmpty() {
+    try {
+        const { resources } = await libraryContainer.items.query("SELECT VALUE COUNT(1) FROM c").fetchAll();
+        const count = resources[0];
+
+        if (count === 0) {
+            console.log("La bibliothèque est vide. Ajout de contenus de démonstration...");
+            const demoContents = [
+                {
+                    id: `lib-${Date.now()}-1`,
+                    title: "Quiz sur les additions (CP)",
+                    type: "quiz",
+                    authorName: "Nathalie Dubois",
+                    subject: "Mathématiques",
+                    publishedAt: new Date().toISOString(),
+                    questions: [
+                        { question_text: "Combien font 2 + 3 ?", options: ["4", "5", "6"], correct_answer_index: 1 },
+                        { question_text: "Combien font 5 + 4 ?", options: ["9", "8", "7"], correct_answer_index: 0 }
+                    ],
+                    competence: { level: "CP", competence: "Additionner deux nombres < 10" }
+                },
+                {
+                    id: `lib-${Date.now()}-2`,
+                    title: "Fiche de lecture sur les sons",
+                    type: "revision",
+                    authorName: "Nathalie Dubois",
+                    subject: "Français",
+                    publishedAt: new Date().toISOString(),
+                    content: "Le son [o] peut s'écrire 'o' comme dans 'moto', 'au' comme dans 'jaune' ou 'eau' comme dans 'bateau'.",
+                    competence: { level: "CP", competence: "Identifier différents graphèmes pour un même son" }
+                },
+                {
+                    id: `lib-${Date.now()}-3`,
+                    title: "L'Empire romain",
+                    type: "exercices",
+                    authorName: "Karim Martin",
+                    subject: "Histoire-Géo",
+                    publishedAt: new Date().toISOString(),
+                    content: [{ enonce: "Qui était le premier empereur romain ? Explique son rôle." }],
+                    competence: { level: "6ème", competence: "Expliquer le rôle de l'empereur" }
+                }
+            ];
+
+            for (const item of demoContents) {
+                await libraryContainer.items.create(item);
+            }
+            console.log(`✅ ${demoContents.length} contenus de démonstration ajoutés à la bibliothèque.`);
+        } else {
+            console.log("La bibliothèque contient déjà des données. Le peuplement est ignoré.");
+        }
+    } catch (error) {
+        console.error("Erreur lors du peuplement de la bibliothèque :", error);
+    }
+}
+
 
 const storageConnectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
 const blobServiceClient = storageConnectionString ? BlobServiceClient.fromConnectionString(storageConnectionString) : null;
@@ -63,7 +121,6 @@ app.use(express.static(path.join(__dirname, 'public')));
 const upload = multer({ storage: multer.memoryStorage() });
 
 // --- 4. Fonctions Utilitaires ---
-// ... (Les fonctions cleanUpOcrText et extractTextFromBuffer restent identiques)
 async function cleanUpOcrText(rawText) {
     const apiKey = process.env.DEEPSEEK_API_KEY;
     if (!apiKey) throw new Error("Clé API DeepSeek non configurée.");
@@ -86,8 +143,6 @@ async function extractTextFromBuffer(buffer) {
 
 
 // --- 5. Routes API ---
-// ... (Les routes d'authentification et de gestion des classes restent identiques jusqu'à assign-content)
-
 app.post('/api/auth/signup', async (req, res) => {
     const { email, password, role } = req.body;
     if (!email || !password || !role) return res.status(400).json({ error: "Email, mot de passe et rôle sont requis." });
@@ -249,7 +304,7 @@ app.delete('/api/teacher/classes/:classId/content/:contentId', async (req, res) 
     }
 });
 
-// --- NOUVELLES ROUTES POUR LA BIBLIOTHÈQUE ---
+// --- ROUTES POUR LA BIBLIOTHÈQUE ---
 app.post('/api/library/publish', async (req, res) => {
     const { contentData, teacherName, subject } = req.body;
     if (!contentData || !teacherName || !subject) {
@@ -300,7 +355,6 @@ app.get('/api/library', async (req, res) => {
     }
 });
 
-// ... (Le reste des routes reste identique)
 app.get('/api/teacher/classes/:classId/competency-report', async (req, res) => {
     const { classId } = req.params;
     try {
