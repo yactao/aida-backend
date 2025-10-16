@@ -55,7 +55,8 @@ if (docIntelEndpoint && docIntelKey) {
 // --- 3. Initialisation Express ---
 const app = express();
 app.use(cors());
-app.use(express.json());
+// Augmenter la limite de la taille du payload pour les images en base64
+app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -317,6 +318,29 @@ app.get('/api/teacher/classes/:classId/competency-report', async (req, res) => {
     }
 });
 
+app.delete('/api/teacher/classes/:classId/content/:contentId', async (req, res) => {
+    const { classId, contentId } = req.params;
+    try {
+        const querySpec = { query: "SELECT * FROM c WHERE c.id = @classId", parameters: [{ name: "@classId", value: classId }] };
+        const { resources } = await classesContainer.items.query(querySpec).fetchAll();
+        
+        if (resources.length === 0) {
+            return res.status(404).json({ error: "Classe non trouvée." });
+        }
+
+        const classDoc = resources[0];
+        classDoc.content = (classDoc.content || []).filter(c => c.id !== contentId);
+        classDoc.results = (classDoc.results || []).filter(r => r.contentId !== contentId);
+
+        await classesContainer.item(classDoc.id, classDoc.teacherEmail).replace(classDoc);
+        res.status(200).json({ message: "Contenu supprimé avec succès." });
+    } catch (error) {
+        console.error("Erreur lors de la suppression du contenu:", error);
+        res.status(500).json({ error: "Erreur serveur lors de la suppression du contenu." });
+    }
+});
+
+
 app.get('/api/student/dashboard', async (req, res) => {
     const { studentEmail } = req.query;
     if (!studentEmail) return res.status(400).json({ error: "L'email de l'élève est requis." });
@@ -559,11 +583,47 @@ app.post('/api/ai/playground-chat', async (req, res) => {
     const { history } = req.body;
     const apiKey = process.env.DEEPSEEK_API_KEY;
     if (!apiKey) return res.status(500).json({ error: "Clé API non configurée." });
+
+    const systemPrompt = `
+        Tu es AÏDA, un tuteur pédagogique bienveillant, patient et encourageant. Ton objectif principal n'est PAS de donner la réponse, mais de guider l'élève vers la solution par lui-même.
+
+        Adapte ton langage et la complexité de tes explications au niveau apparent de l'élève (utilise un langage simple et direct pour un enfant, plus structuré pour un lycéen).
+
+        Ta méthode de guidage doit toujours suivre ces étapes :
+        1.  **Questionner d'abord :** Ne réponds jamais directement. Commence toujours par poser une question ouverte pour comprendre où l'élève bloque. Exemples : "Qu'as-tu déjà essayé de faire ?", "Quelle partie de la consigne n'est pas claire pour toi ?", "À quoi te fait penser ce problème ?".
+        2.  **Donner un indice subtil :** Si l'élève est perdu, donne-lui une piste de réflexion, un angle d'attaque ou une question plus ciblée. Exemples : "As-tu pensé à dessiner la situation ?", "Relis bien le deuxième paragraphe, une information importante s'y cache.", "Cette forme géométrique ne te rappelle rien ?".
+        3.  **Valider et approfondir :** Quand l'élève trouve la bonne réponse, félicite-le et demande-lui d'expliquer son raisonnement pour t'assurer qu'il a bien compris le concept. Exemple: "Bravo, c'est la bonne réponse ! Peux-tu m'expliquer comment tu y es arrivé ?".
+        4.  **Donner la réponse en dernier recours :** Si, et seulement si, l'élève le demande explicitement après plusieurs tentatives infructueuses, donne la réponse. Mais accompagne-la TOUJOURS d'une explication claire, simple et détaillée du raisonnement pour qu'il puisse comprendre.
+    `;
+
+    // Ajouter le prompt système au début de l'historique s'il n'y est pas déjà.
+    if (history[0].role !== 'system') {
+        history.unshift({ role: 'system', content: systemPrompt });
+    } else {
+        history[0].content = systemPrompt; // Toujours s'assurer que le prompt système est le bon.
+    }
+
     try {
         const response = await axios.post('https://api.deepseek.com/chat/completions', { model: 'deepseek-chat', messages: history }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
         res.json({ reply: response.data.choices[0].message.content });
     } catch (error) { res.status(500).json({ error: "Erreur de communication avec AIDA." }); }
 });
+
+app.post('/api/ai/playground-extract-text', upload.single('document'), async (req, res) => {
+    if (!docIntelClient) return res.status(500).json({ error: "Le service d'analyse de document n'est pas configuré." });
+    if (!req.file) return res.status(400).json({ error: "Aucun fichier n'a été téléversé." });
+
+    try {
+        const extractedText = await extractTextFromBuffer(req.file.buffer);
+        if (!extractedText) return res.status(400).json({ error: "Impossible de lire le texte dans ce document." });
+        
+        res.json({ extractedText });
+    } catch (error) {
+        console.error("Erreur lors de l'extraction de texte du playground:", error);
+        res.status(500).json({ error: error.message || "Erreur interne lors de l'analyse du document." });
+    }
+});
+
 
 app.get('/', (req, res) => {
     res.send('<h1>Le serveur AIDA est en ligne !</h1>');
@@ -580,4 +640,5 @@ Promise.all([setupDatabase(), setupBlobStorage()]).then(() => {
     console.error("\x1b[31m%s\x1b[0m", "[ERREUR CRITIQUE] Démarrage impossible.", error);
     process.exit(1);
 });
+
 
