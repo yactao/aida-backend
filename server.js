@@ -115,7 +115,16 @@ if (docIntelEndpoint && docIntelKey) {
 
 // --- 3. Initialisation Express ---
 const app = express();
-app.use(cors());
+
+// Configuration CORS plus explicite pour autoriser les requêtes cross-domain
+const corsOptions = {
+  origin: '*', // Autorise toutes les origines. Pour une meilleure sécurité en production, vous pourriez remplacer '*' par l'URL de votre front-end.
+  methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+  optionsSuccessStatus: 200 // Pour la compatibilité avec d'anciens navigateurs
+};
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // Active les requêtes "pre-flight" pour toutes les routes
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 const upload = multer({ storage: multer.memoryStorage() });
@@ -556,5 +565,4 @@ const PORT = process.env.PORT || 3000;
 Promise.all([setupDatabase(), setupBlobStorage()]).then(() => {
     app.listen(PORT, () => console.log(`\x1b[32m%s\x1b[0m`, `Serveur AIDA démarré sur le port ${PORT}`));
 }).catch(error => { console.error("\x1b[31m%s\x1b[0m", "[ERREUR CRITIQUE] Démarrage impossible.", error); process.exit(1); });
-
 
