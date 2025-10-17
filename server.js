@@ -30,7 +30,7 @@ async function setupDatabase() {
     
     usersContainer = uc;
     classesContainer = cc;
-    libraryContainer = lc;
+    libraryContainer = lc; // Nouveau
     console.log("Base de données et conteneurs (y compris Bibliothèque) prêts.");
     await seedLibraryIfEmpty(); // Ajout de la fonction de peuplement
 }
@@ -142,7 +142,8 @@ async function extractTextFromBuffer(buffer) {
 }
 
 
-// --- 5. Routes API ---
+// ... (Les routes d'authentification et de gestion des classes restent identiques jusqu'à assign-content)
+
 app.post('/api/auth/signup', async (req, res) => {
     const { email, password, role } = req.body;
     if (!email || !password || !role) return res.status(400).json({ error: "Email, mot de passe et rôle sont requis." });
@@ -355,6 +356,7 @@ app.get('/api/library', async (req, res) => {
     }
 });
 
+// ... (Le reste des routes reste identique)
 app.get('/api/teacher/classes/:classId/competency-report', async (req, res) => {
     const { classId } = req.params;
     try {
@@ -480,51 +482,52 @@ app.post('/api/ai/generate-from-upload', upload.single('document'), async (req, 
         };
         const response = await axios.post('https://api.deepseek.com/chat/completions', { model: 'deepseek-chat', messages: [{ content: promptMap[contentType], role: 'user' }] }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
         let structured_content = JSON.parse(response.data.choices[0].message.content.replace(/```json\n|\n```/g, ''));
-        res.json({ structured_content });
-    } catch (error) { console.error("Erreur upload enseignant:", error); res.status(500).json({ error: error.message || "Erreur interne." }); }
+        res.status(500).json({ error: "Erreur lors de la génération du feedback." });
+    }
 });
-app.post('/api/ai/extract-text-from-student-doc', upload.single('document'), async (req, res) => {
-    if (!blobServiceClient || !docIntelClient) return res.status(500).json({ error: "Les services Azure ne sont pas configurés." });
-    if (!req.file) return res.status(400).json({ error: "Aucun fichier n'a été téléversé." });
-    try {
-        const blobName = `student-upload-${new Date().getTime()}-${req.file.originalname}`;
-        await blobServiceClient.getContainerClient(containerName).getBlockBlobClient(blobName).uploadData(req.file.buffer);
-        console.log(`Fichier élève ${blobName} téléversé.`);
-        const extractedText = await extractTextFromBuffer(req.file.buffer);
-        if (!extractedText) return res.status(400).json({ error: "Impossible de lire le texte dans ce document." });
-        res.json({ extractedText });
-    } catch (error) { console.error("Erreur upload élève:", error); res.status(500).json({ error: error.message || "Erreur interne." }); }
-});
-app.post('/api/ai/correct-exercise', async (req, res) => {
-    const { exerciseText, studentAnswer } = req.body;
+
+app.post('/api/ai/generate-lesson-plan', async (req, res) => {
+    const { theme, level, numSessions } = req.body;
     const apiKey = process.env.DEEPSEEK_API_KEY;
-    if (!apiKey || !exerciseText) return res.status(400).json({ error: "Données incomplètes." });
-    const prompt = `Corrige cet exercice: "${exerciseText}". Réponse de l'élève: "${studentAnswer}". Sois encourageant.`;
+    if (!apiKey || !theme || !level || !numSessions) {
+        return res.status(400).json({ error: "Un thème, un niveau et un nombre de séances sont requis." });
+    }
+
+    const prompt = `
+        Agis en tant qu'ingénieur pédagogique expérimenté. Crée une séquence de cours détaillée pour un niveau ${level} sur le thème "${theme}".
+        La séquence doit s'étaler sur ${numSessions} séances.
+        Pour chaque séance, définis un titre, un objectif pédagogique clair, une liste d'activités à faire en classe, et une suggestion de devoir ou ressource AIDA à créer (ex: "Quiz sur...", "Fiche de révision sur...").
+        Le format de sortie DOIT être un JSON valide et rien d'autre, avec la structure suivante :
+        {
+          "planTitle": "Titre global de la séquence",
+          "level": "${level}",
+          "sessions": [
+            {
+              "sessionNumber": 1,
+              "title": "Titre de la séance 1",
+              "objective": "Objectif de la séance 1.",
+              "activities": ["Activité 1", "Activité 2"],
+              "resources": ["Suggestion de ressource AIDA 1"]
+            }
+          ]
+        }
+    `;
+
     try {
-        const response = await axios.post('https://api.deepseek.com/chat/completions', { model: 'deepseek-chat', messages: [{ role: 'user', content: prompt }] }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
-        res.json({ correction: response.data.choices[0].message.content });
-    } catch (error) { res.status(500).json({ error: "Erreur de correction." }); }
+        const response = await axios.post('https://api.deepseek.com/chat/completions', 
+            { model: 'deepseek-chat', messages: [{ role: 'user', content: prompt }] },
+            { headers: { 'Authorization': `Bearer ${apiKey}` } }
+        );
+        let jsonString = response.data.choices[0].message.content.replace(/```json\n|\n```/g, '');
+        let structured_plan = JSON.parse(jsonString);
+        res.json({ structured_plan });
+    } catch (error) {
+        console.error("Erreur lors de la génération du plan de cours:", error);
+        res.status(500).json({ error: "Erreur lors de la génération du plan de cours." });
+    }
 });
-app.post('/api/ai/get-hint', async (req, res) => {
-    const { questionText } = req.body;
-    const apiKey = process.env.DEEPSEEK_API_KEY;
-    if (!apiKey || !questionText) return res.status(400).json({ error: "Texte de la question requis." });
-    const prompt = `Pour la question suivante: "${questionText}", donne un indice simple et court qui aide à réfléchir sans donner la réponse.`;
-    try {
-        const response = await axios.post('https://api.deepseek.com/chat/completions', { model: 'deepseek-chat', messages: [{ role: 'user', content: prompt }] }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
-        res.json({ hint: response.data.choices[0].message.content });
-    } catch (error) { res.status(500).json({ error: "Erreur lors de la génération de l'indice." }); }
-});
-app.post('/api/ai/get-feedback-for-error', async (req, res) => {
-    const { question, userAnswer, correctAnswer } = req.body;
-    const apiKey = process.env.DEEPSEEK_API_KEY;
-    if (!apiKey || !question || !correctAnswer) return res.status(400).json({ error: "Données incomplètes pour la correction." });
-    const prompt = `Pour la question "${question}", l'élève a répondu "${userAnswer}" alors que la bonne réponse était "${correctAnswer}". Explique simplement et de manière encourageante pourquoi sa réponse est incorrecte et pourquoi l'autre est correcte, sans être trop long.`;
-    try {
-        const response = await axios.post('https://api.deepseek.com/chat/completions', { model: 'deepseek-chat', messages: [{ role: 'user', content: prompt }] }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
-        res.json({ feedback: response.data.choices[0].message.content });
-    } catch (error) { console.error("Erreur lors de la génération du feedback:", error); res.status(500).json({ error: "Erreur lors de la génération du feedback." }); }
-});
+
+
 app.post('/api/ai/playground-chat', async (req, res) => {
     const { history } = req.body;
     const apiKey = process.env.DEEPSEEK_API_KEY;
@@ -553,4 +556,5 @@ const PORT = process.env.PORT || 3000;
 Promise.all([setupDatabase(), setupBlobStorage()]).then(() => {
     app.listen(PORT, () => console.log(`\x1b[32m%s\x1b[0m`, `Serveur AIDA démarré sur le port ${PORT}`));
 }).catch(error => { console.error("\x1b[31m%s\x1b[0m", "[ERREUR CRITIQUE] Démarrage impossible.", error); process.exit(1); });
+
 
