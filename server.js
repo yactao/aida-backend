@@ -13,9 +13,11 @@ const { TextToSpeechClient } = require('@google-cloud/text-to-speech');
 
 // --- 3. Initialisation Express ---
 const app = express();
-const corsOptions = { origin: '*', methods: "GET,HEAD,PUT,PATCH,POST,DELETE", optionsSuccessStatus: 200 };
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
+
+// --- Configuration CORS ---
+// Doit être placé avant la définition des routes
+app.use(cors()); 
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 const upload = multer({ storage: multer.memoryStorage() });
@@ -453,7 +455,7 @@ app.post('/api/library/publish', async (req, res) => {
 });
 
 app.get('/api/library', async (req, res) => {
-    const { searchTerm, subject } = req.query;
+    const { searchTerm, subject } = req.body;
     let query = "SELECT * FROM c";
     const parameters = [];
     const conditions = [];
