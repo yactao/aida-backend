@@ -1,20 +1,17 @@
 {
-  "name": "aida-backend-rebuild",
+  "name": "aida-backend",
   "version": "1.0.0",
-  "description": "Serveur reconstruit pour l'application AIDA",
+  "description": "Serveur pour l'application AIDA",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "import": "node import-data.js"
+    "start": "node server.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
     "@azure/ai-form-recognizer": "^4.0.0",
     "@azure/cosmos": "^3.17.3",
+    "@azure/core-auth": "^1.6.0",
     "@azure/storage-blob": "^12.17.0",
-    "@google-cloud/text-to-speech": "^6.3.1",
+    "@google-cloud/text-to-speech": "^5.3.0",
     "axios": "^1.4.0",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
@@ -22,3 +19,4 @@
     "multer": "^1.4.5-lts.1"
   }
 }
+
