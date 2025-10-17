@@ -18,7 +18,7 @@ const client = new CosmosClient({ endpoint: cosmosEndpoint, key: cosmosKey });
 const databaseId = 'AidaDB';
 const usersContainerId = 'Users';
 const classesContainerId = 'Classes';
-const libraryContainerId = 'Library';
+const libraryContainerId = 'Library'; // Nouveau conteneur pour la bibliothèque
 
 let usersContainer, classesContainer, libraryContainer;
 
@@ -26,71 +26,13 @@ async function setupDatabase() {
     const { database } = await client.databases.createIfNotExists({ id: databaseId });
     const { container: uc } = await database.containers.createIfNotExists({ id: usersContainerId, partitionKey: { paths: ["/email"] } });
     const { container: cc } = await database.containers.createIfNotExists({ id: classesContainerId, partitionKey: { paths: ["/teacherEmail"] } });
-    const { container: lc } = await database.containers.createIfNotExists({ id: libraryContainerId, partitionKey: { paths: ["/subject"] } });
+    const { container: lc } = await database.containers.createIfNotExists({ id: libraryContainerId, partitionKey: { paths: ["/subject"] } }); // Nouveau
     
     usersContainer = uc;
     classesContainer = cc;
     libraryContainer = lc; // Nouveau
     console.log("Base de données et conteneurs (y compris Bibliothèque) prêts.");
-    await seedLibraryIfEmpty(); // Ajout de la fonction de peuplement
 }
-
-// --- NOUVELLE FONCTION : PEUPLER LA BIBLIOTHEQUE ---
-async function seedLibraryIfEmpty() {
-    try {
-        const { resources } = await libraryContainer.items.query("SELECT VALUE COUNT(1) FROM c").fetchAll();
-        const count = resources[0];
-
-        if (count === 0) {
-            console.log("La bibliothèque est vide. Ajout de contenus de démonstration...");
-            const demoContents = [
-                {
-                    id: `lib-${Date.now()}-1`,
-                    title: "Quiz sur les additions (CP)",
-                    type: "quiz",
-                    authorName: "Nathalie Dubois",
-                    subject: "Mathématiques",
-                    publishedAt: new Date().toISOString(),
-                    questions: [
-                        { question_text: "Combien font 2 + 3 ?", options: ["4", "5", "6"], correct_answer_index: 1 },
-                        { question_text: "Combien font 5 + 4 ?", options: ["9", "8", "7"], correct_answer_index: 0 }
-                    ],
-                    competence: { level: "CP", competence: "Additionner deux nombres < 10" }
-                },
-                {
-                    id: `lib-${Date.now()}-2`,
-                    title: "Fiche de lecture sur les sons",
-                    type: "revision",
-                    authorName: "Nathalie Dubois",
-                    subject: "Français",
-                    publishedAt: new Date().toISOString(),
-                    content: "Le son [o] peut s'écrire 'o' comme dans 'moto', 'au' comme dans 'jaune' ou 'eau' comme dans 'bateau'.",
-                    competence: { level: "CP", competence: "Identifier différents graphèmes pour un même son" }
-                },
-                {
-                    id: `lib-${Date.now()}-3`,
-                    title: "L'Empire romain",
-                    type: "exercices",
-                    authorName: "Karim Martin",
-                    subject: "Histoire-Géo",
-                    publishedAt: new Date().toISOString(),
-                    content: [{ enonce: "Qui était le premier empereur romain ? Explique son rôle." }],
-                    competence: { level: "6ème", competence: "Expliquer le rôle de l'empereur" }
-                }
-            ];
-
-            for (const item of demoContents) {
-                await libraryContainer.items.create(item);
-            }
-            console.log(`✅ ${demoContents.length} contenus de démonstration ajoutés à la bibliothèque.`);
-        } else {
-            console.log("La bibliothèque contient déjà des données. Le peuplement est ignoré.");
-        }
-    } catch (error) {
-        console.error("Erreur lors du peuplement de la bibliothèque :", error);
-    }
-}
-
 
 const storageConnectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
 const blobServiceClient = storageConnectionString ? BlobServiceClient.fromConnectionString(storageConnectionString) : null;
@@ -115,21 +57,13 @@ if (docIntelEndpoint && docIntelKey) {
 
 // --- 3. Initialisation Express ---
 const app = express();
-
-// Configuration CORS plus explicite pour autoriser les requêtes cross-domain
-const corsOptions = {
-  origin: '*', // Autorise toutes les origines. Pour une meilleure sécurité en production, vous pourriez remplacer '*' par l'URL de votre front-end.
-  methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
-  optionsSuccessStatus: 200 // Pour la compatibilité avec d'anciens navigateurs
-};
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions)); // Active les requêtes "pre-flight" pour toutes les routes
-
+app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 const upload = multer({ storage: multer.memoryStorage() });
 
 // --- 4. Fonctions Utilitaires ---
+// ... (Les fonctions cleanUpOcrText et extractTextFromBuffer restent identiques)
 async function cleanUpOcrText(rawText) {
     const apiKey = process.env.DEEPSEEK_API_KEY;
     if (!apiKey) throw new Error("Clé API DeepSeek non configurée.");
@@ -151,6 +85,7 @@ async function extractTextFromBuffer(buffer) {
 }
 
 
+// --- 5. Routes API ---
 // ... (Les routes d'authentification et de gestion des classes restent identiques jusqu'à assign-content)
 
 app.post('/api/auth/signup', async (req, res) => {
@@ -314,7 +249,7 @@ app.delete('/api/teacher/classes/:classId/content/:contentId', async (req, res) 
     }
 });
 
-// --- ROUTES POUR LA BIBLIOTHÈQUE ---
+// --- NOUVELLES ROUTES POUR LA BIBLIOTHÈQUE ---
 app.post('/api/library/publish', async (req, res) => {
     const { contentData, teacherName, subject } = req.body;
     if (!contentData || !teacherName || !subject) {
@@ -491,52 +426,51 @@ app.post('/api/ai/generate-from-upload', upload.single('document'), async (req, 
         };
         const response = await axios.post('https://api.deepseek.com/chat/completions', { model: 'deepseek-chat', messages: [{ content: promptMap[contentType], role: 'user' }] }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
         let structured_content = JSON.parse(response.data.choices[0].message.content.replace(/```json\n|\n```/g, ''));
-        res.status(500).json({ error: "Erreur lors de la génération du feedback." });
-    }
+        res.json({ structured_content });
+    } catch (error) { console.error("Erreur upload enseignant:", error); res.status(500).json({ error: error.message || "Erreur interne." }); }
 });
-
-app.post('/api/ai/generate-lesson-plan', async (req, res) => {
-    const { theme, level, numSessions } = req.body;
-    const apiKey = process.env.DEEPSEEK_API_KEY;
-    if (!apiKey || !theme || !level || !numSessions) {
-        return res.status(400).json({ error: "Un thème, un niveau et un nombre de séances sont requis." });
-    }
-
-    const prompt = `
-        Agis en tant qu'ingénieur pédagogique expérimenté. Crée une séquence de cours détaillée pour un niveau ${level} sur le thème "${theme}".
-        La séquence doit s'étaler sur ${numSessions} séances.
-        Pour chaque séance, définis un titre, un objectif pédagogique clair, une liste d'activités à faire en classe, et une suggestion de devoir ou ressource AIDA à créer (ex: "Quiz sur...", "Fiche de révision sur...").
-        Le format de sortie DOIT être un JSON valide et rien d'autre, avec la structure suivante :
-        {
-          "planTitle": "Titre global de la séquence",
-          "level": "${level}",
-          "sessions": [
-            {
-              "sessionNumber": 1,
-              "title": "Titre de la séance 1",
-              "objective": "Objectif de la séance 1.",
-              "activities": ["Activité 1", "Activité 2"],
-              "resources": ["Suggestion de ressource AIDA 1"]
-            }
-          ]
-        }
-    `;
-
+app.post('/api/ai/extract-text-from-student-doc', upload.single('document'), async (req, res) => {
+    if (!blobServiceClient || !docIntelClient) return res.status(500).json({ error: "Les services Azure ne sont pas configurés." });
+    if (!req.file) return res.status(400).json({ error: "Aucun fichier n'a été téléversé." });
     try {
-        const response = await axios.post('https://api.deepseek.com/chat/completions', 
-            { model: 'deepseek-chat', messages: [{ role: 'user', content: prompt }] },
-            { headers: { 'Authorization': `Bearer ${apiKey}` } }
-        );
-        let jsonString = response.data.choices[0].message.content.replace(/```json\n|\n```/g, '');
-        let structured_plan = JSON.parse(jsonString);
-        res.json({ structured_plan });
-    } catch (error) {
-        console.error("Erreur lors de la génération du plan de cours:", error);
-        res.status(500).json({ error: "Erreur lors de la génération du plan de cours." });
-    }
+        const blobName = `student-upload-${new Date().getTime()}-${req.file.originalname}`;
+        await blobServiceClient.getContainerClient(containerName).getBlockBlobClient(blobName).uploadData(req.file.buffer);
+        console.log(`Fichier élève ${blobName} téléversé.`);
+        const extractedText = await extractTextFromBuffer(req.file.buffer);
+        if (!extractedText) return res.status(400).json({ error: "Impossible de lire le texte dans ce document." });
+        res.json({ extractedText });
+    } catch (error) { console.error("Erreur upload élève:", error); res.status(500).json({ error: error.message || "Erreur interne." }); }
 });
-
-
+app.post('/api/ai/correct-exercise', async (req, res) => {
+    const { exerciseText, studentAnswer } = req.body;
+    const apiKey = process.env.DEEPSEEK_API_KEY;
+    if (!apiKey || !exerciseText) return res.status(400).json({ error: "Données incomplètes." });
+    const prompt = `Corrige cet exercice: "${exerciseText}". Réponse de l'élève: "${studentAnswer}". Sois encourageant.`;
+    try {
+        const response = await axios.post('https://api.deepseek.com/chat/completions', { model: 'deepseek-chat', messages: [{ role: 'user', content: prompt }] }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
+        res.json({ correction: response.data.choices[0].message.content });
+    } catch (error) { res.status(500).json({ error: "Erreur de correction." }); }
+});
+app.post('/api/ai/get-hint', async (req, res) => {
+    const { questionText } = req.body;
+    const apiKey = process.env.DEEPSEEK_API_KEY;
+    if (!apiKey || !questionText) return res.status(400).json({ error: "Texte de la question requis." });
+    const prompt = `Pour la question suivante: "${questionText}", donne un indice simple et court qui aide à réfléchir sans donner la réponse.`;
+    try {
+        const response = await axios.post('https://api.deepseek.com/chat/completions', { model: 'deepseek-chat', messages: [{ role: 'user', content: prompt }] }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
+        res.json({ hint: response.data.choices[0].message.content });
+    } catch (error) { res.status(500).json({ error: "Erreur lors de la génération de l'indice." }); }
+});
+app.post('/api/ai/get-feedback-for-error', async (req, res) => {
+    const { question, userAnswer, correctAnswer } = req.body;
+    const apiKey = process.env.DEEPSEEK_API_KEY;
+    if (!apiKey || !question || !correctAnswer) return res.status(400).json({ error: "Données incomplètes pour la correction." });
+    const prompt = `Pour la question "${question}", l'élève a répondu "${userAnswer}" alors que la bonne réponse était "${correctAnswer}". Explique simplement et de manière encourageante pourquoi sa réponse est incorrecte et pourquoi l'autre est correcte, sans être trop long.`;
+    try {
+        const response = await axios.post('https://api.deepseek.com/chat/completions', { model: 'deepseek-chat', messages: [{ role: 'user', content: prompt }] }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
+        res.json({ feedback: response.data.choices[0].message.content });
+    } catch (error) { console.error("Erreur lors de la génération du feedback:", error); res.status(500).json({ error: "Erreur lors de la génération du feedback." }); }
+});
 app.post('/api/ai/playground-chat', async (req, res) => {
     const { history } = req.body;
     const apiKey = process.env.DEEPSEEK_API_KEY;
