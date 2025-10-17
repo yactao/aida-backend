@@ -378,6 +378,32 @@ app.post('/api/ai/generate-lesson-plan', async (req, res) => {
     } catch (error) { res.status(500).json({ error: "Erreur lors de la génération du plan." }); }
 });
 
+app.post('/api/ai/playground-chat', async (req, res) => {
+    const { history } = req.body;
+    if (!history) {
+        return res.status(400).json({ error: "L'historique de la conversation est manquant." });
+    }
+
+    try {
+        const response = await axios.post('https://api.deepseek.com/chat/completions', {
+            model: "deepseek-chat",
+            messages: [
+                {
+                    role: "system",
+                    content: "Tu es AIDA, un tuteur IA bienveillant et pédagogue. Ton objectif est de guider les élèves vers la solution sans jamais donner la réponse directement, sauf en dernier recours. Tu dois adapter ton langage à l'âge de l'élève et suivre une méthode socratique : questionner d'abord, donner un indice ensuite, et valider la compréhension de l'élève."
+                },
+                ...history
+            ]
+        }, { headers: { 'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}` } });
+
+        const reply = response.data.choices[0].message.content;
+        res.json({ reply });
+    } catch (error) {
+        console.error("Erreur lors de la communication avec l'API Deepseek:", error.response?.data);
+        res.status(500).json({ error: "Désolé, une erreur est survenue en contactant l'IA." });
+    }
+});
+
 app.post('/api/ai/synthesize-speech', async (req, res) => {
     if (!ttsClient) {
         return res.status(500).json({ error: "Le service de synthèse vocale n'est pas configuré sur le serveur." });
