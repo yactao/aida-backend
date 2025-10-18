@@ -328,31 +328,34 @@ app.post('/api/ai/generate-content', async (req, res) => {
     const langMap = { 'Anglais': 'English', 'Arabe': 'Arabic' };
     const targetLanguage = langMap[language];
 
-    let systemPrompt = "Tu es un assistant pédagogique expert dans la création de contenus éducatifs en français. Ta réponse doit être uniquement un objet JSON valide, sans aucun texte avant ou après.";
-    let userPromptContent = `Crée un contenu de type '${contentType}' pour un élève, basé sur la compétence suivante : '${competences}'.`;
-    
+    let systemPrompt;
+    let generationLanguageInstruction;
+
     if (targetLanguage) {
         systemPrompt = `You are an expert pedagogical assistant for creating language learning content. Your entire response must be a valid JSON object only, with no text before or after. All text content within the JSON MUST be in ${targetLanguage}.`;
-        userPromptContent = `Create a '${contentType}' content for a student, based on the following skill: '${competences}'.`;
+        generationLanguageInstruction = `The entire content of the JSON (titles, questions, options, etc.) must be in ${targetLanguage}.`;
+    } else {
+        systemPrompt = "Tu es un assistant pédagogique expert dans la création de contenus éducatifs en français. Ta réponse doit être uniquement un objet JSON valide, sans aucun texte avant ou après.";
+        generationLanguageInstruction = "Le contenu doit être en français.";
     }
 
     let specificInstructions = '';
     switch(contentType) {
         case 'quiz':
-            specificInstructions = `Generate exactly ${exerciseCount} questions. The JSON structure MUST be: { "title": "...", "type": "quiz", "questions": [ { "question_text": "...", "options": ["...", "...", "...", "..."], "correct_answer_index": 0 } ] }`;
+            specificInstructions = `Génère exactement ${exerciseCount} questions. La structure JSON DOIT être : { "title": "...", "type": "quiz", "questions": [ { "question_text": "...", "options": ["...", "...", "...", "..."], "correct_answer_index": 0 } ] }`;
             break;
         case 'exercices':
         case 'dm':
-            specificInstructions = `Generate exactly ${exerciseCount} exercises. The JSON structure MUST be: { "title": "...", "type": "${contentType}", "content": [ { "enonce": "..." } ] }`;
+            specificInstructions = `Génère exactement ${exerciseCount} exercices. La structure JSON DOIT être : { "title": "...", "type": "${contentType}", "content": [ { "enonce": "..." } ] }`;
             break;
         case 'revision':
-            specificInstructions = `Generate a complete review sheet. The JSON structure MUST be: { "title": "...", "type": "revision", "content": "..." }`;
+            specificInstructions = `Génère une fiche de révision complète. La structure JSON DOIT être : { "title": "...", "type": "revision", "content": "..." }`;
             break;
         default:
             return res.status(400).json({ error: "Type de contenu non supporté" });
     }
 
-    userPromptContent += ` ${specificInstructions}`;
+    const userPromptContent = `Crée un contenu de type '${contentType}' pour un élève, basé sur la compétence suivante : '${competences}'. ${specificInstructions} ${generationLanguageInstruction}`;
 
     try {
         const response = await axios.post('https://api.deepseek.com/chat/completions', {
