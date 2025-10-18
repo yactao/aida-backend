@@ -55,6 +55,11 @@ const usersContainer = database?.container('Users');
 const classesContainer = database?.container('Classes');
 const libraryContainer = database?.container('Library');
 
+// --- Route Racine pour Vérification ---
+app.get('/', (req, res) => {
+    res.send('<h1>Serveur AIDA</h1><p>Le serveur est en ligne et fonctionne correctement.</p>');
+});
+
 // --- Routes API ---
 
 // AUTH
@@ -144,7 +149,6 @@ app.get('/api/teacher/classes/:id', async (req, res) => {
     }
 });
 
-
 app.post('/api/teacher/classes/:id/add-student', async (req, res) => {
     if (!classesContainer || !usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
     const { studentEmail, teacherEmail } = req.body;
@@ -183,18 +187,170 @@ app.post('/api/teacher/assign-content', async (req, res) => {
     } catch (error) { res.status(500).json({ error: "Erreur lors de l'assignation." }); }
 });
 
-// ... (le reste des routes est identique, mais il est bon de les garder pour la complétude)
+app.post('/api/teacher/classes/reorder', async (req, res) => {
+    if (!usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
+    const { teacherEmail, classOrder } = req.body;
+    try {
+        const { resource: teacher } = await usersContainer.item(teacherEmail, teacherEmail).read();
+        teacher.classOrder = classOrder;
+        const { resource: updatedTeacher } = await usersContainer.items.upsert(teacher);
+        res.status(200).json({ classOrder: updatedTeacher.classOrder });
+    } catch (error) { res.status(500).json({ error: "Erreur lors de la mise à jour de l'ordre." }); }
+});
+
+app.delete('/api/teacher/classes/:classId/content/:contentId', async (req, res) => {
+    if (!classesContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
+    const { classId, contentId } = req.params;
+    const { teacherEmail } = req.query;
+    try {
+        const { resource: classDoc } = await classesContainer.item(classId, teacherEmail).read();
+        classDoc.content = classDoc.content.filter(c => c.id !== contentId);
+        classDoc.results = classDoc.results.filter(r => r.contentId !== contentId);
+        await classesContainer.items.upsert(classDoc);
+        res.status(204).send();
+    } catch (error) { res.status(500).json({ error: "Erreur lors de la suppression." }); }
+});
+
+app.post('/api/teacher/classes/:classId/remove-student', async (req, res) => {
+    if (!classesContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
+    const { classId } = req.params;
+    const { studentEmail, teacherEmail } = req.body;
+    try {
+        const { resource: classDoc } = await classesContainer.item(classId, teacherEmail).read();
+        classDoc.students = classDoc.students.filter(email => email !== studentEmail);
+        classDoc.results = classDoc.results.filter(r => r.studentEmail !== studentEmail);
+        await classesContainer.items.upsert(classDoc);
+        res.status(204).send();
+    } catch (error) { res.status(500).json({ error: "Erreur lors de la suppression." }); }
+});
+
+app.post('/api/teacher/validate-result', async (req, res) => {
+    if (!classesContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
+    const { classId, studentEmail, contentId, appreciation, comment, teacherEmail } = req.body;
+    try {
+        const { resource: classDoc } = await classesContainer.item(classId, teacherEmail).read();
+        const resultIndex = classDoc.results.findIndex(r => r.studentEmail === studentEmail && r.contentId === contentId);
+        if (resultIndex === -1) return res.status(404).json({ error: "Résultat non trouvé." });
+
+        classDoc.results[resultIndex].status = 'validated';
+        classDoc.results[resultIndex].appreciation = appreciation;
+        classDoc.results[resultIndex].teacherComment = comment;
+        classDoc.results[resultIndex].validatedAt = new Date().toISOString();
+
+        await classesContainer.items.upsert(classDoc);
+        res.status(200).json(classDoc.results[resultIndex]);
+    } catch(error) { res.status(500).json({ error: "Erreur lors de la validation." }); }
+});
+
+app.get('/api/teacher/classes/:classId/competency-report', async (req, res) => {
+    if (!classesContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
+    const { classId } = req.params;
+    const { teacherEmail } = req.query;
+    try {
+        const { resource: classData } = await classesContainer.item(classId, teacherEmail).read();
+        const validatedQuizzes = (classData.results || []).filter(r => r.status === 'validated' && r.totalQuestions > 0);
+
+        const competencyScores = {};
+        validatedQuizzes.forEach(result => {
+            const content = (classData.content || []).find(c => c.id === result.contentId);
+            if (content && content.competence && content.competence.competence) {
+                const { competence, level } = content.competence;
+                if (!competencyScores[competence]) {
+                    competencyScores[competence] = { scores: [], total: 0, level };
+                }
+                const scorePercentage = (result.score / result.totalQuestions) * 100;
+                competencyScores[competence].scores.push(scorePercentage);
+                competencyScores[competence].total += scorePercentage;
+            }
+        });
+
+        const report = Object.keys(competencyScores).map(competence => ({
+            competence,
+            level: competencyScores[competence].level,
+            averageScore: Math.round(competencyScores[competence].total / competencyScores[competence].scores.length)
+        }));
+
+        res.json(report);
+    } catch (error) { res.status(500).json({ error: "Erreur lors de la génération du rapport." }); }
+});
+
+
+// ÉLÈVE
+app.get('/api/student/dashboard', async (req, res) => {
+    if (!classesContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
+    const { studentEmail } = req.query;
+    const querySpec = { query: "SELECT * FROM c WHERE ARRAY_CONTAINS(c.students, @studentEmail)", parameters: [{ name: "@studentEmail", value: studentEmail }] };
+    try {
+        const { resources: studentClasses } = await classesContainer.items.query(querySpec, { enableCrossPartitionQuery: true }).fetchAll();
+        const todo = [], pending = [], completed = [];
+
+        studentClasses.forEach(c => {
+            (c.content || []).forEach(content => {
+                const result = (c.results || []).find(r => r.studentEmail === studentEmail && r.contentId === content.id);
+                const item = { ...content, className: c.className, classId: c.id, teacherEmail: c.teacherEmail };
+                if (!result) { todo.push(item); }
+                else {
+                    const fullResult = { ...item, ...result };
+                    if (result.status === 'pending_validation') { pending.push(fullResult); }
+                    else if (result.status === 'validated') { completed.push(fullResult); }
+                }
+            });
+        });
+
+        todo.sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate));
+        pending.sort((a,b) => new Date(b.submittedAt) - new Date(a.submittedAt));
+        completed.sort((a,b) => new Date(b.validatedAt) - new Date(a.validatedAt));
+
+        res.json({ todo, pending, completed });
+    } catch (error) { 
+        console.error("Erreur de récupération du tableau de bord étudiant:", error);
+        res.status(500).json({ error: "Erreur de récupération du tableau de bord." }); 
+    }
+});
+
+app.post('/api/student/submit-quiz', async (req, res) => {
+    if (!classesContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
+    const { studentEmail, classId, contentId, title, score, totalQuestions, answers, helpUsed, teacherEmail } = req.body;
+    const newResult = { studentEmail, contentId, title, score, totalQuestions, answers, helpUsed, submittedAt: new Date().toISOString(), status: 'pending_validation' };
+    try {
+        const { resource: classDoc } = await classesContainer.item(classId, teacherEmail).read();
+        classDoc.results = classDoc.results || [];
+        classDoc.results.push(newResult);
+        await classesContainer.items.upsert(classDoc);
+        res.status(201).json(newResult);
+    } catch (error) { res.status(500).json({ error: "Erreur lors de la soumission." }); }
+});
 
 // IA & GENERATION
-app.post('/api/ai/generate-from-upload', upload.single('document'), async (req, res) => {
-    if (!formRecognizerClient) {
-        return res.status(503).json({ error: "Le service d'analyse de documents n'est pas configuré sur le serveur. Vérifiez les logs." });
+app.post('/api/ai/generate-content', async (req, res) => {
+    const { competences, contentType, exerciseCount } = req.body;
+    try {
+        const response = await axios.post('https://api.deepseek.com/chat/completions', {
+            model: "deepseek-chat",
+            messages: [{
+                role: "system",
+                content: "Tu es un assistant pédagogique expert dans la création de contenus éducatifs en français. Ta réponse doit être uniquement un objet JSON valide, sans aucun texte avant ou après."
+            }, {
+                role: "user",
+                content: `Crée un contenu de type '${contentType}' pour un élève, basé sur la compétence suivante : '${competences}'. Le contenu doit inclure un titre. Si le type est 'quiz', 'exercices' ou 'dm', génère exactement ${exerciseCount} questions ou énoncés. Si c'est un quiz, chaque question doit avoir 4 options de réponse et l'index de la bonne réponse. Si c'est 'exercices' ou 'dm', chaque exercice doit avoir un énoncé. Si c'est 'revision', génère un texte de révision. Le JSON doit avoir la structure suivante : { "title": "...", "type": "...", "questions": [...] } ou { "title": "...", "type": "...", "content": [...] } ou { "title": "...", "type": "...", "content": "..." }.`
+            }],
+            response_format: { type: "json_object" }
+        }, { headers: { 'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}` } });
+
+        const structured_content = response.data.choices[0].message.content;
+        res.json({ structured_content: JSON.parse(structured_content) });
+    } catch (error) {
+        console.error("Erreur Deepseek:", error.response?.data);
+        res.status(500).json({ error: "Erreur lors de la génération." });
     }
+});
+
+app.post('/api/ai/generate-from-upload', upload.single('document'), async (req, res) => {
+    if (!formRecognizerClient) { return res.status(503).json({ error: "Le service d'analyse de documents n'est pas configuré sur le serveur. Vérifiez les logs." }); }
     if (!req.file) return res.status(400).json({ error: "Aucun fichier n'a été chargé." });
     try {
         const poller = await formRecognizerClient.beginAnalyzeDocument("prebuilt-layout", req.file.buffer);
         const { content } = await poller.pollUntilDone();
-
         const response = await axios.post('https://api.deepseek.com/chat/completions', {
             model: "deepseek-chat",
             messages: [{
@@ -206,10 +362,8 @@ app.post('/api/ai/generate-from-upload', upload.single('document'), async (req, 
             }],
             response_format: { type: "json_object" }
         }, { headers: { 'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}` } });
-
         const structured_content = response.data.choices[0].message.content;
         res.json({ structured_content: JSON.parse(structured_content) });
-
     } catch (error) {
         console.error("Erreur lors de l'analyse ou de la génération:", error);
         res.status(500).json({ error: "Erreur du serveur." });
@@ -217,12 +371,8 @@ app.post('/api/ai/generate-from-upload', upload.single('document'), async (req, 
 });
 
 app.post('/api/ai/playground-extract-text', upload.single('document'), async (req, res) => {
-    if (!formRecognizerClient) {
-        return res.status(503).json({ error: "Le service d'analyse de documents n'est pas configuré sur le serveur. Vérifiez les logs." });
-    }
-    if (!req.file) {
-        return res.status(400).json({ error: "Aucun fichier n'a été chargé." });
-    }
+    if (!formRecognizerClient) { return res.status(503).json({ error: "Le service d'analyse de documents n'est pas configuré sur le serveur. Vérifiez les logs." }); }
+    if (!req.file) { return res.status(400).json({ error: "Aucun fichier n'a été chargé." }); }
     try {
         const poller = await formRecognizerClient.beginAnalyzeDocument("prebuilt-layout", req.file.buffer);
         const { content } = await poller.pollUntilDone();
@@ -232,7 +382,6 @@ app.post('/api/ai/playground-extract-text', upload.single('document'), async (re
         res.status(500).json({ error: "Impossible d'analyser le document." });
     }
 });
-
 
 app.post('/api/ai/get-hint', async (req, res) => {
     const { questionText } = req.body;
@@ -268,22 +417,12 @@ app.post('/api/ai/generate-lesson-plan', async (req, res) => {
 
 app.post('/api/ai/playground-chat', async (req, res) => {
     const { history } = req.body;
-    if (!history) {
-        return res.status(400).json({ error: "L'historique de la conversation est manquant." });
-    }
-
+    if (!history) { return res.status(400).json({ error: "L'historique de la conversation est manquant." }); }
     try {
         const response = await axios.post('https://api.deepseek.com/chat/completions', {
             model: "deepseek-chat",
-            messages: [
-                {
-                    role: "system",
-                    content: "Tu es AIDA, un tuteur IA bienveillant et pédagogue. Ton objectif est de guider les élèves vers la solution sans jamais donner la réponse directement, sauf en dernier recours. Tu dois adapter ton langage à l'âge de l'élève et suivre une méthode socratique : questionner d'abord, donner un indice ensuite, et valider la compréhension de l'élève."
-                },
-                ...history
-            ]
+            messages: [ { role: "system", content: "Tu es AIDA, un tuteur IA bienveillant et pédagogue. Ton objectif est de guider les élèves vers la solution sans jamais donner la réponse directement, sauf en dernier recours. Tu dois adapter ton langage à l'âge de l'élève et suivre une méthode socratique : questionner d'abord, donner un indice ensuite, et valider la compréhension de l'élève." }, ...history ]
         }, { headers: { 'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}` } });
-
         const reply = response.data.choices[0].message.content;
         res.json({ reply });
     } catch (error) {
@@ -293,18 +432,10 @@ app.post('/api/ai/playground-chat', async (req, res) => {
 });
 
 app.post('/api/ai/synthesize-speech', async (req, res) => {
-    if (!ttsClient) {
-        return res.status(500).json({ error: "Le service de synthèse vocale n'est pas configuré sur le serveur." });
-    }
+    if (!ttsClient) { return res.status(500).json({ error: "Le service de synthèse vocale n'est pas configuré sur le serveur." }); }
     const { text, voice, rate, pitch } = req.body;
     if (!text) return res.status(400).json({ error: "Le texte est manquant." });
-
-    const request = {
-        input: { text: text },
-        voice: { languageCode: voice ? voice.substring(0, 5) : 'fr-FR', name: voice || 'fr-FR-Wavenet-E' },
-        audioConfig: { audioEncoding: 'MP3', speakingRate: parseFloat(rate) || 1.0, pitch: parseFloat(pitch) || 0.0, },
-    };
-
+    const request = { input: { text: text }, voice: { languageCode: voice ? voice.substring(0, 5) : 'fr-FR', name: voice || 'fr-FR-Wavenet-E' }, audioConfig: { audioEncoding: 'MP3', speakingRate: parseFloat(rate) || 1.0, pitch: parseFloat(pitch) || 0.0, }, };
     try {
         const [response] = await ttsClient.synthesizeSpeech(request);
         const audioContent = response.audioContent.toString('base64');
@@ -320,13 +451,7 @@ app.post('/api/ai/synthesize-speech', async (req, res) => {
 app.post('/api/library/publish', async (req, res) => {
     if (!libraryContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
     const { contentData, teacherName, subject } = req.body;
-    const libraryItem = {
-        ...contentData,
-        id: `lib-${Date.now()}`,
-        authorName: teacherName,
-        subject: subject,
-        originalId: contentData.id
-    };
+    const libraryItem = { ...contentData, id: `lib-${Date.now()}`, authorName: teacherName, subject: subject, originalId: contentData.id };
     try {
         await libraryContainer.items.create(libraryItem);
         res.status(201).json(libraryItem);
@@ -339,18 +464,9 @@ app.get('/api/library', async (req, res) => {
     let query = "SELECT * FROM c";
     const parameters = [];
     const conditions = [];
-
-    if (searchTerm) {
-        conditions.push("CONTAINS(c.title, @searchTerm, true)");
-        parameters.push({ name: "@searchTerm", value: searchTerm });
-    }
-    if (subject) {
-        conditions.push("c.subject = @subject");
-        parameters.push({ name: "@subject", value: subject });
-    }
-    if (conditions.length > 0) {
-        query += " WHERE " + conditions.join(" AND ");
-    }
+    if (searchTerm) { conditions.push("CONTAINS(c.title, @searchTerm, true)"); parameters.push({ name: "@searchTerm", value: searchTerm }); }
+    if (subject) { conditions.push("c.subject = @subject"); parameters.push({ name: "@subject", value: subject }); }
+    if (conditions.length > 0) { query += " WHERE " + conditions.join(" AND "); }
     try {
         const { resources } = await libraryContainer.items.query({ query, parameters }).fetchAll();
         res.json(resources);
