@@ -329,15 +329,7 @@ app.post('/api/ai/generate-content', async (req, res) => {
     const targetLanguage = langMap[language];
 
     let systemPrompt;
-    let generationLanguageInstruction;
-
-    if (targetLanguage) {
-        systemPrompt = `You are an expert pedagogical assistant for creating language learning content. Your entire response must be a valid JSON object only, with no text before or after. All text content within the JSON MUST be in ${targetLanguage}.`;
-        generationLanguageInstruction = `The entire content of the JSON (titles, questions, options, etc.) must be in ${targetLanguage}.`;
-    } else {
-        systemPrompt = "Tu es un assistant pédagogique expert dans la création de contenus éducatifs en français. Ta réponse doit être uniquement un objet JSON valide, sans aucun texte avant ou après.";
-        generationLanguageInstruction = "Le contenu doit être en français.";
-    }
+    let userPromptContent;
 
     let specificInstructions = '';
     switch(contentType) {
@@ -355,7 +347,21 @@ app.post('/api/ai/generate-content', async (req, res) => {
             return res.status(400).json({ error: "Type de contenu non supporté" });
     }
 
-    const userPromptContent = `Crée un contenu de type '${contentType}' pour un élève, basé sur la compétence suivante : '${competences}'. ${specificInstructions} ${generationLanguageInstruction}`;
+    if (targetLanguage) {
+        systemPrompt = `You are an expert pedagogical assistant for creating language learning content. Your entire response must be a valid JSON object only, with no text before or after. All text content within the JSON MUST be in ${targetLanguage}.`;
+        
+        let translatedSpecificInstructions = specificInstructions
+            .replace("Génère exactement", `Generate exactly`)
+            .replace("questions", "questions")
+            .replace("exercices", "exercises")
+            .replace("La structure JSON DOIT être", "The JSON structure MUST be")
+            .replace("fiche de révision complète", "complete review sheet");
+
+        userPromptContent = `Create a content of type '${contentType}' for a student, based on the following skill: '${competences}'. ${translatedSpecificInstructions} The entire content of the JSON (titles, questions, options, etc.) must be in ${targetLanguage}.`;
+    } else {
+        systemPrompt = "Tu es un assistant pédagogique expert dans la création de contenus éducatifs en français. Ta réponse doit être uniquement un objet JSON valide, sans aucun texte avant ou après.";
+        userPromptContent = `Crée un contenu de type '${contentType}' pour un élève, basé sur la compétence suivante : '${competences}'. ${specificInstructions} Le contenu doit être en français.`;
+    }
 
     try {
         const response = await axios.post('https://api.deepseek.com/chat/completions', {
