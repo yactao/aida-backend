@@ -325,7 +325,7 @@ app.post('/api/student/submit-quiz', async (req, res) => {
 app.post('/api/ai/generate-content', async (req, res) => {
     const { competences, contentType, exerciseCount, language } = req.body;
 
-    const langMap = { 'Anglais': 'English', 'Arabe': 'Arabic' };
+    const langMap = { 'Anglais': 'English', 'Arabe': 'Arabic', 'Espagnol': 'Spanish' };
     const targetLanguage = langMap[language];
 
     let systemPrompt;
