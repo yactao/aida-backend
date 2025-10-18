@@ -166,50 +166,6 @@
         }
       }
     },
-    "langues_vivantes": {
-      "nom": "Langues vivantes (Anglais)",
-      "anglais": {
-        "nom": "Anglais",
-        "sous_notions": {
-          "oral": {
-            "nom": "Compréhension et expression orales",
-            "competences": [
-              "Comprendre et utiliser des expressions courantes."
-            ]
-          },
-          "lexique": {
-            "nom": "Lexique",
-            "competences": [
-              "Lexique de la classe, famille, couleurs, nombres."
-            ]
-          }
-        }
-      },
-      "arabe": {
-        "nom": "Arabe",
-        "sous_notions": {
-          "oral": {
-            "nom": "Compréhension et expression orales",
-            "competences": [
-              "Comprendre et utiliser des salutations et consignes simples.",
-              "Se présenter (nom, âge) et répondre à des questions très courtes."
-            ]
-          },
-          "lexique": {
-            "nom": "Lexique",
-            "competences": [
-              "Classe, couleurs, chiffres 0‑10, famille proche."
-            ]
-          },
-          "phonologie_alphabet": {
-            "nom": "Phonologie et alphabet (découverte)",
-            "competences": [
-              "Reconnaître quelques lettres isolées et sons spécifiques de l’arabe (sens droite→gauche)."
-            ]
-          }
-        }
-      }
-    },
     "numerique": {
       "nom": "Éducation au numérique",
       "competences_numeriques": {
@@ -231,6 +187,57 @@
             "nom": "Initiation au code",
             "competences": [
               "S’initier à la pensée informatique (activités débranchées puis Scratch)."
+            ]
+          }
+        }
+      }
+    },
+    "langues_vivantes": {
+      "nom": "Langues vivantes",
+      "anglais": {
+        "nom": "Anglais",
+        "sous_notions": {
+          "oral": {
+            "nom": "Compréhension et expression orales",
+            "competences": [
+              "Comprendre et utiliser des salutations et consignes simples.",
+              "Se présenter (nom, âge) et répondre à des questions très courtes."
+            ]
+          },
+          "lexique": {
+            "nom": "Lexique",
+            "competences": [
+              "Classe, couleurs, chiffres 0-10, famille proche."
+            ]
+          },
+          "lecture_ecriture": {
+            "nom": "Lecture-écriture (découverte)",
+            "competences": [
+              "Reconnaître quelques lettres et sons ; sens d'écriture adapté à la langue."
+            ]
+          }
+        }
+      },
+      "arabe": {
+        "nom": "Arabe",
+        "sous_notions": {
+          "oral": {
+            "nom": "Compréhension et expression orales",
+            "competences": [
+              "Comprendre et utiliser des salutations et consignes simples.",
+              "Se présenter (nom, âge) et répondre à des questions très courtes."
+            ]
+          },
+          "lexique": {
+            "nom": "Lexique",
+            "competences": [
+              "Classe, couleurs, chiffres 0-10, famille proche."
+            ]
+          },
+          "lecture_ecriture": {
+            "nom": "Lecture-écriture (découverte)",
+            "competences": [
+              "Reconnaître quelques lettres et sons ; sens d'écriture adapté à la langue."
             ]
           }
         }
@@ -273,7 +280,7 @@
               "Identifier la phrase, le point et la majuscule.",
               "Distinguer le nom et le verbe ; identifier le sujet.",
               "Genre et nombre des noms.",
-              "Accord sujet‑verbe simple.",
+              "Accord sujet-verbe simple.",
               "Pronoms personnels sujets (je, tu, il/elle, on, nous, vous, ils/elles)."
             ]
           },
@@ -326,7 +333,7 @@
       },
       "grandeurs_et_mesures": {
         "nom": "Grandeurs et mesures",
-        "sous-notions": {
+        "sous_notions": {
           "longueur_masse_contenance": {
             "nom": "Longueur, masse, contenance",
             "competences": [
@@ -338,7 +345,7 @@
             "nom": "Monnaie et temps",
             "competences": [
               "Utiliser euros (pièces/billets) en situations courantes.",
-              "Lire l'heure (heures entières, demi‑heures, quarts).",
+              "Lire l'heure (heures entières, demi-heures, quarts).",
               "Se repérer dans le calendrier."
             ]
           }
@@ -386,21 +393,59 @@
         }
       }
     },
+    "numerique": {
+      "nom": "Éducation au numérique",
+      "competences_numeriques": {
+        "nom": "Usages et citoyenneté",
+        "sous_notions": {
+          "usages": {
+            "nom": "Usages du numérique",
+            "competences": [
+              "Rechercher et manipuler des contenus multimédias simples."
+            ]
+          },
+          "citoyen": {
+            "nom": "Citoyenneté numérique",
+            "competences": [
+              "Règles de sécurité et respect d'autrui en ligne."
+            ]
+          },
+          "coder": {
+            "nom": "Initiation au code",
+            "competences": [
+              "Séquences et boucles simples (débranché/ScratchJr)."
+            ]
+          }
+        }
+      }
+    },
     "langues_vivantes": {
-      "nom": "Langues vivantes (Anglais)",
+      "nom": "Langues vivantes",
       "anglais": {
         "nom": "Anglais",
         "sous_notions": {
-          "oral": {
-            "nom": "Compréhension/production orales",
+          "comprehension_orale": {
+            "nom": "Compréhension orale",
             "competences": [
-              "Comprendre et utiliser des expressions et phrases simples."
+              "Comprendre des expressions et instructions courantes en contexte scolaire."
+            ]
+          },
+          "production_orale": {
+            "nom": "Production orale",
+            "competences": [
+              "Dire des phrases très courtes pour se présenter, nommer des objets et des personnes."
             ]
           },
           "lexique": {
             "nom": "Lexique",
             "competences": [
-              "Vie quotidienne, école, famille, nombres."
+              "École, famille, animaux, nombres 0-20, jours de la semaine."
+            ]
+          },
+          "lecture_ecriture": {
+            "nom": "Lecture-écriture (initiation)",
+            "competences": [
+              "Reconnaître et copier des mots et expressions courtes (script adapté à la langue)."
             ]
           }
         }
@@ -423,39 +468,13 @@
           "lexique": {
             "nom": "Lexique",
             "competences": [
-              "École, famille, animaux, nombres 0‑20, jours de la semaine."
+              "École, famille, animaux, nombres 0-20, jours de la semaine."
             ]
           },
           "lecture_ecriture": {
-            "nom": "Lecture‑écriture (initiation)",
+            "nom": "Lecture-écriture (initiation)",
             "competences": [
-              "Reconnaître et copier des mots et expressions courtes en script arabe (droite→gauche)."
-            ]
-          }
-        }
-      }
-    },
-    "numerique": {
-      "nom": "Éducation au numérique",
-      "competences_numeriques": {
-        "nom": "Usages et citoyenneté",
-        "sous_notions": {
-          "usages": {
-            "nom": "Usages du numérique",
-            "competences": [
-              "Rechercher et manipuler des contenus multimédias simples."
-            ]
-          },
-          "citoyen": {
-            "nom": "Citoyenneté numérique",
-            "competences": [
-              "Règles de sécurité et respect d'autrui en ligne."
-            ]
-          },
-          "coder": {
-            "nom": "Initiation au code",
-            "competences": [
-              "Séquences et boucles simples (débranché/ScratchJr)."
+              "Reconnaître et copier des mots et expressions courtes (script adapté à la langue)."
             ]
           }
         }
@@ -483,7 +502,7 @@
           "rediger_paragraphes": {
             "nom": "Rédiger des paragraphes",
             "competences": [
-              "Rédiger un court texte organisé (début‑milieu‑fin) avec connecteurs simples.",
+              "Rédiger un court texte organisé (début-milieu-fin) avec connecteurs simples.",
               "Orthographier les mots fréquents ; réviser/relire pour corriger."
             ]
           }
@@ -496,7 +515,7 @@
             "nom": "Grammaire",
             "competences": [
               "Classes de mots usuelles (nom, verbe, déterminant, adjectif, pronom).",
-              "Accords GN et accord sujet‑verbe (présent des verbes fréquents)."
+              "Accords GN et accord sujet-verbe (présent des verbes fréquents)."
             ]
           },
           "vocabulaire": {
@@ -586,55 +605,6 @@
         }
       }
     },
-    "langues_vivantes": {
-      "nom": "Langues vivantes (Anglais)",
-      "anglais": {
-        "nom": "Anglais",
-        "sous_notions": {
-          "comprehension": {
-            "nom": "Compréhension orale",
-            "competences": [
-              "Comprendre de courts dialogues et consignes."
-            ]
-          },
-          "production": {
-            "nom": "Production orale et écrite",
-            "competences": [
-              "Produire des phrases simples ; écrire des mots/phrases courtes."
-            ]
-          }
-        }
-      },
-      "arabe": {
-        "nom": "Arabe",
-        "sous_notions": {
-          "comprehension": {
-            "nom": "Compréhension",
-            "competences": [
-              "Comprendre des consignes et mini‑dialogues du quotidien."
-            ]
-          },
-          "production": {
-            "nom": "Production",
-            "competences": [
-              "Produire des énoncés très courts pour décrire soi, la classe et la famille."
-            ]
-          },
-          "lecture_ecriture": {
-            "nom": "Lecture‑écriture",
-            "competences": [
-              "Lire et écrire des mots fréquents et des phrases très courtes ; repérer les ligatures de base."
-            ]
-          },
-          "culture": {
-            "nom": "Culture et civilisation",
-            "competences": [
-              "Découvrir des formules de politesse et quelques éléments culturels (salutations, prénoms)."
-            ]
-          }
-        }
-      }
-    },
     "numerique": {
       "nom": "Éducation au numérique",
       "competences_numeriques": {
@@ -656,6 +626,67 @@
             "nom": "Algorithmes débutants",
             "competences": [
               "Séquences, boucles et événements (Scratch)."
+            ]
+          }
+        }
+      }
+    },
+    "langues_vivantes": {
+      "nom": "Langues vivantes",
+      "anglais": {
+        "nom": "Anglais",
+        "sous_notions": {
+          "comprehension": {
+            "nom": "Compréhension",
+            "competences": [
+              "Comprendre des consignes et mini-dialogues du quotidien."
+            ]
+          },
+          "production": {
+            "nom": "Production",
+            "competences": [
+              "Produire des énoncés très courts pour décrire soi, la classe et la famille."
+            ]
+          },
+          "lecture_ecriture": {
+            "nom": "Lecture-écriture",
+            "competences": [
+              "Lire et écrire des mots fréquents et des phrases très courtes."
+            ]
+          },
+          "culture": {
+            "nom": "Culture et civilisation",
+            "competences": [
+              "Découvrir des formules de politesse et quelques éléments culturels."
+            ]
+          }
+        }
+      },
+      "arabe": {
+        "nom": "Arabe",
+        "sous_notions": {
+          "comprehension": {
+            "nom": "Compréhension",
+            "competences": [
+              "Comprendre des consignes et mini-dialogues du quotidien."
+            ]
+          },
+          "production": {
+            "nom": "Production",
+            "competences": [
+              "Produire des énoncés très courts pour décrire soi, la classe et la famille."
+            ]
+          },
+          "lecture_ecriture": {
+            "nom": "Lecture-écriture",
+            "competences": [
+              "Lire et écrire des mots fréquents et des phrases très courtes."
+            ]
+          },
+          "culture": {
+            "nom": "Culture et civilisation",
+            "competences": [
+              "Découvrir des formules de politesse et quelques éléments culturels."
             ]
           }
         }
@@ -682,7 +713,7 @@
           "rediger": {
             "nom": "Rédiger un texte organisé",
             "competences": [
-              "Rédiger un texte organisé (10‑20 lignes) adapté à la situation d’écriture."
+              "Rédiger un texte organisé (10-20 lignes) adapté à la situation d’écriture."
             ]
           }
         }
@@ -844,21 +875,53 @@
         }
       }
     },
+    "numerique": {
+      "nom": "Éducation au numérique",
+      "competences_numeriques": {
+        "nom": "Usages et citoyenneté",
+        "sous_notions": {
+          "usages": {
+            "nom": "Usages du numérique",
+            "competences": [
+              "Outils collaboratifs, recherche raisonnée, respect des données."
+            ]
+          },
+          "coder": {
+            "nom": "Algorithmique",
+            "competences": [
+              "Variables, événements et débogage (Scratch)."
+            ]
+          }
+        }
+      }
+    },
     "langues_vivantes": {
-      "nom": "Langues vivantes (Anglais)",
+      "nom": "Langues vivantes",
       "anglais": {
         "nom": "Anglais",
         "sous_notions": {
           "comprehension": {
-            "nom": "Compréhension",
+            "nom": "Compréhension orale et écrite",
             "competences": [
-              "Comprendre des phrases et courts dialogues."
+              "Comprendre des dialogues courts et de brefs textes informatifs simples."
             ]
           },
           "production": {
-            "nom": "Production",
+            "nom": "Production orale et écrite",
             "competences": [
-              "Produire des phrases simples à l’oral et à l’écrit."
+              "Présenter des informations simples (goûts, activités, lieux) avec des phrases liées."
+            ]
+          },
+          "lecture_ecriture": {
+            "nom": "Lecture-écriture",
+            "competences": [
+              "Lire des phrases simples ; écrire des phrases courtes correctement ponctuées."
+            ]
+          },
+          "grammaire_debut": {
+            "nom": "Notions grammaticales de base",
+            "competences": [
+              "Pronoms personnels, genre et pluriel simples ; ordre des mots basique."
             ]
           }
         }
@@ -879,35 +942,15 @@
             ]
           },
           "lecture_ecriture": {
-            "nom": "Lecture‑écriture",
+            "nom": "Lecture-écriture",
             "competences": [
-              "Lire des phrases simples ; copier/écrire des phrases courtes en script arabe (Naskh imprimé)."
+              "Lire des phrases simples ; écrire des phrases courtes correctement ponctuées."
             ]
           },
           "grammaire_debut": {
             "nom": "Notions grammaticales de base",
             "competences": [
-              "Pronoms personnels, genre, pluriel simple ; ordre des mots SVO en contexte apprenant."
-            ]
-          }
-        }
-      }
-    },
-    "numerique": {
-      "nom": "Éducation au numérique",
-      "competences_numeriques": {
-        "nom": "Usages et citoyenneté",
-        "sous_notions": {
-          "usages": {
-            "nom": "Usages du numérique",
-            "competences": [
-              "Outils collaboratifs, recherche raisonnée, respect des données."
-            ]
-          },
-          "coder": {
-            "nom": "Algorithmique",
-            "competences": [
-              "Variables, événements et débogage (Scratch)."
+              "Pronoms personnels, genre et pluriel simples ; ordre des mots basique."
             ]
           }
         }
@@ -934,7 +977,7 @@
           "rediger": {
             "nom": "Rédiger un texte organisé",
             "competences": [
-              "Rédiger un texte organisé (10‑20 lignes) adapté à la situation d’écriture."
+              "Rédiger un texte organisé (10-20 lignes) adapté à la situation d’écriture."
             ]
           }
         }
@@ -1072,7 +1115,7 @@
       "nom": "Histoire",
       "periodes": {
         "nom": "Les grandes périodes",
-        "sous_notions": {
+        "sous-notions": {
           "reperes": {
             "nom": "Repères chronologiques",
             "competences": [
@@ -1096,21 +1139,53 @@
         }
       }
     },
+    "numerique": {
+      "nom": "Éducation au numérique",
+      "competences_numeriques": {
+        "nom": "Usages et citoyenneté",
+        "sous_notions": {
+          "usages": {
+            "nom": "Usages du numérique",
+            "competences": [
+              "Outils collaboratifs, recherche raisonnée, respect des données."
+            ]
+          },
+          "coder": {
+            "nom": "Algorithmique",
+            "competences": [
+              "Algorithmes plus complexes, variables et tests (Scratch)."
+            ]
+          }
+        }
+      }
+    },
     "langues_vivantes": {
-      "nom": "Langues vivantes (Anglais)",
+      "nom": "Langues vivantes",
       "anglais": {
         "nom": "Anglais",
         "sous_notions": {
           "comprehension": {
             "nom": "Compréhension",
             "competences": [
-              "Comprendre des phrases et courts dialogues."
+              "Comprendre des messages courts (annonces, consignes, cartes) et des dialogues guidés."
             ]
           },
           "production": {
             "nom": "Production",
             "competences": [
-              "Produire des phrases simples à l’oral et à l’écrit."
+              "Produire des phrases courtes reliées (présentations, routines, descriptions simples)."
+            ]
+          },
+          "lecture_ecriture": {
+            "nom": "Lecture-écriture",
+            "competences": [
+              "Lire de courts paragraphes ; écrire 4-6 phrases cohérentes au présent."
+            ]
+          },
+          "lexique": {
+            "nom": "Lexique thématique",
+            "competences": [
+              "Vie quotidienne, environnement proche, métiers/civisme simples."
             ]
           }
         }
@@ -1131,35 +1206,15 @@
             ]
           },
           "lecture_ecriture": {
-            "nom": "Lecture‑écriture",
+            "nom": "Lecture-écriture",
             "competences": [
-              "Lire des courts paragraphes ; écrire 4‑6 phrases cohérentes (présent)."
+              "Lire de courts paragraphes ; écrire 4-6 phrases cohérentes au présent."
             ]
           },
           "lexique": {
             "nom": "Lexique thématique",
             "competences": [
               "Vie quotidienne, environnement proche, métiers/civisme simples."
-            ]
-          }
-        }
-      }
-    },
-    "numerique": {
-      "nom": "Éducation au numérique",
-      "competences_numeriques": {
-        "nom": "Usages et citoyenneté",
-        "sous_notions": {
-          "usages": {
-            "nom": "Usages du numérique",
-            "competences": [
-              "Outils collaboratifs, recherche raisonnée, respect des données."
-            ]
-          },
-          "coder": {
-            "nom": "Algorithmique",
-            "competences": [
-              "Algorithmes plus complexes, variables et tests (Scratch)."
             ]
           }
         }
