@@ -330,34 +330,32 @@ app.post('/api/ai/generate-content', async (req, res) => {
 
     let systemPrompt;
     let userPromptContent;
-
+    
     let specificInstructions = '';
-    switch(contentType) {
-        case 'quiz':
-            specificInstructions = `Génère exactement ${exerciseCount} questions. La structure JSON DOIT être : { "title": "...", "type": "quiz", "questions": [ { "question_text": "...", "options": ["...", "...", "...", "..."], "correct_answer_index": 0 } ] }`;
-            break;
-        case 'exercices':
-        case 'dm':
-            specificInstructions = `Génère exactement ${exerciseCount} exercices. La structure JSON DOIT être : { "title": "...", "type": "${contentType}", "content": [ { "enonce": "..." } ] }`;
-            break;
-        case 'revision':
-            specificInstructions = `Génère une fiche de révision complète. La structure JSON DOIT être : { "title": "...", "type": "revision", "content": "..." }`;
-            break;
-        default:
-            return res.status(400).json({ error: "Type de contenu non supporté" });
+    const baseInstructions = {
+        quiz: `Génère exactement ${exerciseCount} questions. La structure JSON DOIT être : { "title": "...", "type": "quiz", "questions": [ { "question_text": "...", "options": ["...", "...", "...", "..."], "correct_answer_index": 0 } ] }`,
+        exercices: `Génère exactement ${exerciseCount} exercices. La structure JSON DOIT être : { "title": "...", "type": "exercices", "content": [ { "enonce": "..." } ] }`,
+        dm: `Génère exactement ${exerciseCount} exercices. La structure JSON DOIT être : { "title": "...", "type": "dm", "content": [ { "enonce": "..." } ] }`,
+        revision: `Génère une fiche de révision complète. La structure JSON DOIT être : { "title": "...", "type": "revision", "content": "..." }`
+    };
+
+    if (!baseInstructions[contentType]) {
+        return res.status(400).json({ error: "Type de contenu non supporté" });
     }
+    
+    specificInstructions = baseInstructions[contentType];
 
     if (targetLanguage) {
         systemPrompt = `You are an expert pedagogical assistant for creating language learning content. Your entire response must be a valid JSON object only, with no text before or after. All text content within the JSON MUST be in ${targetLanguage}.`;
         
-        let translatedSpecificInstructions = specificInstructions
-            .replace("Génère exactement", `Generate exactly`)
-            .replace("questions", "questions")
-            .replace("exercices", "exercises")
-            .replace("La structure JSON DOIT être", "The JSON structure MUST be")
-            .replace("fiche de révision complète", "complete review sheet");
-
-        userPromptContent = `Create a content of type '${contentType}' for a student, based on the following skill: '${competences}'. ${translatedSpecificInstructions} The entire content of the JSON (titles, questions, options, etc.) must be in ${targetLanguage}.`;
+        const translatedInstructions = {
+            quiz: `Generate exactly ${exerciseCount} questions. The JSON structure MUST be: { "title": "...", "type": "quiz", "questions": [ { "question_text": "...", "options": ["...", "...", "...", "..."], "correct_answer_index": 0 } ] }`,
+            exercices: `Generate exactly ${exerciseCount} exercises. The JSON structure MUST be: { "title": "...", "type": "exercices", "content": [ { "enonce": "..." } ] }`,
+            dm: `Generate exactly ${exerciseCount} exercises. The JSON structure MUST be: { "title": "...", "type": "dm", "content": [ { "enonce": "..." } ] }`,
+            revision: `Generate a complete review sheet. The JSON structure MUST be: { "title": "...", "type": "revision", "content": "..." }`
+        };
+        specificInstructions = translatedInstructions[contentType];
+        userPromptContent = `Create a content of type '${contentType}' for a student, based on the following skill: '${competences}'. ${specificInstructions} The entire content of the JSON (titles, questions, options, etc.) must be in ${targetLanguage}.`;
     } else {
         systemPrompt = "Tu es un assistant pédagogique expert dans la création de contenus éducatifs en français. Ta réponse doit être uniquement un objet JSON valide, sans aucun texte avant ou après.";
         userPromptContent = `Crée un contenu de type '${contentType}' pour un élève, basé sur la compétence suivante : '${competences}'. ${specificInstructions} Le contenu doit être en français.`;
@@ -423,7 +421,7 @@ app.post('/api/ai/generate-from-upload', upload.single('document'), async (req, 
     }
 });
 
-app.post('/api/ai/playground-extract-text', upload.single('document'), async (req, res) => {
+app.post('/api/ai/playground-extract-text', async (req, res) => {
     if (!formRecognizerClient) { return res.status(503).json({ error: "Le service d'analyse de documents n'est pas configuré sur le serveur. Vérifiez les logs." }); }
     if (!req.file) { return res.status(400).json({ error: "Aucun fichier n'a été chargé." }); }
     try {
