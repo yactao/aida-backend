@@ -47,6 +47,18 @@
           }
         }
       },
+      "grammaire": {
+        "nom": "Grammaire et orthographe",
+        "sous_notions": {
+          "bases": {
+            "nom": "Bases grammaticales et orthographiques",
+            "competences": [
+              "Repérer la phrase, la majuscule et le point.",
+              "Orthographier des mots fréquents et des mots outils."
+            ]
+          }
+        }
+      },
       "oral": {
         "nom": "Oral",
         "sous_notions": {
@@ -59,81 +71,96 @@
         }
       }
     },
-    "maths": {
+    "mathematiques": {
       "nom": "Mathématiques",
       "nombres_et_calculs": {
-        "nom": "Nombres et Calculs",
+        "nom": "Nombres et calculs",
         "sous_notions": {
-          "nombres_jusqua_1000": {
-            "nom": "Nombres jusqu'à 1000",
+          "nombres_jusqua_100": {
+            "nom": "Nombres jusqu'à 100",
             "competences": [
-              "Comprendre et utiliser les nombres jusqu’à 1000 (selon le niveau du cycle 2)."
+              "Comprendre et utiliser les nombres jusqu’à 100 (dizaines/unités)."
             ]
           },
           "operations": {
             "nom": "Opérations",
             "competences": [
-              "Poser et effectuer des additions et soustractions ; initiation à la multiplication."
+              "Poser et effectuer des additions et soustractions simples ; initiation à la multiplication."
             ]
           },
           "problemes": {
             "nom": "Résolution de problèmes",
             "competences": [
-              "Résoudre des problèmes additifs et soustractifs ; premiers problèmes multiplicatifs."
+              "Résoudre des problèmes additifs et soustractifs simples."
             ]
           }
         }
       },
       "grandeurs_et_mesures": {
-        "nom": "Grandeurs et Mesures",
+        "nom": "Grandeurs et mesures",
         "sous_notions": {
           "estimer_mesurer": {
             "nom": "Estimer et mesurer",
             "competences": [
-              "Estimer, mesurer des longueurs, masses, contenances, durées ; lire l’heure."
+              "Estimer, mesurer des longueurs, masses, contenances ; repères de temps (heure)."
             ]
           }
         }
       },
       "espace_et_geometrie": {
-        "nom": "Espace et Géométrie",
+        "nom": "Espace et géométrie",
         "sous_notions": {
           "reconnaitre_decrire": {
             "nom": "Reconnaître et décrire des figures",
             "competences": [
-              "Reconnaître et décrire des figures (segment, carré, rectangle, triangle, cercle)."
+              "Reconnaître et décrire segment, carré, rectangle, triangle, cercle."
             ]
           }
         }
       }
     },
-    "sciences": {
-      "nom": "Questionner le monde (Sciences)",
+    "questionner_le_monde": {
+      "nom": "Questionner le monde",
       "le_vivant": {
-        "nom": "Le vivant, la matière, les objets",
+        "nom": "Le vivant",
         "sous_notions": {
-          "vivant": {
-            "nom": "Le vivant",
+          "besoins": {
+            "nom": "Besoins des êtres vivants",
             "competences": [
-              "Identifier besoins des êtres vivants ; hygiène et santé."
+              "Identifier des besoins des êtres vivants ; hygiène et santé."
             ]
-          },
-          "matiere": {
-            "nom": "La matière",
+          }
+        }
+      },
+      "la_matiere": {
+        "nom": "La matière",
+        "sous_notions": {
+          "etats": {
+            "nom": "États et changements",
             "competences": [
-              "Découvrir états de la matière et changements."
+              "Découvrir les états de la matière et quelques changements."
             ]
-          },
-          "objets": {
-            "nom": "Les objets techniques",
+          }
+        }
+      },
+      "objets_techniques": {
+        "nom": "Objets techniques",
+        "sous_notions": {
+          "fonctionnement": {
+            "nom": "Fonctionnement d’objets simples",
             "competences": [
               "Comprendre le fonctionnement d’objets et mécanismes simples."
             ]
-          },
-          "terre": {
-            "nom": "La Terre",
+          }
+        }
+      },
+      "la_terre": {
+        "nom": "La Terre",
+        "sous_notions": {
+          "temps": {
+            "nom": "Phénomènes temporels",
             "competences": [
-              "Observer cycles jour/nuit, saisons, météo."
+              "Observer les cycles jour/nuit, les saisons et la météo."
             ]
           }
         }
@@ -145,7 +172,7 @@
         "nom": "Anglais",
         "sous_notions": {
           "oral": {
-            "nom": "Compréhension et expression orale",
+            "nom": "Compréhension et expression orales",
             "competences": [
               "Comprendre et utiliser des expressions courantes."
             ]
@@ -157,12 +184,36 @@
             ]
           }
         }
+      },
+      "arabe": {
+        "nom": "Arabe",
+        "sous_notions": {
+          "oral": {
+            "nom": "Compréhension et expression orales",
+            "competences": [
+              "Comprendre et utiliser des salutations et consignes simples.",
+              "Se présenter (nom, âge) et répondre à des questions très courtes."
+            ]
+          },
+          "lexique": {
+            "nom": "Lexique",
+            "competences": [
+              "Classe, couleurs, chiffres 0‑10, famille proche."
+            ]
+          },
+          "phonologie_alphabet": {
+            "nom": "Phonologie et alphabet (découverte)",
+            "competences": [
+              "Reconnaître quelques lettres isolées et sons spécifiques de l’arabe (sens droite→gauche)."
+            ]
+          }
+        }
       }
     },
     "numerique": {
       "nom": "Éducation au numérique",
-      "numerique": {
-        "nom": "Numérique",
+      "competences_numeriques": {
+        "nom": "Usages et citoyenneté",
         "sous_notions": {
           "usages": {
             "nom": "Usages du numérique",
@@ -179,7 +230,7 @@
           "coder": {
             "nom": "Initiation au code",
             "competences": [
-              "S’initier à la pensée informatique (débranché puis Scratch)."
+              "S’initier à la pensée informatique (activités débranchées puis Scratch)."
             ]
           }
         }
@@ -207,8 +258,8 @@
               "Lire et comprendre des phrases simples et complexes.",
               "Comprendre un texte court en le lisant silencieusement.",
               "Répondre à des questions de compréhension (qui, quoi, où, quand, comment, pourquoi).",
-              "Identifier les personnages, les événements principaux et la chronologie d'un récit.",
-              "Repérer les informations explicites dans un texte."
+              "Identifier personnages, événements principaux et chronologie.",
+              "Repérer des informations explicites."
             ]
           }
         }
@@ -220,30 +271,29 @@
             "nom": "Grammaire",
             "competences": [
               "Identifier la phrase, le point et la majuscule.",
-              "Distinguer le nom et le verbe dans une phrase.",
-              "Identifier le sujet du verbe.",
-              "Reconnaître le genre (masculin/féminin) et le nombre (singulier/pluriel) des noms.",
-              "Comprendre l'accord simple entre le sujet et le verbe.",
-              "Identifier les pronoms personnels sujets (je, tu, il, elle, on, nous, vous, ils, elles)."
+              "Distinguer le nom et le verbe ; identifier le sujet.",
+              "Genre et nombre des noms.",
+              "Accord sujet‑verbe simple.",
+              "Pronoms personnels sujets (je, tu, il/elle, on, nous, vous, ils/elles)."
             ]
           },
           "orthographe": {
             "nom": "Orthographe",
             "competences": [
-              "Écrire sans erreur des mots mémorisés et fréquents.",
-              "Appliquer la règle de l'accord en nombre dans le groupe nominal (déterminant, nom, adjectif).",
-              "Utiliser le point et la majuscule à bon escient.",
-              "Orthographier correctement les homophones grammaticaux courants (a/à, on/ont, son/sont, et/est).",
-              "Commencer à écrire correctement les terminaisons verbales en -e, -es, -ent."
+              "Écrire sans erreur des mots fréquents.",
+              "Accord en nombre dans le groupe nominal.",
+              "Ponctuation de base (point, majuscule).",
+              "Homophones grammaticaux (a/à, on/ont, son/sont, et/est).",
+              "Terminaisons verbales usuelles (-e, -es, -ent)."
             ]
           },
           "vocabulaire": {
             "nom": "Vocabulaire",
             "competences": [
-              "Utiliser des mots précis pour décrire des objets, des personnes ou des actions.",
-              "Trouver un synonyme ou un contraire pour des mots courants.",
-              "Classer des mots par catégorie sémantique (ex: les fruits, les animaux).",
-              "Comprendre la formation des mots (familles de mots)."
+              "Employer des mots précis pour décrire.",
+              "Trouver synonymes et contraires courants.",
+              "Classer des mots par catégories sémantiques.",
+              "Découvrir familles de mots."
             ]
           }
         }
@@ -252,69 +302,64 @@
     "mathematiques": {
       "nom": "Mathématiques",
       "nombres_et_calculs": {
-        "nom": "Nombres et Calculs",
+        "nom": "Nombres et calculs",
         "sous_notions": {
           "numeration": {
-            "nom": "Numération (Nombres jusqu'à 100)",
+            "nom": "Numération (nombres jusqu'à 100)",
             "competences": [
-              "Dénombrer, constituer et comparer des collections jusqu'à 100.",
-              "Lire et écrire les nombres en chiffres et en lettres jusqu'à 100.",
-              "Comparer, ranger, encadrer ces nombres.",
-              "Comprendre la valeur des chiffres en fonction de leur position (dizaines, unités)."
+              "Dénombrer et comparer jusqu'à 100.",
+              "Lire/écrire les nombres en chiffres et en lettres jusqu'à 100.",
+              "Comparer, ranger, encadrer ; dizaines/unités."
             ]
           },
           "calcul": {
             "nom": "Calcul",
             "competences": [
-              "Calculer mentalement des additions, des soustractions.",
-              "Mémoriser les tables d'addition.",
-              "Commencer à apprendre les tables de multiplication (par 2, 5, 10).",
-              "Poser et calculer une addition en colonne (avec et sans retenue).",
-              "Poser et calculer une soustraction en colonne (sans retenue).",
-              "Résoudre des problèmes relevant de l'addition, de la soustraction et de la multiplication."
+              "Calcul mental additif et soustractif.",
+              "Tables d'addition ; début des tables ×2, ×5, ×10.",
+              "Additions en colonne (avec/sans retenue).",
+              "Soustractions en colonne (sans retenue).",
+              "Problèmes d’addition, soustraction et produits simples."
             ]
           }
         }
       },
       "grandeurs_et_mesures": {
-        "nom": "Grandeurs et Mesures",
-        "sous_notions": {
+        "nom": "Grandeurs et mesures",
+        "sous-notions": {
           "longueur_masse_contenance": {
             "nom": "Longueur, masse, contenance",
             "competences": [
-              "Comparer des objets selon leur longueur ou leur masse.",
-              "Mesurer des longueurs avec la règle graduée.",
-              "Connaître et utiliser les unités : mètre (m), centimètre (cm).",
-              "Connaître les unités : kilogramme (kg), gramme (g).",
-              "Connaître l'unité : litre (L)."
+              "Comparer et mesurer des longueurs (m, cm).",
+              "Masses (kg, g) et contenances (L)."
             ]
           },
           "monnaie_et_temps": {
-            "nom": "Monnaie et Temps",
+            "nom": "Monnaie et temps",
             "competences": [
-              "Utiliser les pièces et billets en euros pour résoudre des problèmes de la vie courante.",
-              "Lire l'heure (heures entières, demi-heures, quarts d'heure).",
-              "Se repérer dans le temps : lire un calendrier, connaître les jours de la semaine et les mois de l'année."
+              "Utiliser euros (pièces/billets) en situations courantes.",
+              "Lire l'heure (heures entières, demi‑heures, quarts).",
+              "Se repérer dans le calendrier."
             ]
           }
         }
       },
       "espace_et_geometrie": {
-        "nom": "Espace et Géométrie",
+        "nom": "Espace et géométrie",
         "sous_notions": {
           "reperage": {
             "nom": "Se repérer et se déplacer",
             "competences": [
-              "Utiliser un vocabulaire spatial précis (gauche/droite, dessus/dessous, avant/arrière).",
-              "Coder et décoder un déplacement simple sur un quadrillage."
+              "Vocabulaire spatial (gauche/droite, dessus/dessous, avant/arrière).",
+              "Coder/décoder un déplacement simple sur quadrillage."
             ]
           },
           "solides_et_figures": {
             "nom": "Reconnaître des solides et figures",
             "competences": [
-              "Reconnaître, nommer et décrire le carré, le rectangle, le triangle et le cercle.",
-              "Utiliser la règle pour tracer des segments et des figures.",
-              "Reconnaître et nommer le cube et le pavé droit."
+              "Reconnaître carré, rectangle, triangle, cercle.",
+              "Tracer des segments/figures à la règle.",
+              "Reconnaître cube et pavé droit."
             ]
           }
         }
@@ -328,157 +373,14 @@
           "vivant": {
             "nom": "Le monde du vivant",
             "competences": [
-              "Connaître les caractéristiques du vivant (naître, se nourrir, grandir, mourir).",
-              "Observer et décrire les étapes du développement d'un animal ou d'un végétal."
+              "Caractéristiques du vivant (naître, se nourrir, grandir, mourir).",
+              "Observer un cycle de vie (animal ou végétal)."
             ]
           },
           "matiere": {
             "nom": "La matière",
             "competences": [
-              "Reconnaître les états de l'eau (solide, liquide).",
-              "Mettre en œuvre un protocole simple pour observer un phénomène."
-            ]
-          }
-        }
-      }
-    }
-  }
-},
-  "CE2": {
-    "francais": {
-      "nom": "Français",
-      "lecture": {
-        "nom": "Lecture",
-        "sous_notions": {
-          "decoder_lire": {
-            "nom": "Décoder et lire à voix haute",
-            "competences": [
-              "Décoder et lire à voix haute des mots réguliers et irréguliers fréquents."
-            ]
-          },
-          "comprendre_textes": {
-            "nom": "Comprendre des textes courts",
-            "competences": [
-              "Comprendre des textes courts lus par l’enseignant ou par l’élève."
-            ]
-          }
-        }
-      },
-      "ecriture": {
-        "nom": "Écriture",
-        "sous_notions": {
-          "produire_phrases": {
-            "nom": "Produire des phrases simples",
-            "competences": [
-              "Produire des phrases simples correctes (majuscule/point, accords élémentaires)."
-            ]
-          },
-          "copier": {
-            "nom": "Copier un texte",
-            "competences": [
-              "Copier sans erreur un court texte et soigner la présentation."
-            ]
-          }
-        }
-      },
-      "vocabulaire": {
-        "nom": "Vocabulaire",
-        "sous_notions": {
-          "enrichir": {
-            "nom": "Enrichir le vocabulaire",
-            "competences": [
-              "Enrichir le vocabulaire usuel (thèmes de la vie scolaire et quotidienne)."
-            ]
-          }
-        }
-      },
-      "oral": {
-        "nom": "Oral",
-        "sous_notions": {
-          "prendre_parole": {
-            "nom": "Prendre la parole",
-            "competences": [
-              "Prendre la parole de façon audible et respecter les tours de parole."
-            ]
-          }
-        }
-      }
-    },
-    "maths": {
-      "nom": "Mathématiques",
-      "nombres_et_calculs": {
-        "nom": "Nombres et Calculs",
-        "sous_notions": {
-          "nombres_jusqua_1000": {
-            "nom": "Nombres jusqu'à 1000",
-            "competences": [
-              "Comprendre et utiliser les nombres jusqu’à 1000 (selon le niveau du cycle 2)."
-            ]
-          },
-          "operations": {
-            "nom": "Opérations",
-            "competences": [
-              "Poser et effectuer des additions et soustractions ; initiation à la multiplication."
-            ]
-          },
-          "problemes": {
-            "nom": "Résolution de problèmes",
-            "competences": [
-              "Résoudre des problèmes additifs et soustractifs ; premiers problèmes multiplicatifs."
-            ]
-          }
-        }
-      },
-      "grandeurs_et_mesures": {
-        "nom": "Grandeurs et Mesures",
-        "sous_notions": {
-          "estimer_mesurer": {
-            "nom": "Estimer et mesurer",
-            "competences": [
-              "Estimer, mesurer des longueurs, masses, contenances, durées ; lire l’heure."
-            ]
-          }
-        }
-      },
-      "espace_et_geometrie": {
-        "nom": "Espace et Géométrie",
-        "sous_notions": {
-          "reconnaitre_decrire": {
-            "nom": "Reconnaître et décrire des figures",
-            "competences": [
-              "Reconnaître et décrire des figures (segment, carré, rectangle, triangle, cercle)."
-            ]
-          }
-        }
-      }
-    },
-    "sciences": {
-      "nom": "Questionner le monde (Sciences)",
-      "le_vivant": {
-        "nom": "Le vivant, la matière, les objets",
-        "sous_notions": {
-          "vivant": {
-            "nom": "Le vivant",
-            "competences": [
-              "Identifier besoins des êtres vivants ; hygiène et santé."
-            ]
-          },
-          "matiere": {
-            "nom": "La matière",
-            "competences": [
-              "Découvrir états de la matière et changements."
-            ]
-          },
-          "objets": {
-            "nom": "Les objets techniques",
-            "competences": [
-              "Comprendre le fonctionnement d’objets et mécanismes simples."
-            ]
-          },
-          "terre": {
-            "nom": "La Terre",
-            "competences": [
-              "Observer cycles jour/nuit, saisons, météo."
+              "États de l'eau (solide/liquide) et observation expérimentale simple."
             ]
           }
         }
@@ -490,15 +392,44 @@
         "nom": "Anglais",
         "sous_notions": {
           "oral": {
-            "nom": "Compréhension et expression orale",
+            "nom": "Compréhension/production orales",
             "competences": [
-              "Comprendre et utiliser des expressions courantes."
+              "Comprendre et utiliser des expressions et phrases simples."
             ]
           },
           "lexique": {
             "nom": "Lexique",
             "competences": [
-              "Lexique de la classe, famille, couleurs, nombres."
+              "Vie quotidienne, école, famille, nombres."
+            ]
+          }
+        }
+      },
+      "arabe": {
+        "nom": "Arabe",
+        "sous_notions": {
+          "comprehension_orale": {
+            "nom": "Compréhension orale",
+            "competences": [
+              "Comprendre des expressions et instructions courantes en contexte scolaire."
+            ]
+          },
+          "production_orale": {
+            "nom": "Production orale",
+            "competences": [
+              "Dire des phrases très courtes pour se présenter, nommer des objets et des personnes."
+            ]
+          },
+          "lexique": {
+            "nom": "Lexique",
+            "competences": [
+              "École, famille, animaux, nombres 0‑20, jours de la semaine."
+            ]
+          },
+          "lecture_ecriture": {
+            "nom": "Lecture‑écriture (initiation)",
+            "competences": [
+              "Reconnaître et copier des mots et expressions courtes en script arabe (droite→gauche)."
             ]
           }
         }
@@ -506,25 +437,225 @@
     },
     "numerique": {
       "nom": "Éducation au numérique",
-      "numerique": {
-        "nom": "Numérique",
+      "competences_numeriques": {
+        "nom": "Usages et citoyenneté",
         "sous_notions": {
           "usages": {
             "nom": "Usages du numérique",
             "competences": [
-              "Utiliser de façon responsable les outils numériques (tablette/ordinateur)."
+              "Rechercher et manipuler des contenus multimédias simples."
             ]
           },
           "citoyen": {
             "nom": "Citoyenneté numérique",
             "competences": [
-              "Connaître les règles d’hygiène numérique et de citoyenneté en ligne."
+              "Règles de sécurité et respect d'autrui en ligne."
             ]
           },
           "coder": {
             "nom": "Initiation au code",
             "competences": [
-              "S’initier à la pensée informatique (débranché puis Scratch)."
+              "Séquences et boucles simples (débranché/ScratchJr)."
+            ]
+          }
+        }
+      }
+    }
+  },
+  "CE2": {
+    "francais": {
+      "nom": "Français",
+      "lecture": {
+        "nom": "Lecture",
+        "sous_notions": {
+          "lire_courants": {
+            "nom": "Lire couramment",
+            "competences": [
+              "Lire silencieusement et à voix haute des textes courts avec fluidité.",
+              "Repérer idées principales et informations explicites."
+            ]
+          }
+        }
+      },
+      "ecriture": {
+        "nom": "Écriture",
+        "sous_notions": {
+          "rediger_paragraphes": {
+            "nom": "Rédiger des paragraphes",
+            "competences": [
+              "Rédiger un court texte organisé (début‑milieu‑fin) avec connecteurs simples.",
+              "Orthographier les mots fréquents ; réviser/relire pour corriger."
+            ]
+          }
+        }
+      },
+      "etude_de_la_langue": {
+        "nom": "Étude de la langue",
+        "sous_notions": {
+          "grammaire": {
+            "nom": "Grammaire",
+            "competences": [
+              "Classes de mots usuelles (nom, verbe, déterminant, adjectif, pronom).",
+              "Accords GN et accord sujet‑verbe (présent des verbes fréquents)."
+            ]
+          },
+          "vocabulaire": {
+            "nom": "Vocabulaire",
+            "competences": [
+              "Préfixes/suffixes usuels, familles de mots, champs lexicaux."
+            ]
+          }
+        }
+      }
+    },
+    "mathematiques": {
+      "nom": "Mathématiques",
+      "nombres_et_calculs": {
+        "nom": "Nombres et calculs",
+        "sous_notions": {
+          "nombres_jusqua_1000": {
+            "nom": "Nombres jusqu'à 1 000",
+            "competences": [
+              "Lire, écrire, comparer et ranger des nombres jusqu'à 1 000.",
+              "Décomposer (centaines, dizaines, unités)."
+            ]
+          },
+          "operations": {
+            "nom": "Opérations",
+            "competences": [
+              "Additions et soustractions posées (avec retenue).",
+              "Tables de multiplication (jusqu’à ×10) ; premières multiplications posées.",
+              "Problèmes additifs/soustractifs et multiplicatifs simples."
+            ]
+          }
+        }
+      },
+      "grandeurs_et_mesures": {
+        "nom": "Grandeurs et mesures",
+        "sous_notions": {
+          "mesures": {
+            "nom": "Mesurer et estimer",
+            "competences": [
+              "Longueurs (m, cm), masses (kg, g), contenances (L).",
+              "Durées ; lire l’heure (quarts/5 minutes)."
+            ]
+          }
+        }
+      },
+      "espace_et_geometrie": {
+        "nom": "Espace et géométrie",
+        "sous_notions": {
+          "figures": {
+            "nom": "Figures et solides",
+            "competences": [
+              "Propriétés simples du carré, rectangle, triangle ; cercle.",
+              "Solides usuels (cube, pavé)."
+            ]
+          }
+        }
+      }
+    },
+    "questionner_le_monde": {
+      "nom": "Questionner le monde",
+      "sciences": {
+        "nom": "Sciences",
+        "sous_notions": {
+          "vivant": {
+            "nom": "Le vivant",
+            "competences": [
+              "Fonctions vitales simples et hygiène de vie."
+            ]
+          },
+          "matiere": {
+            "nom": "Matière et changements",
+            "competences": [
+              "Mélanges/solutions et changements d’état simples."
+            ]
+          }
+        }
+      },
+      "espace_temps": {
+        "nom": "Espace et temps",
+        "sous_notions": {
+          "repere": {
+            "nom": "Se repérer",
+            "competences": [
+              "Cartes et frises simples ; repères temporels de base."
+            ]
+          }
+        }
+      }
+    },
+    "langues_vivantes": {
+      "nom": "Langues vivantes (Anglais)",
+      "anglais": {
+        "nom": "Anglais",
+        "sous_notions": {
+          "comprehension": {
+            "nom": "Compréhension orale",
+            "competences": [
+              "Comprendre de courts dialogues et consignes."
+            ]
+          },
+          "production": {
+            "nom": "Production orale et écrite",
+            "competences": [
+              "Produire des phrases simples ; écrire des mots/phrases courtes."
+            ]
+          }
+        }
+      },
+      "arabe": {
+        "nom": "Arabe",
+        "sous_notions": {
+          "comprehension": {
+            "nom": "Compréhension",
+            "competences": [
+              "Comprendre des consignes et mini‑dialogues du quotidien."
+            ]
+          },
+          "production": {
+            "nom": "Production",
+            "competences": [
+              "Produire des énoncés très courts pour décrire soi, la classe et la famille."
+            ]
+          },
+          "lecture_ecriture": {
+            "nom": "Lecture‑écriture",
+            "competences": [
+              "Lire et écrire des mots fréquents et des phrases très courtes ; repérer les ligatures de base."
+            ]
+          },
+          "culture": {
+            "nom": "Culture et civilisation",
+            "competences": [
+              "Découvrir des formules de politesse et quelques éléments culturels (salutations, prénoms)."
+            ]
+          }
+        }
+      }
+    },
+    "numerique": {
+      "nom": "Éducation au numérique",
+      "competences_numeriques": {
+        "nom": "Usages et citoyenneté",
+        "sous_notions": {
+          "usages": {
+            "nom": "Usages du numérique",
+            "competences": [
+              "Utiliser traitement de texte et recherche simple."
+            ]
+          },
+          "citoyen": {
+            "nom": "Citoyenneté numérique",
+            "competences": [
+              "Respecter les droits d’auteur et règles de sécurité."
+            ]
+          },
+          "coder": {
+            "nom": "Algorithmes débutants",
+            "competences": [
+              "Séquences, boucles et événements (Scratch)."
             ]
           }
         }
@@ -562,7 +693,7 @@
           "maitriser_notions": {
             "nom": "Maîtriser les notions de base",
             "competences": [
-              "Maîtriser les notions de base : classes et fonctions simples, accords, conjugaisons."
+              "Classes et fonctions simples, accords, conjugaisons usuelles."
             ]
           }
         }
@@ -584,16 +715,16 @@
           "developper_lexique": {
             "nom": "Développer le lexique",
             "competences": [
-              "Développer le lexique (préfixes/suffixes, familles de mots, champs lexicaux)."
+              "Préfixes/suffixes, familles de mots, champs lexicaux."
             ]
           }
         }
       }
     },
-    "maths": {
+    "mathematiques": {
       "nom": "Mathématiques",
       "nombres_et_calculs": {
-        "nom": "Nombres et Calculs",
+        "nom": "Nombres et calculs",
         "sous_notions": {
           "nombres_decimaux_fractions": {
             "nom": "Nombres entiers, décimaux et fractions",
@@ -616,23 +747,23 @@
         }
       },
       "espace_et_geometrie": {
-        "nom": "Espace et Géométrie",
+        "nom": "Espace et géométrie",
         "sous_notions": {
           "constructions": {
             "nom": "Constructions géométriques",
             "competences": [
-              "Constructions avec instruments ; propriétés simples (parallélisme, perpendicularité, symétrie)."
+              "Constructions avec instruments ; parallélisme, perpendicularité, symétrie."
             ]
           }
         }
       },
       "grandeurs_et_mesures": {
-        "nom": "Grandeurs et Mesures",
+        "nom": "Grandeurs et mesures",
         "sous_notions": {
           "mesurer_convertir": {
             "nom": "Mesurer et convertir",
             "competences": [
-              "Mesurer et convertir (longueurs, masses, contenances, aire, angles) ; périmètres et aires."
+              "Longueurs, masses, contenances, aire, angles ; périmètres et aires."
             ]
           }
         }
@@ -646,7 +777,7 @@
           "fonctions_nutrition": {
             "nom": "Fonctions de nutrition",
             "competences": [
-              "Fonctions de nutrition, reproduction, rôle des organes ; éducation à la santé."
+              "Nutrition, reproduction, rôle des organes ; éducation à la santé."
             ]
           }
         }
@@ -657,18 +788,18 @@
           "melanges": {
             "nom": "Mélanges et solutions",
             "competences": [
-              "Mélanges/solutions, changements d’état, masse/volume ; énergie et sources."
+              "Mélanges/solutions, changements d’état, masse/volume ; sources d’énergie."
             ]
           }
         }
       },
       "objets_techniques": {
-        "nom": "Les objets techniques",
+        "nom": "Objets techniques",
         "sous_notions": {
           "conception": {
             "nom": "Conception d'objets",
             "competences": [
-              "Objets techniques : besoin, contraintes, prototypes ; démarche d’ingénieur."
+              "Du besoin au prototype ; démarche d’ingénieur."
             ]
           }
         }
@@ -679,7 +810,7 @@
           "phenomenes_naturels": {
             "nom": "Phénomènes naturels",
             "competences": [
-              "Planète Terre : reliefs, risques, ressources ; mouvements Terre/Soleil."
+              "Reliefs, risques, ressources ; mouvements Terre/Soleil."
             ]
           }
         }
@@ -688,12 +819,12 @@
     "histoire": {
       "nom": "Histoire",
       "periodes": {
-        "nom": "Les grandes périodes historiques",
+        "nom": "Les grandes périodes",
         "sous_notions": {
           "reperes": {
             "nom": "Repères chronologiques",
             "competences": [
-              "Repères historiques de la préhistoire à l’époque contemporaine."
+              "Repères de la préhistoire à l’époque contemporaine."
             ]
           }
         }
@@ -702,12 +833,12 @@
     "geographie": {
       "nom": "Géographie",
       "espaces": {
-        "nom": "Les espaces géographiques",
+        "nom": "Espaces géographiques",
         "sous_notions": {
           "habiter": {
             "nom": "Habiter le monde",
             "competences": [
-              "Habiter la France, l’Europe et le monde : paysages, populations, ressources."
+              "France, Europe et monde : paysages, populations, ressources."
             ]
           }
         }
@@ -719,15 +850,44 @@
         "nom": "Anglais",
         "sous_notions": {
           "comprehension": {
-            "nom": "Compréhension orale et écrite",
+            "nom": "Compréhension",
             "competences": [
               "Comprendre des phrases et courts dialogues."
             ]
           },
           "production": {
-            "nom": "Production orale et écrite",
+            "nom": "Production",
             "competences": [
               "Produire des phrases simples à l’oral et à l’écrit."
+            ]
+          }
+        }
+      },
+      "arabe": {
+        "nom": "Arabe",
+        "sous_notions": {
+          "comprehension": {
+            "nom": "Compréhension orale et écrite",
+            "competences": [
+              "Comprendre des dialogues courts et de brefs textes informatifs simples."
+            ]
+          },
+          "production": {
+            "nom": "Production orale et écrite",
+            "competences": [
+              "Présenter des informations simples (goûts, activités, lieux) avec des phrases liées."
+            ]
+          },
+          "lecture_ecriture": {
+            "nom": "Lecture‑écriture",
+            "competences": [
+              "Lire des phrases simples ; copier/écrire des phrases courtes en script arabe (Naskh imprimé)."
+            ]
+          },
+          "grammaire_debut": {
+            "nom": "Notions grammaticales de base",
+            "competences": [
+              "Pronoms personnels, genre, pluriel simple ; ordre des mots SVO en contexte apprenant."
             ]
           }
         }
@@ -735,25 +895,19 @@
     },
     "numerique": {
       "nom": "Éducation au numérique",
-      "numerique": {
-        "nom": "Numérique",
+      "competences_numeriques": {
+        "nom": "Usages et citoyenneté",
         "sous_notions": {
           "usages": {
             "nom": "Usages du numérique",
             "competences": [
-              "Utiliser de façon responsable les outils numériques (tablette/ordinateur)."
-            ]
-          },
-          "citoyen": {
-            "nom": "Citoyenneté numérique",
-            "competences": [
-              "Connaître les règles d’hygiène numérique et de citoyenneté en ligne."
+              "Outils collaboratifs, recherche raisonnée, respect des données."
             ]
           },
           "coder": {
-            "nom": "Initiation au code",
+            "nom": "Algorithmique",
             "competences": [
-              "S’initier à la pensée informatique (débranché puis Scratch)."
+              "Variables, événements et débogage (Scratch)."
             ]
           }
         }
@@ -791,7 +945,7 @@
           "maitriser_notions": {
             "nom": "Maîtriser les notions de base",
             "competences": [
-              "Maîtriser les notions de base : classes et fonctions simples, accords, conjugaisons."
+              "Classes et fonctions simples, accords, conjugaisons (temps usuels)."
             ]
           }
         }
@@ -813,27 +967,27 @@
           "developper_lexique": {
             "nom": "Développer le lexique",
             "competences": [
-              "Développer le lexique (préfixes/suffixes, familles de mots, champs lexicaux)."
+              "Préfixes/suffixes, familles de mots, champs lexicaux."
             ]
           }
         }
       }
     },
-    "maths": {
+    "mathematiques": {
       "nom": "Mathématiques",
       "nombres_et_calculs": {
-        "nom": "Nombres et Calculs",
+        "nom": "Nombres et calculs",
         "sous_notions": {
           "nombres_decimaux_fractions": {
             "nom": "Nombres entiers, décimaux et fractions",
             "competences": [
-              "Utiliser les nombres entiers et décimaux ; fractions simples."
+              "Calculs avec entiers et décimaux ; fractions simples."
             ]
           },
           "proportionnalite": {
             "nom": "Proportionnalité",
             "competences": [
-              "Reconnaître et résoudre des situations de proportionnalité (tableaux, échelles, pourcentages simples en CM2)."
+              "Reconnaître et résoudre des situations de proportionnalité (tableaux, échelles, pourcentages simples)."
             ]
           },
           "calcul_mental": {
@@ -845,23 +999,23 @@
         }
       },
       "espace_et_geometrie": {
-        "nom": "Espace et Géométrie",
+        "nom": "Espace et géométrie",
         "sous_notions": {
           "constructions": {
             "nom": "Constructions géométriques",
             "competences": [
-              "Constructions avec instruments ; propriétés simples (parallélisme, perpendicularité, symétrie)."
+              "Constructions avec instruments ; parallélisme, perpendicularité, symétrie."
             ]
           }
         }
       },
       "grandeurs_et_mesures": {
-        "nom": "Grandeurs et Mesures",
+        "nom": "Grandeurs et mesures",
         "sous_notions": {
           "mesurer_convertir": {
             "nom": "Mesurer et convertir",
             "competences": [
-              "Mesurer et convertir (longueurs, masses, contenances, aire, angles) ; périmètres et aires."
+              "Longueurs, masses, contenances, aire, angles ; périmètres et aires."
             ]
           }
         }
@@ -875,7 +1029,7 @@
           "fonctions_nutrition": {
             "nom": "Fonctions de nutrition",
             "competences": [
-              "Fonctions de nutrition, reproduction, rôle des organes ; éducation à la santé."
+              "Nutrition, reproduction, rôle des organes ; éducation à la santé."
             ]
           }
         }
@@ -886,18 +1040,18 @@
           "melanges": {
             "nom": "Mélanges et solutions",
             "competences": [
-              "Mélanges/solutions, changements d’état, masse/volume ; énergie et sources."
+              "Mélanges/solutions, changements d’état, masse/volume ; sources d’énergie."
             ]
           }
         }
       },
       "objets_techniques": {
-        "nom": "Les objets techniques",
+        "nom": "Objets techniques",
         "sous_notions": {
           "conception": {
             "nom": "Conception d'objets",
             "competences": [
-              "Objets techniques : besoin, contraintes, prototypes ; démarche d’ingénieur."
+              "Du besoin au prototype ; démarche d’ingénieur."
             ]
           }
         }
@@ -908,7 +1062,7 @@
           "phenomenes_naturels": {
             "nom": "Phénomènes naturels",
             "competences": [
-              "Planète Terre : reliefs, risques, ressources ; mouvements Terre/Soleil."
+              "Reliefs, risques, ressources ; mouvements Terre/Soleil."
             ]
           }
         }
@@ -917,12 +1071,12 @@
     "histoire": {
       "nom": "Histoire",
       "periodes": {
-        "nom": "Les grandes périodes historiques",
+        "nom": "Les grandes périodes",
         "sous_notions": {
           "reperes": {
             "nom": "Repères chronologiques",
             "competences": [
-              "Repères historiques de la préhistoire à l’époque contemporaine."
+              "Repères de la préhistoire à l’époque contemporaine."
             ]
           }
         }
@@ -931,12 +1085,12 @@
     "geographie": {
       "nom": "Géographie",
       "espaces": {
-        "nom": "Les espaces géographiques",
+        "nom": "Espaces géographiques",
         "sous_notions": {
           "habiter": {
             "nom": "Habiter le monde",
             "competences": [
-              "Habiter la France, l’Europe et le monde : paysages, populations, ressources."
+              "France, Europe et monde : paysages, populations, ressources."
             ]
           }
         }
@@ -948,15 +1102,44 @@
         "nom": "Anglais",
         "sous_notions": {
           "comprehension": {
-            "nom": "Compréhension orale et écrite",
+            "nom": "Compréhension",
             "competences": [
               "Comprendre des phrases et courts dialogues."
             ]
           },
           "production": {
-            "nom": "Production orale et écrite",
+            "nom": "Production",
             "competences": [
               "Produire des phrases simples à l’oral et à l’écrit."
+            ]
+          }
+        }
+      },
+      "arabe": {
+        "nom": "Arabe",
+        "sous_notions": {
+          "comprehension": {
+            "nom": "Compréhension",
+            "competences": [
+              "Comprendre des messages courts (annonces, consignes, cartes) et des dialogues guidés."
+            ]
+          },
+          "production": {
+            "nom": "Production",
+            "competences": [
+              "Produire des phrases courtes reliées (présentations, routines, descriptions simples)."
+            ]
+          },
+          "lecture_ecriture": {
+            "nom": "Lecture‑écriture",
+            "competences": [
+              "Lire des courts paragraphes ; écrire 4‑6 phrases cohérentes (présent)."
+            ]
+          },
+          "lexique": {
+            "nom": "Lexique thématique",
+            "competences": [
+              "Vie quotidienne, environnement proche, métiers/civisme simples."
             ]
           }
         }
@@ -964,25 +1147,19 @@
     },
     "numerique": {
       "nom": "Éducation au numérique",
-      "numerique": {
-        "nom": "Numérique",
+      "competences_numeriques": {
+        "nom": "Usages et citoyenneté",
         "sous_notions": {
           "usages": {
             "nom": "Usages du numérique",
             "competences": [
-              "Utiliser de façon responsable les outils numériques (tablette/ordinateur)."
-            ]
-          },
-          "citoyen": {
-            "nom": "Citoyenneté numérique",
-            "competences": [
-              "Connaître les règles d’hygiène numérique et de citoyenneté en ligne."
+              "Outils collaboratifs, recherche raisonnée, respect des données."
             ]
           },
           "coder": {
-            "nom": "Initiation au code",
+            "nom": "Algorithmique",
             "competences": [
-              "S’initier à la pensée informatique (débranché puis Scratch)."
+              "Algorithmes plus complexes, variables et tests (Scratch)."
             ]
           }
         }
@@ -990,5 +1167,3 @@
     }
   }
 }
-
-
