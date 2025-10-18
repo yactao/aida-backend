@@ -186,6 +186,164 @@
       }
     }
   },
+  "CE1": {
+    "francais": {
+      "nom": "Français",
+      "lecture_et_comprehension": {
+        "nom": "Lecture et compréhension de l'écrit",
+        "sous_notions": {
+          "identification_mots": {
+            "nom": "Identifier des mots de manière aisée",
+            "competences": [
+              "Lire et comprendre des mots familiers et fréquents.",
+              "Déchiffrer des mots nouveaux en s'appuyant sur la combinatoire.",
+              "Reconnaître les graphèmes complexes (ou, on, an, eu, ph, etc.).",
+              "Lire à voix haute avec fluidité des textes courts."
+            ]
+          },
+          "comprehension_phrases": {
+            "nom": "Comprendre des textes adaptés au niveau",
+            "competences": [
+              "Lire et comprendre des phrases simples et complexes.",
+              "Comprendre un texte court en le lisant silencieusement.",
+              "Répondre à des questions de compréhension (qui, quoi, où, quand, comment, pourquoi).",
+              "Identifier les personnages, les événements principaux et la chronologie d'un récit.",
+              "Repérer les informations explicites dans un texte."
+            ]
+          }
+        }
+      },
+      "etude_de_la_langue": {
+        "nom": "Étude de la langue",
+        "sous_notions": {
+          "grammaire": {
+            "nom": "Grammaire",
+            "competences": [
+              "Identifier la phrase, le point et la majuscule.",
+              "Distinguer le nom et le verbe dans une phrase.",
+              "Identifier le sujet du verbe.",
+              "Reconnaître le genre (masculin/féminin) et le nombre (singulier/pluriel) des noms.",
+              "Comprendre l'accord simple entre le sujet et le verbe.",
+              "Identifier les pronoms personnels sujets (je, tu, il, elle, on, nous, vous, ils, elles)."
+            ]
+          },
+          "orthographe": {
+            "nom": "Orthographe",
+            "competences": [
+              "Écrire sans erreur des mots mémorisés et fréquents.",
+              "Appliquer la règle de l'accord en nombre dans le groupe nominal (déterminant, nom, adjectif).",
+              "Utiliser le point et la majuscule à bon escient.",
+              "Orthographier correctement les homophones grammaticaux courants (a/à, on/ont, son/sont, et/est).",
+              "Commencer à écrire correctement les terminaisons verbales en -e, -es, -ent."
+            ]
+          },
+          "vocabulaire": {
+            "nom": "Vocabulaire",
+            "competences": [
+              "Utiliser des mots précis pour décrire des objets, des personnes ou des actions.",
+              "Trouver un synonyme ou un contraire pour des mots courants.",
+              "Classer des mots par catégorie sémantique (ex: les fruits, les animaux).",
+              "Comprendre la formation des mots (familles de mots)."
+            ]
+          }
+        }
+      }
+    },
+    "mathematiques": {
+      "nom": "Mathématiques",
+      "nombres_et_calculs": {
+        "nom": "Nombres et Calculs",
+        "sous_notions": {
+          "numeration": {
+            "nom": "Numération (Nombres jusqu'à 100)",
+            "competences": [
+              "Dénombrer, constituer et comparer des collections jusqu'à 100.",
+              "Lire et écrire les nombres en chiffres et en lettres jusqu'à 100.",
+              "Comparer, ranger, encadrer ces nombres.",
+              "Comprendre la valeur des chiffres en fonction de leur position (dizaines, unités)."
+            ]
+          },
+          "calcul": {
+            "nom": "Calcul",
+            "competences": [
+              "Calculer mentalement des additions, des soustractions.",
+              "Mémoriser les tables d'addition.",
+              "Commencer à apprendre les tables de multiplication (par 2, 5, 10).",
+              "Poser et calculer une addition en colonne (avec et sans retenue).",
+              "Poser et calculer une soustraction en colonne (sans retenue).",
+              "Résoudre des problèmes relevant de l'addition, de la soustraction et de la multiplication."
+            ]
+          }
+        }
+      },
+      "grandeurs_et_mesures": {
+        "nom": "Grandeurs et Mesures",
+        "sous_notions": {
+          "longueur_masse_contenance": {
+            "nom": "Longueur, masse, contenance",
+            "competences": [
+              "Comparer des objets selon leur longueur ou leur masse.",
+              "Mesurer des longueurs avec la règle graduée.",
+              "Connaître et utiliser les unités : mètre (m), centimètre (cm).",
+              "Connaître les unités : kilogramme (kg), gramme (g).",
+              "Connaître l'unité : litre (L)."
+            ]
+          },
+          "monnaie_et_temps": {
+            "nom": "Monnaie et Temps",
+            "competences": [
+              "Utiliser les pièces et billets en euros pour résoudre des problèmes de la vie courante.",
+              "Lire l'heure (heures entières, demi-heures, quarts d'heure).",
+              "Se repérer dans le temps : lire un calendrier, connaître les jours de la semaine et les mois de l'année."
+            ]
+          }
+        }
+      },
+      "espace_et_geometrie": {
+        "nom": "Espace et Géométrie",
+        "sous_notions": {
+          "reperage": {
+            "nom": "Se repérer et se déplacer",
+            "competences": [
+              "Utiliser un vocabulaire spatial précis (gauche/droite, dessus/dessous, avant/arrière).",
+              "Coder et décoder un déplacement simple sur un quadrillage."
+            ]
+          },
+          "solides_et_figures": {
+            "nom": "Reconnaître des solides et figures",
+            "competences": [
+              "Reconnaître, nommer et décrire le carré, le rectangle, le triangle et le cercle.",
+              "Utiliser la règle pour tracer des segments et des figures.",
+              "Reconnaître et nommer le cube et le pavé droit."
+            ]
+          }
+        }
+      }
+    },
+    "questionner_le_monde": {
+      "nom": "Questionner le monde",
+      "le_vivant_la_matiere_les_objets": {
+        "nom": "Le vivant, la matière, les objets",
+        "sous_notions": {
+          "vivant": {
+            "nom": "Le monde du vivant",
+            "competences": [
+              "Connaître les caractéristiques du vivant (naître, se nourrir, grandir, mourir).",
+              "Observer et décrire les étapes du développement d'un animal ou d'un végétal."
+            ]
+          },
+          "matiere": {
+            "nom": "La matière",
+            "competences": [
+              "Reconnaître les états de l'eau (solide, liquide).",
+              "Mettre en œuvre un protocole simple pour observer un phénomène."
+            ]
+          }
+        }
+      }
+    }
+  }
+},
   "CE2": {
     "francais": {
       "nom": "Français",
