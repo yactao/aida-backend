@@ -324,6 +324,22 @@ app.post('/api/student/submit-quiz', async (req, res) => {
 // IA & GENERATION
 app.post('/api/ai/generate-content', async (req, res) => {
     const { competences, contentType, exerciseCount } = req.body;
+    let specificInstructions = '';
+    switch(contentType) {
+        case 'quiz':
+            specificInstructions = `Génère exactement ${exerciseCount} questions. Le JSON doit avoir la structure : { "title": "...", "type": "quiz", "questions": [ { "question_text": "...", "options": ["...", "...", "...", "..."], "correct_answer_index": 0 } ] }`;
+            break;
+        case 'exercices':
+        case 'dm':
+            specificInstructions = `Génère exactement ${exerciseCount} exercices. Le JSON doit avoir la structure : { "title": "...", "type": "${contentType}", "content": [ { "enonce": "..." } ] }`;
+            break;
+        case 'revision':
+            specificInstructions = `Génère une fiche de révision complète. Le JSON doit avoir la structure : { "title": "...", "type": "revision", "content": "..." }`;
+            break;
+        default:
+            return res.status(400).json({ error: "Type de contenu non supporté" });
+    }
+
     try {
         const response = await axios.post('https://api.deepseek.com/chat/completions', {
             model: "deepseek-chat",
@@ -332,7 +348,7 @@ app.post('/api/ai/generate-content', async (req, res) => {
                 content: "Tu es un assistant pédagogique expert dans la création de contenus éducatifs en français. Ta réponse doit être uniquement un objet JSON valide, sans aucun texte avant ou après."
             }, {
                 role: "user",
-                content: `Crée un contenu de type '${contentType}' pour un élève, basé sur la compétence suivante : '${competences}'. Le contenu doit inclure un titre. Si le type est 'quiz', 'exercices' ou 'dm', génère exactement ${exerciseCount} questions ou énoncés. Si c'est un quiz, chaque question doit avoir 4 options de réponse et l'index de la bonne réponse. Si c'est 'exercices' ou 'dm', chaque exercice doit avoir un énoncé. Si c'est 'revision', génère un texte de révision. Le JSON doit avoir la structure suivante : { "title": "...", "type": "...", "questions": [...] } ou { "title": "...", "type": "...", "content": [...] } ou { "title": "...", "type": "...", "content": "..." }.`
+                content: `Crée un contenu de type '${contentType}' pour un élève, basé sur la compétence suivante : '${competences}'. ${specificInstructions}`
             }],
             response_format: { type: "json_object" }
         }, { headers: { 'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}` } });
@@ -345,9 +361,26 @@ app.post('/api/ai/generate-content', async (req, res) => {
     }
 });
 
+
 app.post('/api/ai/generate-from-upload', upload.single('document'), async (req, res) => {
     if (!formRecognizerClient) { return res.status(503).json({ error: "Le service d'analyse de documents n'est pas configuré sur le serveur. Vérifiez les logs." }); }
     if (!req.file) return res.status(400).json({ error: "Aucun fichier n'a été chargé." });
+    
+    const { contentType, exerciseCount } = req.body;
+    let specificInstructions = '';
+    switch(contentType) {
+        case 'quiz':
+            specificInstructions = `Génère exactement ${exerciseCount} questions. La structure JSON DOIT être : { "title": "...", "type": "quiz", "questions": [ { "question_text": "...", "options": ["...", "...", "...", "..."], "correct_answer_index": 0 } ] }`;
+            break;
+        case 'exercices':
+        case 'dm':
+            specificInstructions = `Génère exactement ${exerciseCount} exercices. La structure JSON DOIT être : { "title": "...", "type": "${contentType}", "content": [ { "enonce": "..." } ] }`;
+            break;
+        case 'revision':
+            specificInstructions = `Génère une fiche de révision. La structure JSON DOIT être : { "title": "...", "type": "revision", "content": "..." }`;
+            break;
+    }
+
     try {
         const poller = await formRecognizerClient.beginAnalyzeDocument("prebuilt-layout", req.file.buffer);
         const { content } = await poller.pollUntilDone();
@@ -355,10 +388,10 @@ app.post('/api/ai/generate-from-upload', upload.single('document'), async (req, 
             model: "deepseek-chat",
             messages: [{
                 role: "system",
-                content: "Tu es un assistant pédagogique expert. Ta réponse doit être uniquement un objet JSON valide."
+                content: "Tu es un assistant pédagogique expert. Ta réponse doit être uniquement un objet JSON valide, sans texte additionnel."
             }, {
                 role: "user",
-                content: `À partir du texte suivant : "${content}". Crée un contenu de type '${req.body.contentType}' avec ${req.body.exerciseCount} questions/exercices. Le JSON doit suivre la même structure que pour la génération depuis une compétence (un tableau 'questions' pour un quiz, ou un tableau 'content' avec des objets {'enonce': '...'} pour des exercices).`
+                content: `À partir du texte suivant: "${content}". Crée un contenu de type '${contentType}'. ${specificInstructions}`
             }],
             response_format: { type: "json_object" }
         }, { headers: { 'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}` } });
