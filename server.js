@@ -1,5 +1,4 @@
 // --- 1. Importations et Configuration ---
-
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
@@ -324,40 +323,51 @@ app.post('/api/student/submit-quiz', async (req, res) => {
 
 // IA & GENERATION
 app.post('/api/ai/generate-content', async (req, res) => {
-    const { competences, contentType, exerciseCount } = req.body;
+    const { competences, contentType, exerciseCount, language } = req.body;
+
+    const langMap = { 'Anglais': 'English', 'Arabe': 'Arabic' };
+    const targetLanguage = langMap[language];
+
+    let systemPrompt = "Tu es un assistant pédagogique expert dans la création de contenus éducatifs en français. Ta réponse doit être uniquement un objet JSON valide, sans aucun texte avant ou après.";
+    let userPromptContent = `Crée un contenu de type '${contentType}' pour un élève, basé sur la compétence suivante : '${competences}'.`;
+    
+    if (targetLanguage) {
+        systemPrompt = `You are an expert pedagogical assistant for creating language learning content. Your entire response must be a valid JSON object only, with no text before or after. All text content within the JSON MUST be in ${targetLanguage}.`;
+        userPromptContent = `Create a '${contentType}' content for a student, based on the following skill: '${competences}'.`;
+    }
+
     let specificInstructions = '';
     switch(contentType) {
         case 'quiz':
-            specificInstructions = `Génère exactement ${exerciseCount} questions. Le JSON doit avoir la structure : { "title": "...", "type": "quiz", "questions": [ { "question_text": "...", "options": ["...", "...", "...", "..."], "correct_answer_index": 0 } ] }`;
+            specificInstructions = `Generate exactly ${exerciseCount} questions. The JSON structure MUST be: { "title": "...", "type": "quiz", "questions": [ { "question_text": "...", "options": ["...", "...", "...", "..."], "correct_answer_index": 0 } ] }`;
             break;
         case 'exercices':
         case 'dm':
-            specificInstructions = `Génère exactement ${exerciseCount} exercices. Le JSON doit avoir la structure : { "title": "...", "type": "${contentType}", "content": [ { "enonce": "..." } ] }`;
+            specificInstructions = `Generate exactly ${exerciseCount} exercises. The JSON structure MUST be: { "title": "...", "type": "${contentType}", "content": [ { "enonce": "..." } ] }`;
             break;
         case 'revision':
-            specificInstructions = `Génère une fiche de révision complète. Le JSON doit avoir la structure : { "title": "...", "type": "revision", "content": "..." }`;
+            specificInstructions = `Generate a complete review sheet. The JSON structure MUST be: { "title": "...", "type": "revision", "content": "..." }`;
             break;
         default:
             return res.status(400).json({ error: "Type de contenu non supporté" });
     }
 
+    userPromptContent += ` ${specificInstructions}`;
+
     try {
         const response = await axios.post('https://api.deepseek.com/chat/completions', {
             model: "deepseek-chat",
-            messages: [{
-                role: "system",
-                content: "Tu es un assistant pédagogique expert dans la création de contenus éducatifs en français. Ta réponse doit être uniquement un objet JSON valide, sans aucun texte avant ou après."
-            }, {
-                role: "user",
-                content: `Crée un contenu de type '${contentType}' pour un élève, basé sur la compétence suivante : '${competences}'. ${specificInstructions}`
-            }],
+            messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: userPromptContent }
+            ],
             response_format: { type: "json_object" }
         }, { headers: { 'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}` } });
 
         const structured_content = response.data.choices[0].message.content;
         res.json({ structured_content: JSON.parse(structured_content) });
     } catch (error) {
-        console.error("Erreur Deepseek:", error.response?.data);
+        console.error("Erreur Deepseek:", error.response?.data || error.message);
         res.status(500).json({ error: "Erreur lors de la génération." });
     }
 });
