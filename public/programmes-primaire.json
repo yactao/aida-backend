@@ -192,54 +192,41 @@
         }
       }
     },
-    "langues_vivantes": {
-      "nom": "Langues vivantes",
-      "anglais": {
-        "nom": "Anglais",
-        "sous_notions": {
-          "oral": {
-            "nom": "Compréhension et expression orales",
-            "competences": [
-              "Comprendre et utiliser des salutations et consignes simples.",
-              "Se présenter (nom, âge) et répondre à des questions très courtes."
-            ]
-          },
-          "lexique": {
-            "nom": "Lexique",
-            "competences": [
-              "Classe, couleurs, chiffres 0-10, famille proche."
-            ]
-          },
-          "lecture_ecriture": {
-            "nom": "Lecture-écriture (découverte)",
-            "competences": [
-              "Reconnaître quelques lettres et sons ; sens d'écriture adapté à la langue."
-            ]
-          }
+    "anglais": {
+      "nom": "Anglais",
+      "sous_notions": {
+        "comprehension": {
+          "nom": "Compréhension",
+          "competences": [
+            "Comprendre des salutations et consignes simples.",
+            "Reconnaître des mots fréquents liés à la classe, aux couleurs et aux nombres (0-10)."
+          ]
+        },
+        "production": {
+          "nom": "Production",
+          "competences": [
+            "Se présenter très simplement (nom, âge).",
+            "Dire et répéter des mots/énoncés très courts liés à la classe et aux couleurs."
+          ]
         }
-      },
-      "arabe": {
-        "nom": "Arabe",
-        "sous_notions": {
-          "oral": {
-            "nom": "Compréhension et expression orales",
-            "competences": [
-              "Comprendre et utiliser des salutations et consignes simples.",
-              "Se présenter (nom, âge) et répondre à des questions très courtes."
-            ]
-          },
-          "lexique": {
-            "nom": "Lexique",
-            "competences": [
-              "Classe, couleurs, chiffres 0-10, famille proche."
-            ]
-          },
-          "lecture_ecriture": {
-            "nom": "Lecture-écriture (découverte)",
-            "competences": [
-              "Reconnaître quelques lettres et sons ; sens d'écriture adapté à la langue."
-            ]
-          }
+      }
+    },
+    "arabe": {
+      "nom": "Arabe",
+      "sous_notions": {
+        "comprehension": {
+          "nom": "Compréhension",
+          "competences": [
+            "Comprendre des salutations et consignes simples en arabe.",
+            "Identifier des mots très fréquents (classe, couleurs, nombres 0‑10)."
+          ]
+        },
+        "production": {
+          "nom": "Production",
+          "competences": [
+            "Se présenter très simplement (nom, âge) et saluer.",
+            "Répéter/produire des mots très courts ; découvrir l’écriture de droite à gauche."
+          ]
         }
       }
     }
@@ -419,64 +406,38 @@
         }
       }
     },
-    "langues_vivantes": {
-      "nom": "Langues vivantes",
-      "anglais": {
-        "nom": "Anglais",
-        "sous_notions": {
-          "comprehension_orale": {
-            "nom": "Compréhension orale",
-            "competences": [
-              "Comprendre des expressions et instructions courantes en contexte scolaire."
-            ]
-          },
-          "production_orale": {
-            "nom": "Production orale",
-            "competences": [
-              "Dire des phrases très courtes pour se présenter, nommer des objets et des personnes."
-            ]
-          },
-          "lexique": {
-            "nom": "Lexique",
-            "competences": [
-              "École, famille, animaux, nombres 0-20, jours de la semaine."
-            ]
-          },
-          "lecture_ecriture": {
-            "nom": "Lecture-écriture (initiation)",
-            "competences": [
-              "Reconnaître et copier des mots et expressions courtes (script adapté à la langue)."
-            ]
-          }
+    "anglais": {
+      "nom": "Anglais",
+      "sous_notions": {
+        "comprehension": {
+          "nom": "Compréhension",
+          "competences": [
+            "Comprendre des consignes et phrases simples liées à l’école et à la vie quotidienne."
+          ]
+        },
+        "production": {
+          "nom": "Production",
+          "competences": [
+            "Produire des phrases très courtes pour se présenter, nommer des objets, exprimer goûts simples."
+          ]
         }
-      },
-      "arabe": {
-        "nom": "Arabe",
-        "sous_notions": {
-          "comprehension_orale": {
-            "nom": "Compréhension orale",
-            "competences": [
-              "Comprendre des expressions et instructions courantes en contexte scolaire."
-            ]
-          },
-          "production_orale": {
-            "nom": "Production orale",
-            "competences": [
-              "Dire des phrases très courtes pour se présenter, nommer des objets et des personnes."
-            ]
-          },
-          "lexique": {
-            "nom": "Lexique",
-            "competences": [
-              "École, famille, animaux, nombres 0-20, jours de la semaine."
-            ]
-          },
-          "lecture_ecriture": {
-            "nom": "Lecture-écriture (initiation)",
-            "competences": [
-              "Reconnaître et copier des mots et expressions courtes (script adapté à la langue)."
-            ]
-          }
+      }
+    },
+    "arabe": {
+      "nom": "Arabe",
+      "sous_notions": {
+        "comprehension": {
+          "nom": "Compréhension",
+          "competences": [
+            "Comprendre des consignes courantes en classe et des expressions fréquentes."
+          ]
+        },
+        "production": {
+          "nom": "Production",
+          "competences": [
+            "Produire des énoncés très courts (se présenter, objets de la classe).",
+            "Copier/écrire des mots simples (script arabe imprimé)."
+          ]
         }
       }
     }
@@ -631,64 +592,38 @@
         }
       }
     },
-    "langues_vivantes": {
-      "nom": "Langues vivantes",
-      "anglais": {
-        "nom": "Anglais",
-        "sous_notions": {
-          "comprehension": {
-            "nom": "Compréhension",
-            "competences": [
-              "Comprendre des consignes et mini-dialogues du quotidien."
-            ]
-          },
-          "production": {
-            "nom": "Production",
-            "competences": [
-              "Produire des énoncés très courts pour décrire soi, la classe et la famille."
-            ]
-          },
-          "lecture_ecriture": {
-            "nom": "Lecture-écriture",
-            "competences": [
-              "Lire et écrire des mots fréquents et des phrases très courtes."
-            ]
-          },
-          "culture": {
-            "nom": "Culture et civilisation",
-            "competences": [
-              "Découvrir des formules de politesse et quelques éléments culturels."
-            ]
-          }
+    "anglais": {
+      "nom": "Anglais",
+      "sous_notions": {
+        "comprehension": {
+          "nom": "Compréhension",
+          "competences": [
+            "Comprendre de courts dialogues et consignes ; repérer des informations explicites."
+          ]
+        },
+        "production": {
+          "nom": "Production",
+          "competences": [
+            "Produire des phrases très courtes pour décrire soi, la famille et la classe."
+          ]
         }
-      },
-      "arabe": {
-        "nom": "Arabe",
-        "sous_notions": {
-          "comprehension": {
-            "nom": "Compréhension",
-            "competences": [
-              "Comprendre des consignes et mini-dialogues du quotidien."
-            ]
-          },
-          "production": {
-            "nom": "Production",
-            "competences": [
-              "Produire des énoncés très courts pour décrire soi, la classe et la famille."
-            ]
-          },
-          "lecture_ecriture": {
-            "nom": "Lecture-écriture",
-            "competences": [
-              "Lire et écrire des mots fréquents et des phrases très courtes."
-            ]
-          },
-          "culture": {
-            "nom": "Culture et civilisation",
-            "competences": [
-              "Découvrir des formules de politesse et quelques éléments culturels."
-            ]
-          }
+      }
+    },
+    "arabe": {
+      "nom": "Arabe",
+      "sous_notions": {
+        "comprehension": {
+          "nom": "Compréhension",
+          "competences": [
+            "Comprendre des phrases courantes (présentations, classe, famille)."
+          ]
+        },
+        "production": {
+          "nom": "Production",
+          "competences": [
+            "Énoncer des phrases courtes sur soi et son environnement proche.",
+            "Lire/écrire des mots fréquents ; reconnaître des ligatures simples."
+          ]
         }
       }
     }
@@ -895,64 +830,38 @@
         }
       }
     },
-    "langues_vivantes": {
-      "nom": "Langues vivantes",
-      "anglais": {
-        "nom": "Anglais",
-        "sous_notions": {
-          "comprehension": {
-            "nom": "Compréhension orale et écrite",
-            "competences": [
-              "Comprendre des dialogues courts et de brefs textes informatifs simples."
-            ]
-          },
-          "production": {
-            "nom": "Production orale et écrite",
-            "competences": [
-              "Présenter des informations simples (goûts, activités, lieux) avec des phrases liées."
-            ]
-          },
-          "lecture_ecriture": {
-            "nom": "Lecture-écriture",
-            "competences": [
-              "Lire des phrases simples ; écrire des phrases courtes correctement ponctuées."
-            ]
-          },
-          "grammaire_debut": {
-            "nom": "Notions grammaticales de base",
-            "competences": [
-              "Pronoms personnels, genre et pluriel simples ; ordre des mots basique."
-            ]
-          }
+    "anglais": {
+      "nom": "Anglais",
+      "sous_notions": {
+        "comprehension": {
+          "nom": "Compréhension",
+          "competences": [
+            "Comprendre des dialogues courts et de brefs textes informatifs simples."
+          ]
+        },
+        "production": {
+          "nom": "Production",
+          "competences": [
+            "Présenter des informations simples (goûts, activités, lieux) avec des phrases liées."
+          ]
         }
-      },
-      "arabe": {
-        "nom": "Arabe",
-        "sous_notions": {
-          "comprehension": {
-            "nom": "Compréhension orale et écrite",
-            "competences": [
-              "Comprendre des dialogues courts et de brefs textes informatifs simples."
-            ]
-          },
-          "production": {
-            "nom": "Production orale et écrite",
-            "competences": [
-              "Présenter des informations simples (goûts, activités, lieux) avec des phrases liées."
-            ]
-          },
-          "lecture_ecriture": {
-            "nom": "Lecture-écriture",
-            "competences": [
-              "Lire des phrases simples ; écrire des phrases courtes correctement ponctuées."
-            ]
-          },
-          "grammaire_debut": {
-            "nom": "Notions grammaticales de base",
-            "competences": [
-              "Pronoms personnels, genre et pluriel simples ; ordre des mots basique."
-            ]
-          }
+      }
+    },
+    "arabe": {
+      "nom": "Arabe",
+      "sous_notions": {
+        "comprehension": {
+          "nom": "Compréhension",
+          "competences": [
+            "Comprendre de courts dialogues et annonces simples ; mots transparents usuels."
+          ]
+        },
+        "production": {
+          "nom": "Production",
+          "competences": [
+            "Produire des phrases simples (présentations, goûts, activités).",
+            "Écrire des phrases courtes en arabe (script imprimé), ponctuation de base."
+          ]
         }
       }
     }
@@ -1115,7 +1024,7 @@
       "nom": "Histoire",
       "periodes": {
         "nom": "Les grandes périodes",
-        "sous-notions": {
+        "sous_notions": {
           "reperes": {
             "nom": "Repères chronologiques",
             "competences": [
@@ -1159,64 +1068,39 @@
         }
       }
     },
-    "langues_vivantes": {
-      "nom": "Langues vivantes",
-      "anglais": {
-        "nom": "Anglais",
-        "sous_notions": {
-          "comprehension": {
-            "nom": "Compréhension",
-            "competences": [
-              "Comprendre des messages courts (annonces, consignes, cartes) et des dialogues guidés."
-            ]
-          },
-          "production": {
-            "nom": "Production",
-            "competences": [
-              "Produire des phrases courtes reliées (présentations, routines, descriptions simples)."
-            ]
-          },
-          "lecture_ecriture": {
-            "nom": "Lecture-écriture",
-            "competences": [
-              "Lire de courts paragraphes ; écrire 4-6 phrases cohérentes au présent."
-            ]
-          },
-          "lexique": {
-            "nom": "Lexique thématique",
-            "competences": [
-              "Vie quotidienne, environnement proche, métiers/civisme simples."
-            ]
-          }
+    "anglais": {
+      "nom": "Anglais",
+      "sous_notions": {
+        "comprehension": {
+          "nom": "Compréhension",
+          "competences": [
+            "Comprendre des messages courts (annonces, consignes, cartes) et des dialogues guidés."
+          ]
+        },
+        "production": {
+          "nom": "Production",
+          "competences": [
+            "Produire des phrases courtes reliées (présentations, routines, descriptions simples).",
+            "Écrire 4‑6 phrases cohérentes au présent."
+          ]
         }
-      },
-      "arabe": {
-        "nom": "Arabe",
-        "sous_notions": {
-          "comprehension": {
-            "nom": "Compréhension",
-            "competences": [
-              "Comprendre des messages courts (annonces, consignes, cartes) et des dialogues guidés."
-            ]
-          },
-          "production": {
-            "nom": "Production",
-            "competences": [
-              "Produire des phrases courtes reliées (présentations, routines, descriptions simples)."
-            ]
-          },
-          "lecture_ecriture": {
-            "nom": "Lecture-écriture",
-            "competences": [
-              "Lire de courts paragraphes ; écrire 4-6 phrases cohérentes au présent."
-            ]
-          },
-          "lexique": {
-            "nom": "Lexique thématique",
-            "competences": [
-              "Vie quotidienne, environnement proche, métiers/civisme simples."
-            ]
-          }
+      }
+    },
+    "arabe": {
+      "nom": "Arabe",
+      "sous_notions": {
+        "comprehension": {
+          "nom": "Compréhension",
+          "competences": [
+            "Comprendre des messages courts et de brefs dialogues ; repérer les informations essentielles."
+          ]
+        },
+        "production": {
+          "nom": "Production",
+          "competences": [
+            "Produire des phrases courtes reliées (présentation, routine, description simple).",
+            "Écrire 4‑6 phrases cohérentes en arabe (script imprimé), respect du sens droite→gauche."
+          ]
         }
       }
     }
