@@ -194,40 +194,78 @@
     },
     "anglais": {
       "nom": "Anglais",
-      "sous_notions": {
-        "comprehension": {
-          "nom": "Compréhension",
-          "competences": [
-            "Comprendre des salutations et consignes simples.",
-            "Reconnaître des mots fréquents liés à la classe, aux couleurs et aux nombres (0-10)."
-          ]
-        },
-        "production": {
-          "nom": "Production",
-          "competences": [
-            "Se présenter très simplement (nom, âge).",
-            "Dire et répéter des mots/énoncés très courts liés à la classe et aux couleurs."
-          ]
-        }
+      "compréhension_orale": {
+        "nom": "Compréhension orale",
+        "competences": [
+          "Comprendre des salutations et consignes très simples en contexte scolaire.",
+          "Identifier des mots fréquents liés à la classe et aux couleurs."
+        ]
+      },
+      "production_orale": {
+        "nom": "Production orale",
+        "competences": [
+          "Se présenter très simplement (nom, âge) et saluer.",
+          "Répéter/produire des énoncés très courts et des formules de classe."
+        ]
+      },
+      "lecture": {
+        "nom": "Lecture et compréhension de l’écrit",
+        "competences": [
+          "Reconnaître quelques lettres et sons usuels.",
+          "Associer image/mot sur du lexique très fréquent."
+        ]
+      },
+      "écriture": {
+        "nom": "Écriture",
+        "competences": [
+          "Copier des mots et étiquettes très courts en script latin.",
+          "Respecter l’alignement et les espaces entre mots."
+        ]
+      },
+      "lexique_grammaire": {
+        "nom": "Lexique et grammaire de base",
+        "competences": [
+          "Lexique : classe, couleurs, nombres 0‑10, famille proche.",
+          "Structures minimales : je m’appelle…, j’ai … ans ; impératifs de classe."
+        ]
       }
     },
     "arabe": {
       "nom": "Arabe",
-      "sous_notions": {
-        "comprehension": {
-          "nom": "Compréhension",
-          "competences": [
-            "Comprendre des salutations et consignes simples en arabe.",
-            "Identifier des mots très fréquents (classe, couleurs, nombres 0‑10)."
-          ]
-        },
-        "production": {
-          "nom": "Production",
-          "competences": [
-            "Se présenter très simplement (nom, âge) et saluer.",
-            "Répéter/produire des mots très courts ; découvrir l’écriture de droite à gauche."
-          ]
-        }
+      "compréhension_orale": {
+        "nom": "Compréhension orale",
+        "competences": [
+          "Comprendre des salutations et consignes très simples en contexte scolaire.",
+          "Identifier des mots fréquents liés à la classe et aux couleurs."
+        ]
+      },
+      "production_orale": {
+        "nom": "Production orale",
+        "competences": [
+          "Se présenter très simplement (nom, âge) et saluer.",
+          "Répéter/produire des énoncés très courts et des formules de classe."
+        ]
+      },
+      "lecture": {
+        "nom": "Lecture et décodage de l’arabe",
+        "competences": [
+          "Découvrir le sens d’écriture droite→gauche et reconnaître quelques lettres/symboles.",
+          "Associer image/mot sur du lexique très fréquent."
+        ]
+      },
+      "écriture": {
+        "nom": "Écriture en arabe",
+        "competences": [
+          "Tracer/caler l’orientation des lettres arabes en script imprimé ; copier des mots très courts.",
+          "Respecter l’alignement et les espaces entre mots."
+        ]
+      },
+      "lexique_grammaire": {
+        "nom": "Lexique et grammaire de base",
+        "competences": [
+          "Lexique : classe, couleurs, nombres 0‑10, famille proche.",
+          "Structures minimales : je m’appelle…, j’ai … ans ; impératifs de classe."
+        ]
       }
     }
   },
@@ -408,37 +446,78 @@
     },
     "anglais": {
       "nom": "Anglais",
-      "sous_notions": {
-        "comprehension": {
-          "nom": "Compréhension",
-          "competences": [
-            "Comprendre des consignes et phrases simples liées à l’école et à la vie quotidienne."
-          ]
-        },
-        "production": {
-          "nom": "Production",
-          "competences": [
-            "Produire des phrases très courtes pour se présenter, nommer des objets, exprimer goûts simples."
-          ]
-        }
+      "compréhension_orale": {
+        "nom": "Compréhension orale",
+        "competences": [
+          "Comprendre des expressions et instructions courantes en classe.",
+          "Saisir l’idée générale de mini‑dialogues très simples."
+        ]
+      },
+      "production_orale": {
+        "nom": "Production orale",
+        "competences": [
+          "Dire des phrases très courtes pour se présenter, décrire un objet ou une personne.",
+          "Participer à un échange guidé (question/réponse)."
+        ]
+      },
+      "lecture": {
+        "nom": "Lecture et compréhension de l’écrit",
+        "competences": [
+          "Lire des mots fréquents et de très courtes phrases.",
+          "Reconnaître les correspondances graphèmes‑phonèmes fréquentes."
+        ]
+      },
+      "écriture": {
+        "nom": "Écriture",
+        "competences": [
+          "Copier des phrases très courtes et écrire des mots dictés.",
+          "Ponctuation minimale (point, majuscule au nom propre)."
+        ]
+      },
+      "lexique_grammaire": {
+        "nom": "Lexique et grammaire de base",
+        "competences": [
+          "Lexique : école, famille, animaux, nombres 0‑20, jours de la semaine.",
+          "Structures : c’est…, j’aime/je n’aime pas…, il/elle a…, il y a…"
+        ]
       }
     },
     "arabe": {
       "nom": "Arabe",
-      "sous_notions": {
-        "comprehension": {
-          "nom": "Compréhension",
-          "competences": [
-            "Comprendre des consignes courantes en classe et des expressions fréquentes."
-          ]
-        },
-        "production": {
-          "nom": "Production",
-          "competences": [
-            "Produire des énoncés très courts (se présenter, objets de la classe).",
-            "Copier/écrire des mots simples (script arabe imprimé)."
-          ]
-        }
+      "compréhension_orale": {
+        "nom": "Compréhension orale",
+        "competences": [
+          "Comprendre des expressions et instructions courantes en classe.",
+          "Saisir l’idée générale de mini‑dialogues très simples."
+        ]
+      },
+      "production_orale": {
+        "nom": "Production orale",
+        "competences": [
+          "Dire des phrases très courtes pour se présenter, décrire un objet ou une personne.",
+          "Participer à un échange guidé (question/réponse)."
+        ]
+      },
+      "lecture": {
+        "nom": "Lecture et décodage de l’arabe",
+        "competences": [
+          "Lire des mots fréquents et de très courtes phrases.",
+          "Reconnaître des formes lettres selon la position (début/milieu/fin) et quelques ligatures."
+        ]
+      },
+      "écriture": {
+        "nom": "Écriture en arabe",
+        "competences": [
+          "Copier des mots/phrases très courtes en respectant le tracé et le sens droite→gauche.",
+          "Ponctuation minimale (point, majuscule au nom propre)."
+        ]
+      },
+      "lexique_grammaire": {
+        "nom": "Lexique et grammaire de base",
+        "competences": [
+          "Lexique : école, famille, animaux, nombres 0‑20, jours de la semaine.",
+          "Structures : c’est…, j’aime/je n’aime pas…, il/elle a…, il y a…"
+        ]
       }
     }
   },
@@ -594,37 +673,78 @@
     },
     "anglais": {
       "nom": "Anglais",
-      "sous_notions": {
-        "comprehension": {
-          "nom": "Compréhension",
-          "competences": [
-            "Comprendre de courts dialogues et consignes ; repérer des informations explicites."
-          ]
-        },
-        "production": {
-          "nom": "Production",
-          "competences": [
-            "Produire des phrases très courtes pour décrire soi, la famille et la classe."
-          ]
-        }
+      "compréhension_orale": {
+        "nom": "Compréhension orale",
+        "competences": [
+          "Comprendre des consignes et courts dialogues du quotidien.",
+          "Repérer des informations explicites (qui, où, quoi)."
+        ]
+      },
+      "production_orale": {
+        "nom": "Production orale",
+        "competences": [
+          "Produire des énoncés très courts pour décrire soi, la classe et la famille.",
+          "Jouer un mini‑dialogue guidé (saluer, demander/donner une info)."
+        ]
+      },
+      "lecture": {
+        "nom": "Lecture et compréhension de l’écrit",
+        "competences": [
+          "Lire des phrases courtes et de brefs textes très simples ; repérer personnages/lieux.",
+          "Déchiffrer des mots nouveaux par analogie graphème‑phonème."
+        ]
+      },
+      "écriture": {
+        "nom": "Écriture",
+        "competences": [
+          "Écrire des phrases très courtes et cohérentes (3‑4) à partir d’un modèle.",
+          "Orthographier approximativement des mots fréquents ; soigner l’espacement."
+        ]
+      },
+      "lexique_grammaire": {
+        "nom": "Lexique et grammaire de base",
+        "competences": [
+          "Lexique : routine, maison/ville, vêtements, nourriture.",
+          "Structures : présent simple/usuel ; accords très élémentaires (GN, pronom sujet)."
+        ]
       }
     },
     "arabe": {
       "nom": "Arabe",
-      "sous_notions": {
-        "comprehension": {
-          "nom": "Compréhension",
-          "competences": [
-            "Comprendre des phrases courantes (présentations, classe, famille)."
-          ]
-        },
-        "production": {
-          "nom": "Production",
-          "competences": [
-            "Énoncer des phrases courtes sur soi et son environnement proche.",
-            "Lire/écrire des mots fréquents ; reconnaître des ligatures simples."
-          ]
-        }
+      "compréhension_orale": {
+        "nom": "Compréhension orale",
+        "competences": [
+          "Comprendre des consignes et courts dialogues du quotidien.",
+          "Repérer des informations explicites (qui, où, quoi)."
+        ]
+      },
+      "production_orale": {
+        "nom": "Production orale",
+        "competences": [
+          "Produire des énoncés très courts pour décrire soi, la classe et la famille.",
+          "Jouer un mini‑dialogue guidé (saluer, demander/donner une info)."
+        ]
+      },
+      "lecture": {
+        "nom": "Lecture et décodage de l’arabe",
+        "competences": [
+          "Lire des phrases courtes et de brefs textes très simples ; repérer personnages/lieux.",
+          "Lire des mots courants avec ligatures simples ; distinguer lettres proches visuellement."
+        ]
+      },
+      "écriture": {
+        "nom": "Écriture en arabe",
+        "competences": [
+          "Écrire des phrases très courtes et cohérentes (3‑4) à partir d’un modèle.",
+          "Respecter l’enchaînement des lettres arabes imprimées ; copier sans inversion."
+        ]
+      },
+      "lexique_grammaire": {
+        "nom": "Lexique et grammaire de base",
+        "competences": [
+          "Lexique : routine, maison/ville, vêtements, nourriture.",
+          "Structures : présent simple/usuel ; accords très élémentaires (GN, pronom sujet)."
+        ]
       }
     }
   },
@@ -832,37 +952,78 @@
     },
     "anglais": {
       "nom": "Anglais",
-      "sous_notions": {
-        "comprehension": {
-          "nom": "Compréhension",
-          "competences": [
-            "Comprendre des dialogues courts et de brefs textes informatifs simples."
-          ]
-        },
-        "production": {
-          "nom": "Production",
-          "competences": [
-            "Présenter des informations simples (goûts, activités, lieux) avec des phrases liées."
-          ]
-        }
+      "compréhension_orale": {
+        "nom": "Compréhension orale",
+        "competences": [
+          "Comprendre des dialogues courts et annonces simples ; saisir l’idée générale.",
+          "Extraire quelques détails concrets (prix, horaires, lieux) dans des supports guidés."
+        ]
+      },
+      "production_orale": {
+        "nom": "Production orale",
+        "competences": [
+          "Présenter goûts, activités, lieux avec des phrases liées.",
+          "Décrire une scène/fait du quotidien avec appuis (images, mots)."
+        ]
+      },
+      "lecture": {
+        "nom": "Lecture et compréhension de l’écrit",
+        "competences": [
+          "Lire de brefs textes informatifs/narratifs simples et répondre à des questions.",
+          "Repérer connecteurs et marqueurs simples (and/but/because…)."
+        ]
+      },
+      "écriture": {
+        "nom": "Écriture",
+        "competences": [
+          "Rédiger 4‑6 phrases cohérentes (présentation, description, carte postale).",
+          "Respecter l’ordre SVO fréquent et l’accord Verbe‑3e pers. sing."
+        ]
+      },
+      "lexique_grammaire": {
+        "nom": "Lexique et grammaire de base",
+        "competences": [
+          "Lexique : loisirs, environnement proche, école, déplacements.",
+          "Grammaire : présent, il y a/there is/are ; adjectifs fréquents ; pronoms sujets."
+        ]
       }
     },
     "arabe": {
       "nom": "Arabe",
-      "sous_notions": {
-        "comprehension": {
-          "nom": "Compréhension",
-          "competences": [
-            "Comprendre de courts dialogues et annonces simples ; mots transparents usuels."
-          ]
-        },
-        "production": {
-          "nom": "Production",
-          "competences": [
-            "Produire des phrases simples (présentations, goûts, activités).",
-            "Écrire des phrases courtes en arabe (script imprimé), ponctuation de base."
-          ]
-        }
+      "compréhension_orale": {
+        "nom": "Compréhension orale",
+        "competences": [
+          "Comprendre des dialogues courts et annonces simples ; saisir l’idée générale.",
+          "Extraire quelques détails concrets (prix, horaires, lieux) dans des supports guidés."
+        ]
+      },
+      "production_orale": {
+        "nom": "Production orale",
+        "competences": [
+          "Présenter goûts, activités, lieux avec des phrases liées.",
+          "Décrire une scène/fait du quotidien avec appuis (images, mots)."
+        ]
+      },
+      "lecture": {
+        "nom": "Lecture et décodage de l’arabe",
+        "competences": [
+          "Lire de brefs textes informatifs/narratifs simples et répondre à des questions.",
+          "Repérer quelques connecteurs/indicateurs de temps fréquents en arabe scolaire."
+        ]
+      },
+      "écriture": {
+        "nom": "Écriture en arabe",
+        "competences": [
+          "Rédiger 4‑6 phrases cohérentes (présentation, description, carte postale).",
+          "Respecter l’orientation et les ligatures ; ponctuer simplement."
+        ]
+      },
+      "lexique_grammaire": {
+        "nom": "Lexique et grammaire de base",
+        "competences": [
+          "Lexique : loisirs, environnement proche, école, déplacements.",
+          "Grammaire : pronoms personnels, genre/pluriel usuels ; ordre des mots simple en arabe scolaire."
+        ]
       }
     }
   },
@@ -1070,38 +1231,78 @@
     },
     "anglais": {
       "nom": "Anglais",
-      "sous_notions": {
-        "comprehension": {
-          "nom": "Compréhension",
-          "competences": [
-            "Comprendre des messages courts (annonces, consignes, cartes) et des dialogues guidés."
-          ]
-        },
-        "production": {
-          "nom": "Production",
-          "competences": [
-            "Produire des phrases courtes reliées (présentations, routines, descriptions simples).",
-            "Écrire 4‑6 phrases cohérentes au présent."
-          ]
-        }
+      "compréhension_orale": {
+        "nom": "Compréhension orale",
+        "competences": [
+          "Comprendre des messages courts (consignes, annonces, dialogues guidés).",
+          "Identifier informations essentielles et quelques détails."
+        ]
+      },
+      "production_orale": {
+        "nom": "Production orale",
+        "competences": [
+          "Produire un exposé bref (présentation, routine, projet) avec phrases reliées.",
+          "Interagir dans des situations balisées (demander, proposer, remercier)."
+        ]
+      },
+      "lecture": {
+        "nom": "Lecture et compréhension de l’écrit",
+        "competences": [
+          "Lire de courts paragraphes ; prélever des informations explicites.",
+          "Inférer le sens de quelques mots inconnus via contexte/famille de mots."
+        ]
+      },
+      "écriture": {
+        "nom": "Écriture",
+        "competences": [
+          "Écrire 5‑8 phrases cohérentes (email/carte/description).",
+          "Orthographier correctement une partie du lexique vu ; ponctuation simple."
+        ]
+      },
+      "lexique_grammaire": {
+        "nom": "Lexique et grammaire de base",
+        "competences": [
+          "Lexique : vie quotidienne, lieux, métiers/civisme simples.",
+          "Grammaire : présent + formulations usuelles du passé/futur proche ; comparatifs fréquents."
+        ]
       }
     },
     "arabe": {
       "nom": "Arabe",
-      "sous_notions": {
-        "comprehension": {
-          "nom": "Compréhension",
-          "competences": [
-            "Comprendre des messages courts et de brefs dialogues ; repérer les informations essentielles."
-          ]
-        },
-        "production": {
-          "nom": "Production",
-          "competences": [
-            "Produire des phrases courtes reliées (présentation, routine, description simple).",
-            "Écrire 4‑6 phrases cohérentes en arabe (script imprimé), respect du sens droite→gauche."
-          ]
-        }
+      "compréhension_orale": {
+        "nom": "Compréhension orale",
+        "competences": [
+          "Comprendre des messages courts (consignes, annonces, dialogues guidés).",
+          "Identifier informations essentielles et quelques détails."
+        ]
+      },
+      "production_orale": {
+        "nom": "Production orale",
+        "competences": [
+          "Produire un exposé bref (présentation, routine, projet) avec phrases reliées.",
+          "Interagir dans des situations balisées (demander, proposer, remercier)."
+        ]
+      },
+      "lecture": {
+        "nom": "Lecture et décodage de l’arabe",
+        "competences": [
+          "Lire de courts paragraphes ; prélever des informations explicites.",
+          "Identifier le radical de mots fréquents et inférer le sens via contexte."
+        ]
+      },
+      "écriture": {
+        "nom": "Écriture en arabe",
+        "competences": [
+          "Écrire 5‑8 phrases cohérentes (email/carte/description).",
+          "Écrire 5‑8 phrases en script arabe imprimé ; respect du sens droite→gauche et ponctuation."
+        ]
+      },
+      "lexique_grammaire": {
+        "nom": "Lexique et grammaire de base",
+        "competences": [
+          "Lexique : vie quotidienne, lieux, métiers/civisme simples.",
+          "Grammaire : schémas simples de la phrase nominale/verbale ; formes usuelles au présent."
+        ]
       }
     }
   }
