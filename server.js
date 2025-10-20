@@ -331,7 +331,6 @@ app.post('/api/ai/generate-content', async (req, res) => {
     let systemPrompt;
     let userPromptContent;
     
-    let specificInstructions = '';
     const baseInstructions = {
         quiz: `Génère exactement ${exerciseCount} questions. La structure JSON DOIT être : { "title": "...", "type": "quiz", "questions": [ { "question_text": "...", "options": ["...", "...", "...", "..."], "correct_answer_index": 0 } ] }`,
         exercices: `Génère exactement ${exerciseCount} exercices. La structure JSON DOIT être : { "title": "...", "type": "exercices", "content": [ { "enonce": "..." } ] }`,
@@ -343,8 +342,6 @@ app.post('/api/ai/generate-content', async (req, res) => {
         return res.status(400).json({ error: "Type de contenu non supporté" });
     }
     
-    specificInstructions = baseInstructions[contentType];
-
     if (targetLanguage) {
         systemPrompt = `You are an expert pedagogical assistant for creating language learning content. Your entire response must be a valid JSON object only, with no text before or after. All text content within the JSON MUST be in ${targetLanguage}.`;
         
@@ -354,10 +351,11 @@ app.post('/api/ai/generate-content', async (req, res) => {
             dm: `Generate exactly ${exerciseCount} exercises. The JSON structure MUST be: { "title": "...", "type": "dm", "content": [ { "enonce": "..." } ] }`,
             revision: `Generate a complete review sheet. The JSON structure MUST be: { "title": "...", "type": "revision", "content": "..." }`
         };
-        specificInstructions = translatedInstructions[contentType];
-        userPromptContent = `Create a content of type '${contentType}' for a student, based on the following skill: '${competences}'. ${specificInstructions} The entire content of the JSON (titles, questions, options, etc.) must be in ${targetLanguage}.`;
+        const specificInstructions = translatedInstructions[contentType];
+        userPromptContent = `I will provide a pedagogical skill described in French. Your task is to create a '${contentType}' in ${targetLanguage} for a student learning that language. The exercise should help them practice the provided skill. The French skill is: '${competences}'. Now, follow these structural rules: ${specificInstructions}`;
     } else {
         systemPrompt = "Tu es un assistant pédagogique expert dans la création de contenus éducatifs en français. Ta réponse doit être uniquement un objet JSON valide, sans aucun texte avant ou après.";
+        const specificInstructions = baseInstructions[contentType];
         userPromptContent = `Crée un contenu de type '${contentType}' pour un élève, basé sur la compétence suivante : '${competences}'. ${specificInstructions} Le contenu doit être en français.`;
     }
 
@@ -455,15 +453,18 @@ app.post('/api/ai/generate-lesson-plan', async (req, res) => {
             model: "deepseek-chat",
             messages: [{
                 role: "system",
-                content: "Tu es un concepteur pédagogique expert. Génère un plan de cours structuré en JSON."
+                content: "Tu es un concepteur pédagogique expert. Génère un plan de cours structuré en JSON. Ta réponse doit être uniquement un objet JSON valide."
             }, {
                 role: "user",
-                content: `Crée un plan de cours sur le thème "${theme}" pour un niveau "${level}" en ${numSessions} séances. Pour chaque séance, donne un titre, un objectif, des idées d'activités et des suggestions de ressources AIDA (quiz, fiche...). Le JSON doit avoir la structure: { "planTitle": "...", "level": "...", "sessions": [{ "sessionNumber": 1, "title": "...", "objective": "...", "activities": [...], "resources": [...] }] }.`
+                content: `Crée un plan de cours sur le thème "${theme}" pour un niveau "${level}" en ${numSessions} séances. Pour chaque séance, donne un titre, un objectif, des idées d'activités et des suggestions de ressources AIDA. Pour chaque ressource suggérée, fournis un objet JSON avec les clés "type" (choisi parmi "quiz", "exercices", "revision", "dm"), "sujet" (un titre court et descriptif), et "competence" (une compétence pédagogique précise et complète liée au sujet). La structure JSON finale doit être : { "planTitle": "...", "level": "...", "sessions": [{ "sessionNumber": 1, "title": "...", "objective": "...", "activities": ["..."], "resources": [{"type": "quiz", "sujet": "Les capitales européennes", "competence": "Localiser les principales capitales européennes sur une carte"}] }] }.`
             }],
             response_format: { type: "json_object" }
         }, { headers: { 'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}` } });
         res.json({ structured_plan: JSON.parse(response.data.choices[0].message.content) });
-    } catch (error) { res.status(500).json({ error: "Erreur lors de la génération du plan." }); }
+    } catch (error) { 
+        console.error("Erreur Deepseek (planificateur):", error.response?.data || error.message);
+        res.status(500).json({ error: "Erreur lors de la génération du plan de cours." });
+    }
 });
 
 app.post('/api/ai/playground-chat', async (req, res) => {
