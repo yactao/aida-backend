@@ -21,7 +21,6 @@ const upload = multer({ storage: multer.memoryStorage() });
 // --- 2. Initialisation des Services Azure & Google ---
 let dbClient, blobServiceClient, formRecognizerClient, ttsClient;
 
-// Initialisation séparée pour un meilleur débogage
 try {
     if (!process.env.COSMOS_ENDPOINT || !process.env.COSMOS_KEY) throw new Error("COSMOS_ENDPOINT ou COSMOS_KEY manquant.");
     dbClient = new CosmosClient({ endpoint: process.env.COSMOS_ENDPOINT, key: process.env.COSMOS_KEY });
@@ -60,8 +59,7 @@ app.get('/', (req, res) => {
     res.send('<h1>Serveur AIDA</h1><p>Le serveur est en ligne et fonctionne correctement.</p>');
 });
 
-// --- Routes API ---
-
+// --- API Routes ---
 // AUTH
 app.post('/api/auth/login', async (req, res) => {
     if (!usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
