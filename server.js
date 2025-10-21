@@ -486,6 +486,7 @@ app.post('/api/academie-mre/aida-chat', async (req, res) => {
         res.status(500).json({ error: "Désolé, une erreur est survenue en contactant l'IA de l'Académie." });
     }
 });
+// FIN ROUTE AJOUTÉE
 
 app.post('/api/ai/playground-chat', async (req, res) => {
     const { history } = req.body;
