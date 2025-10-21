@@ -465,25 +465,21 @@ app.post('/api/ai/generate-lesson-plan', async (req, res) => {
     }
 });
 
-// ROUTE AJOUTÉE POUR L'ACADÉMIE MRE (chat sécurisé et bilingue)
-app.post('/api/academie-mre/aida-chat', async (req, res) => {
+// ROUTE AJOUTÉE POUR LA NOUVELLE MODAL D'AIDE DM/QUIZZ
+app.post('/api/ai/get-aida-help', async (req, res) => {
     const { history } = req.body;
     if (!history) { return res.status(400).json({ error: "L'historique de la conversation est manquant." }); }
-    
-    // System Prompt Spécifique MRE/Francophone
-    const systemPromptMRE = "Tu es AIDA, un tuteur IA expert en enseignement de l'arabe classique pour les enfants MRE (Marocains Résidant à l'Étranger) francophones. Ton rôle est de fournir une assistance pédagogique qui facilite la transition du français/darija vers l'arabe standard. Tes règles sont : 1. **Jamais donner la réponse directe.** 2. **Utiliser le français pour expliquer la grammaire** (conjugaison, accords, genre) car c'est la langue la plus maîtrisée par l'élève. 3. Adapter ton langage à un enfant ou un adolescent. 4. Poser des questions (méthode socratique) avant de donner un indice. 5. Lors des dialogues, valoriser le contexte culturel marocain.";
-
     try {
         const response = await axios.post('https://api.deepseek.com/chat/completions', {
             model: "deepseek-chat",
-            messages: [ { role: "system", content: systemPromptMRE }, ...history ]
+            messages: [ { role: "system", content: "Tu es AIDA, un tuteur IA bienveillant et pédagogue. Ton objectif est de guider les élèves vers la solution sans jamais donner la réponse directement, sauf en dernier recours. Tu dois adapter ton langage à l'âge de l'élève et suivre une méthode socratique : questionner d'abord, donner un indice ensuite, et valider la compréhension de l'élève." }, ...history ]
         }, { headers: { 'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}` } });
-        
         const reply = response.data.choices[0].message.content;
+        // NOTE: Le frontend (script.js) attend une clé 'response' pour la gestion générique des API.
         res.json({ response: reply });
     } catch (error) {
-        console.error("Erreur lors de la communication avec l'API Deepseek pour l'Académie MRE:", error.response?.data || error.message);
-        res.status(500).json({ error: "Désolé, une erreur est survenue en contactant l'IA de l'Académie." });
+        console.error("Erreur lors de la communication avec l'API Deepseek pour l'aide modale:", error.response?.data || error.message);
+        res.status(500).json({ error: "Désolé, une erreur est survenue en contactant l'IA." });
     }
 });
 // FIN ROUTE AJOUTÉE
