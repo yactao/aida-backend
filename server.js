@@ -465,6 +465,25 @@ app.post('/api/ai/generate-lesson-plan', async (req, res) => {
     }
 });
 
+// ROUTE AJOUTÉE POUR LA NOUVELLE MODAL D'AIDE DM/QUIZZ
+app.post('/api/ai/get-aida-help', async (req, res) => {
+    const { history } = req.body;
+    if (!history) { return res.status(400).json({ error: "L'historique de la conversation est manquant." }); }
+    try {
+        const response = await axios.post('https://api.deepseek.com/chat/completions', {
+            model: "deepseek-chat",
+            messages: [ { role: "system", content: "Tu es AIDA, un tuteur IA bienveillant et pédagogue. Ton objectif est de guider les élèves vers la solution sans jamais donner la réponse directement, sauf en dernier recours. Tu dois adapter ton langage à l'âge de l'élève et suivre une méthode socratique : questionner d'abord, donner un indice ensuite, et valider la compréhension de l'élève." }, ...history ]
+        }, { headers: { 'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}` } });
+        const reply = response.data.choices[0].message.content;
+        // NOTE: Le frontend (script.js) attend une clé 'response' pour la gestion générique des API.
+        res.json({ response: reply });
+    } catch (error) {
+        console.error("Erreur lors de la communication avec l'API Deepseek pour l'aide modale:", error.response?.data || error.message);
+        res.status(500).json({ error: "Désolé, une erreur est survenue en contactant l'IA." });
+    }
+});
+// FIN ROUTE AJOUTÉE
+
 app.post('/api/ai/playground-chat', async (req, res) => {
     const { history } = req.body;
     if (!history) { return res.status(400).json({ error: "L'historique de la conversation est manquant." }); }
@@ -480,6 +499,7 @@ app.post('/api/ai/playground-chat', async (req, res) => {
         res.status(500).json({ error: "Désolé, une erreur est survenue en contactant l'IA." });
     }
 });
+
 
 app.post('/api/ai/synthesize-speech', async (req, res) => {
     if (!ttsClient) { return res.status(500).json({ error: "Le service de synthèse vocale n'est pas configuré sur le serveur." }); }
@@ -527,4 +547,3 @@ app.get('/api/library', async (req, res) => {
 // --- Démarrage du serveur ---
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Serveur AIDA démarré sur le port ${PORT}`));
-
