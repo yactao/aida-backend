@@ -60,13 +60,15 @@ app.get('/', (req, res) => {
 });
 
 // --- API Routes ---
-// AUTH
+
+// AUTH AIDA ÉDUCATION (EXISTANT)
 app.post('/api/auth/login', async (req, res) => {
     if (!usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
     const { email, password } = req.body;
     try {
         const { resource: user } = await usersContainer.item(email, email).read();
-        if (user && user.password === password) {
+        // ISOLATION: Refuse les utilisateurs de l'Académie sur la route Education
+        if (user && !user.role.startsWith('academy_') && user.password === password) { 
             delete user.password;
             res.json({ user });
         } else {
@@ -97,8 +99,67 @@ app.post('/api/auth/signup', async (req, res) => {
     }
 });
 
+// --- ACADEMY AUTH ROUTES (NOUVEAU ET ISOLÉ) ---
+app.post('/api/academy/auth/login', async (req, res) => {
+    if (!usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
+    const { email, password } = req.body;
+    try {
+        const { resource: user } = await usersContainer.item(email, email).read();
+        // ISOLATION: Accepte UNIQUEMENT les utilisateurs de l'Académie ici
+        const isAcademyRole = user?.role?.startsWith('academy_');
 
-// ENSEIGNANT
+        if (user && isAcademyRole && user.password === password) {
+            delete user.password;
+            res.json({ user });
+        } else {
+            res.status(401).json({ error: "Email, mot de passe ou rôle incorrect pour l'Académie." });
+        }
+    } catch (error) {
+        if (error.code === 404) {
+            res.status(401).json({ error: "Email, mot de passe ou rôle incorrect pour l'Académie." });
+        } else {
+            console.error("Erreur de connexion Académie:", error);
+            res.status(500).json({ error: "Erreur du serveur." });
+        }
+    }
+});
+
+app.post('/api/academy/auth/signup', async (req, res) => {
+    if (!usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
+    const { email, password, role } = req.body;
+    
+    const validRoles = ['academy_student', 'academy_teacher', 'academy_parent'];
+    if (!validRoles.includes(role)) {
+         return res.status(400).json({ error: "Rôle de l'Académie invalide." });
+    }
+    
+    // Ajout d'une propriété pour le suivi de l'Académie
+    const newUser = { 
+        id: email, 
+        email, 
+        password, 
+        role, 
+        firstName: email.split('@')[0], 
+        avatar: 'default.png', 
+        academyProgress: {} // Clé d'isolation
+    }; 
+    try {
+        const { resource: createdUser } = await usersContainer.items.create(newUser);
+        delete createdUser.password;
+        res.status(201).json({ user: createdUser });
+    } catch (error) {
+        if (error.code === 409) {
+            res.status(409).json({ error: "Cet email est déjà utilisé." });
+        } else {
+            console.error("Erreur de création de compte Académie:", error);
+            res.status(500).json({ error: "Erreur lors de la création du compte Académie." });
+        }
+    }
+});
+// FIN ACADEMY AUTH
+
+
+// ENSEIGNANT AIDA ÉDUCATION
 app.get('/api/teacher/classes', async (req, res) => {
     if (!classesContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
     const { teacherEmail } = req.query;
@@ -273,7 +334,7 @@ app.get('/api/teacher/classes/:classId/competency-report', async (req, res) => {
 });
 
 
-// ÉLÈVE
+// ÉLÈVE AIDA ÉDUCATION
 app.get('/api/student/dashboard', async (req, res) => {
     if (!classesContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
     const { studentEmail } = req.query;
@@ -417,7 +478,7 @@ app.post('/api/ai/generate-from-upload', upload.single('document'), async (req, 
     }
 });
 
-app.post('/api/ai/playground-extract-text', async (req, res) => {
+app.post('/api/ai/playground-extract-text', upload.single('document'), async (req, res) => {
     if (!formRecognizerClient) { return res.status(503).json({ error: "Le service d'analyse de documents n'est pas configuré sur le serveur. Vérifiez les logs." }); }
     if (!req.file) { return res.status(400).json({ error: "Aucun fichier n'a été chargé." }); }
     try {
@@ -475,7 +536,6 @@ app.post('/api/ai/get-aida-help', async (req, res) => {
             messages: [ { role: "system", content: "Tu es AIDA, un tuteur IA bienveillant et pédagogue. Ton objectif est de guider les élèves vers la solution sans jamais donner la réponse directement, sauf en dernier recours. Tu dois adapter ton langage à l'âge de l'élève et suivre une méthode socratique : questionner d'abord, donner un indice ensuite, et valider la compréhension de l'élève." }, ...history ]
         }, { headers: { 'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}` } });
         const reply = response.data.choices[0].message.content;
-        // NOTE: Le frontend (script.js) attend une clé 'response' pour la gestion générique des API.
         res.json({ response: reply });
     } catch (error) {
         console.error("Erreur lors de la communication avec l'API Deepseek pour l'aide modale:", error.response?.data || error.message);
@@ -484,6 +544,7 @@ app.post('/api/ai/get-aida-help', async (req, res) => {
 });
 // FIN ROUTE AJOUTÉE
 
+// PLAYGROUND CHAT (L'espace de travail)
 app.post('/api/ai/playground-chat', async (req, res) => {
     const { history } = req.body;
     if (!history) { return res.status(400).json({ error: "L'historique de la conversation est manquant." }); }
@@ -513,6 +574,24 @@ app.post('/api/ai/synthesize-speech', async (req, res) => {
     } catch (error) {
         console.error("Erreur lors de la synthèse vocale Google:", error);
         res.status(500).json({ error: "Impossible de générer l'audio." });
+    }
+});
+
+// NOUVEAU: ACADEMY CHAT ROUTE (Pour la Phase 1) 
+// Cette route sera utilisée pour le chat immersif de l'Académie MRE
+app.post('/api/academy/ai/chat', async (req, res) => {
+    const { history } = req.body;
+    if (!history) { return res.status(400).json({ error: "L'historique de la conversation est manquant." }); }
+    try {
+        const response = await axios.post('https://api.deepseek.com/chat/completions', {
+            model: "deepseek-chat",
+            messages: history 
+        }, { headers: { 'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}` } });
+        const reply = response.data.choices[0].message.content;
+        res.json({ reply });
+    } catch (error) {
+        console.error("Erreur lors de la communication avec l'API Deepseek (Académie MRE):", error.response?.data);
+        res.status(500).json({ error: "Désolé, une erreur est survenue en contactant l'IA pour l'Académie." });
     }
 });
 
