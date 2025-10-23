@@ -645,6 +645,43 @@ app.post('/api/academy/session/save', async (req, res) => {
     }
 });
 
+// ... (Après la route /api/academy/session/save) ...
+
+// --- NOUVEAU: ROUTE POUR RÉCUPÉRER LES SCÉNARIOS (Phase 5 - Décentralisation) ---
+// Cette route simule la lecture de scénarios depuis une DB et prépare la création de scénarios par le prof.
+app.get('/api/academy/scenarios', async (req, res) => {
+    // NOTE: Dans une version avec DB, on lirait ici le conteneur 'scenarios'.
+    
+    // Pour l'instant, on utilise les prototypes définis dans le Front-End pour simuler la liste
+    // En attendant que le Front-End puisse appeler cette route, nous avons besoin de définir les prototypes ici
+    // pour que la route puisse retourner quelque chose. Ceci est une solution temporaire pour la simulation.
+    
+    const hardcodedScenarios = [
+        {
+            id: 'scen-0',
+            title: "Scénario 0 : Répétiteur Vocal (Phrases de Base)",
+            language: "Arabe Littéraire (Al-Fusha)", 
+            level: "Débutant Absolu",
+            context: "L'IA joue le rôle d'un tuteur amical et patient. Ton objectif est de répéter les phrases pour maîtriser la prononciation et le vocabulaire de base.", 
+            characterName: "Le Répétiteur (المُعِيد)", 
+            characterIntro: "أهلاً بك! هيا نتدرب على النطق. كرر هذه الجملة: أنا بخير. <PHONETIQUE>Ahlan bik! Hayyā natadarab 'alā an-nuṭq. Karrir hādhihi al-jumla: Anā bi-khayr.</PHONETIQUE> <TRADUCTION>Bienvenue ! Entraînons-nous à la prononciation. Répète cette phrase : Je vais bien.</TRADUCTION>",
+            objectives: ["Répéter correctement 'Je vais bien'.", "Répéter correctement 'Merci'.", "Répéter correctement 'Quel est votre nom?'."]
+        },
+        {
+            id: 'scen-1',
+            title: "Scénario 1 : Commander son petit-déjeuner",
+            language: "Arabe Littéraire (Al-Fusha)", 
+            level: "Débutant",
+            context: "Vous entrez dans un café moderne au Caire. Le serveur vous sourit et vous attend.", 
+            characterName: "Le Serveur (النادِل)", 
+            characterIntro: "صباح الخير، تفضل. ماذا تود أن تطلب اليوم؟ <PHONETIQUE>Sabah al-khayr, tafaddal. Mādhā tawaddu an taṭlub al-yawm?</PHONETIQUE> <TRADUCTION>Bonjour, entrez. Que souhaitez-vous commander aujourd'hui ?</TRADUCTION>",
+            objectives: ["Demander un thé et un croissant.", "Comprendre le prix total.", "Dire 'Merci' et 'Au revoir'."]
+        }
+    ];
+
+    res.json(hardcodedScenarios);
+});
+
 // BIBLIOTHÈQUE
 app.post('/api/library/publish', async (req, res) => {
     if (!libraryContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
