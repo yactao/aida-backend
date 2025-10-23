@@ -595,6 +595,55 @@ app.post('/api/academy/ai/chat', async (req, res) => {
     }
 });
 
+// --- NOUVEAU : ACADEMY SESSION SAVE (Phase 3) ---
+// Cette route enregistre le bilan et l'historique complet de la session pour le suivi
+app.post('/api/academy/session/save', async (req, res) => {
+    // Vérification des conteneurs de base de données
+    if (!usersContainer) { 
+        console.error("Erreur 503: Conteneur d'utilisateurs non disponible.");
+        return res.status(503).json({ error: "Service de base de données indisponible." }); 
+    }
+    
+    const { userId, scenarioId, report, fullHistory } = req.body;
+    
+    if (!userId || !scenarioId || !report) {
+        return res.status(400).json({ error: "Données de session incomplètes." });
+    }
+
+    const newSession = {
+        id: `session-${Date.now()}-${userId}`,
+        userId: userId,
+        scenarioId: scenarioId,
+        completedAt: new Date().toISOString(),
+        report: report, // Bilan structuré par l'IA
+        fullHistory: fullHistory // Historique complet de la conversation
+    };
+
+    try {
+        // 1. Lire l'objet utilisateur actuel
+        const { resource: user } = await usersContainer.item(userId, userId).read();
+        
+        if (!user) {
+            return res.status(404).json({ error: "Utilisateur non trouvé." });
+        }
+        
+        // 2. Initialiser le champ d'historique de l'Académie s'il n'existe pas
+        user.academyProgress = user.academyProgress || {};
+        user.academyProgress.sessions = user.academyProgress.sessions || [];
+        
+        // 3. Ajouter la nouvelle session
+        user.academyProgress.sessions.push(newSession);
+
+        // 4. Mettre à jour l'utilisateur dans la base de données
+        await usersContainer.items.upsert(user);
+        
+        res.status(201).json({ message: "Session enregistrée avec succès.", sessionId: newSession.id });
+
+    } catch (error) { 
+        console.error("Erreur lors de la sauvegarde de la session Académie:", error.message);
+        res.status(500).json({ error: "Erreur serveur lors de la sauvegarde de la session." }); 
+    }
+});
 
 // BIBLIOTHÈQUE
 app.post('/api/library/publish', async (req, res) => {
