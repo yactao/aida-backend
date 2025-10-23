@@ -682,6 +682,31 @@ app.get('/api/academy/scenarios', async (req, res) => {
     res.json(hardcodedScenarios);
 });
 
+// --- NOUVEAU: ROUTE POUR LA CRÉATION DE SCÉNARIOS (Phase 5) ---
+app.post('/api/academy/scenarios/create', async (req, res) => {
+    // NOTE: Dans une application réelle, vous auriez ici un conteneur 'scenarios'
+    // et vous vérifieriez les permissions de l'utilisateur (doit être 'teacher').
+    
+    const newScenario = req.body;
+    
+    if (!newScenario.title || !newScenario.characterIntro) {
+        return res.status(400).json({ error: "Les données de scénario sont incomplètes." });
+    }
+
+    // SIMULATION D'ENREGISTREMENT EN BASE DE DONNÉES:
+    newScenario.id = `scen-${Date.now()}`;
+    newScenario.voiceCode = 'ar-XA-Wavenet-B'; // Défaut Arabe Fusha
+    
+    console.log(`[SCENARIO CREATED] ID: ${newScenario.id}, Title: ${newScenario.title}`);
+
+    // Dans un vrai projet, vous inséreriez ici dans le conteneur 'scenarios'
+    // await scenariosContainer.items.create(newScenario);
+
+    // Retourne le nouveau scénario pour confirmation
+    res.status(201).json({ message: "Scénario créé avec succès (Simulé).", scenario: newScenario });
+});
+
+
 // BIBLIOTHÈQUE
 app.post('/api/library/publish', async (req, res) => {
     if (!libraryContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
