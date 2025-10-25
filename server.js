@@ -13,12 +13,26 @@ const { TextToSpeechClient } = require('@google-cloud/text-to-speech');
 
 // --- 3. Initialisation Express ---
 const app = express();
-app.use(cors());
+// CORS : Autoriser votre Front-End (à ajuster si l'URL change)
+const allowedOrigins = [
+    'https://gray-meadow-0061b3603.1.azurestaticapps.net', // VOTRE FRONT-END AZURE
+    'http://localhost:3000' // Pour les tests locaux
+];
+app.use(cors({
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    }
+}));
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 const upload = multer({ storage: multer.memoryStorage() });
 
-// --- 2. Initialisation des Services Azure & Google ---
+// --- 2. Initialisation des Clients de Services ---
 let dbClient, blobServiceClient, formRecognizerClient, ttsClient;
 
 try {
@@ -50,16 +64,73 @@ try {
 }
 
 const database = dbClient?.database('AidaDB');
-const usersContainer = database?.container('Users');
-const classesContainer = database?.container('Classes');
-const libraryContainer = database?.container('Library');
+let usersContainer;
+let classesContainer;
+let libraryContainer;
+let scenariosContainer; // DÉCLARATION pour le conteneur Académie
+
+// --- FONCTIONS ET DONNÉES PAR DÉFAUT (Pour injection si la DB est vide) ---
+const defaultScenarios = [
+    { 
+        id: 'scen-0', 
+        title: "Scénario 0 : Répétiteur Vocal (Phrases de Base)", 
+        language: "Arabe Littéraire (Al-Fusha)", 
+        level: "Débutant Absolu", 
+        context: "L'IA joue le rôle d'un tuteur amical et patient...", 
+        characterName: "Le Répétiteur (المُعِيد)", 
+        characterIntro: "أهلاً بك! هيا نتدرب على النطق. كرر هذه الجملة: أنا بخير. <PHONETIQUE>Ahlan bik! Hayyā natadarab 'alā an-nuṭq. Karrir hādhihi al-jumla: Anā bi-khayr.</PHONETIQUE> <TRADUCTION>Bienvenue ! Entraînons-nous à la prononciation. Répète cette phrase : Je vais bien.</TRADUCTION>", 
+        objectives: ["Répéter correctement 'Je vais bien'.", "Répéter correctement 'Merci'.", "Répéter correctement 'Quel est votre nom?'."],
+        voiceCode: 'ar-XA-Wavenet-B'
+    },
+    { 
+        id: 'scen-1', 
+        title: "Scénario 1 : Commander son petit-déjeuner", 
+        language: "Arabe Littéraire (Al-Fusha)", 
+        level: "Débutant", 
+        context: "Vous entrez dans un café moderne au Caire...", 
+        characterName: "Le Serveur (النادِل)", 
+        characterIntro: "صباح الخير، تفضل. ماذا تود أن تطلب اليوم؟ <PHONETIQUE>Sabah al-khayr, tafaddal. Mādhā tawaddu an taṭlub al-yawm?</PHONETIQUE> <TRADUCTION>Bonjour, entrez. Que souhaitez-vous commander aujourd'hui ?</TRADUCTION>", 
+        objectives: ["Demander un thé et un croissant.", "Comprendre le prix total.", "Dire 'Merci' et 'Au revoir'."],
+        voiceCode: 'ar-XA-Wavenet-B'
+    }
+];
+
+// --- INITIALISATION DE LA BASE DE DONNÉES ET DES CONTENEURS ---
+// CETTE FONCTION EST PLACÉE ICI POUR ÊTRE DÉFINIE AVANT L'APPEL EN FIN DE FICHIER.
+async function initializeDatabase() {
+    if (!dbClient || !database) return console.error("Base de données non initialisée. Les routes DB seront indisponibles.");
+    try {
+        let result;
+
+        result = await database.containers.createIfNotExists({ id: 'Users', partitionKey: '/id' });
+        usersContainer = result.container;
+
+        result = await database.containers.createIfNotExists({ id: 'Classes', partitionKey: '/teacherEmail' });
+        classesContainer = result.container;
+
+        result = await database.containers.createIfNotExists({ id: 'Library', partitionKey: '/subject' });
+        libraryContainer = result.container;
+
+        // Conteneur Scenarios (CRUCIAL POUR L'ACADÉMIE)
+        result = await database.containers.createIfNotExists({ id: 'Scenarios', partitionKey: '/id' }); 
+        scenariosContainer = result.container;
+        
+        console.log("Tous les conteneurs (Users, Classes, Library, Scenarios) sont initialisés.");
+
+    } catch (error) {
+        console.error("Erreur critique lors de l'initialisation des conteneurs de la DB:", error.message);
+        throw error; 
+    }
+}
+// ---------------------------------------------------------------------
 
 // --- Route Racine pour Vérification ---
 app.get('/', (req, res) => {
     res.send('<h1>Serveur AIDA</h1><p>Le serveur est en ligne et fonctionne correctement.</p>');
 });
 
-// --- API Routes ---
+
+// --- API Routes (AIDA ÉDUCATION) ---
 
 // AUTH AIDA ÉDUCATION (EXISTANT)
 app.post('/api/auth/login', async (req, res) => {
@@ -98,65 +169,6 @@ app.post('/api/auth/signup', async (req, res) => {
         }
     }
 });
-
-// --- ACADEMY AUTH ROUTES (NOUVEAU ET ISOLÉ) ---
-app.post('/api/academy/auth/login', async (req, res) => {
-    if (!usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
-    const { email, password } = req.body;
-    try {
-        const { resource: user } = await usersContainer.item(email, email).read();
-        // ISOLATION: Accepte UNIQUEMENT les utilisateurs de l'Académie ici
-        const isAcademyRole = user?.role?.startsWith('academy_');
-
-        if (user && isAcademyRole && user.password === password) {
-            delete user.password;
-            res.json({ user });
-        } else {
-            res.status(401).json({ error: "Email, mot de passe ou rôle incorrect pour l'Académie." });
-        }
-    } catch (error) {
-        if (error.code === 404) {
-            res.status(401).json({ error: "Email, mot de passe ou rôle incorrect pour l'Académie." });
-        } else {
-            console.error("Erreur de connexion Académie:", error);
-            res.status(500).json({ error: "Erreur du serveur." });
-        }
-    }
-});
-
-app.post('/api/academy/auth/signup', async (req, res) => {
-    if (!usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
-    const { email, password, role } = req.body;
-    
-    const validRoles = ['academy_student', 'academy_teacher', 'academy_parent'];
-    if (!validRoles.includes(role)) {
-         return res.status(400).json({ error: "Rôle de l'Académie invalide." });
-    }
-    
-    // Ajout d'une propriété pour le suivi de l'Académie
-    const newUser = { 
-        id: email, 
-        email, 
-        password, 
-        role, 
-        firstName: email.split('@')[0], 
-        avatar: 'default.png', 
-        academyProgress: {} // Clé d'isolation
-    }; 
-    try {
-        const { resource: createdUser } = await usersContainer.items.create(newUser);
-        delete createdUser.password;
-        res.status(201).json({ user: createdUser });
-    } catch (error) {
-        if (error.code === 409) {
-            res.status(409).json({ error: "Cet email est déjà utilisé." });
-        } else {
-            console.error("Erreur de création de compte Académie:", error);
-            res.status(500).json({ error: "Erreur lors de la création du compte Académie." });
-        }
-    }
-});
-// FIN ACADEMY AUTH
 
 
 // ENSEIGNANT AIDA ÉDUCATION
@@ -635,15 +647,14 @@ app.post('/api/academy/auth/signup', async (req, res) => {
 // FIN ACADEMY AUTH
 
 
-// --- ACADEMY MRE : CHAT & VOIX ---
+// --- ACADEMY MRE : CHAT & VOIX (Réutilise la route existante pour TTS) ---
 
-// Route pour la synthèse vocale (réutilisation de la route existante avec ttsClient)
 app.post('/api/ai/synthesize-speech', async (req, res) => {
     if (!ttsClient) { return res.status(500).json({ error: "Le service de synthèse vocale n'est pas configuré sur le serveur." }); }
     const { text, voice, rate, pitch } = req.body;
     if (!text) return res.status(400).json({ error: "Le texte est manquant." });
     
-    // Pour l'Arabe Fusha, on utilise 'ar-XA-Wavenet-B' qui doit être passé par le Front-End
+    // Logique TTS Google Cloud (doit être incluse dans ce bloc)
     const request = { 
         input: { text: text }, 
         voice: { 
@@ -665,7 +676,6 @@ app.post('/api/ai/synthesize-speech', async (req, res) => {
         res.status(500).json({ error: "Impossible de générer l'audio." });
     }
 });
-
 
 // Route pour le chat immersif (LLM)
 app.post('/api/academy/ai/chat', async (req, res) => {
@@ -754,22 +764,19 @@ app.get('/api/academy/scenarios', async (req, res) => {
     try {
         const { resources: dbScenarios } = await scenariosContainer.items.readAll().fetchAll();
         
-        // Si la DB est vide, retourner les scénarios de base (pour la première utilisation)
         if (dbScenarios.length === 0) {
-            // NOTE: On peut insérer les defaultScenarios ici si on veut les rendre persistants
             return res.json(defaultScenarios);
         }
         
-        // Concaténer les scénarios par défaut et ceux créés, en assurant que les IDs des prototypes sont uniques
-        const allScenarios = [...defaultScenarios, ...dbScenarios.filter(s => 
-            !defaultScenarios.some(d => d.id === s.id)
-        )];
+        // Fusionner les scénarios par défaut et ceux créés par les professeurs
+        const allScenariosMap = new Map();
+        defaultScenarios.forEach(s => allScenariosMap.set(s.id, s));
+        dbScenarios.forEach(s => allScenariosMap.set(s.id, s));
 
-        res.json(allScenarios);
+        res.json(Array.from(allScenariosMap.values()));
 
     } catch (error) {
         console.error("Erreur lors de la lecture des scénarios depuis la DB:", error.message);
-        // En cas d'échec de la DB, retourner au moins les scénarios par défaut
         res.json(defaultScenarios); 
     }
 });
@@ -788,7 +795,7 @@ app.post('/api/academy/scenarios/create', async (req, res) => {
     }
     
     const scenarioToInsert = {
-        id: `scen-${Date.now()}`, // ID unique basé sur le timestamp
+        id: `scen-${Date.now()}`, 
         voiceCode: newScenario.voiceCode || 'ar-XA-Wavenet-B', 
         createdAt: new Date().toISOString(),
         ...newScenario
@@ -808,13 +815,15 @@ app.post('/api/academy/scenarios/create', async (req, res) => {
 });
 
 
-// --- Démarrage du serveur ---
+// --- Point d'entrée et démarrage du serveur ---
 const PORT = process.env.PORT || 3000;
 
-// On initialise la DB avant de démarrer le serveur
+// On initialise la DB avant de démarrer le serveur pour éviter la ReferenceError
 initializeDatabase().then(() => {
     app.listen(PORT, () => {
         console.log(`Server AIDA démarré sur le port ${PORT}`);
-        console.log(`Accès à l'application via http://localhost:${PORT}`);
     });
+}).catch((error) => {
+    console.error("Le serveur ne peut pas démarrer en raison d'une erreur critique de DB:", error.message);
+    process.exit(1); 
 });
