@@ -577,28 +577,131 @@ app.post('/api/ai/synthesize-speech', async (req, res) => {
     }
 });
 
-// NOUVEAU: ACADEMY CHAT ROUTE (Pour la Phase 1) 
-// Cette route sera utilisée pour le chat immersif de l'Académie MRE
+// --- ACADEMY AUTH ROUTES (NOUVEAU ET ISOLÉ) ---
+app.post('/api/academy/auth/login', async (req, res) => {
+    if (!usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
+    const { email, password } = req.body;
+    try {
+        const { resource: user } = await usersContainer.item(email, email).read();
+        const isAcademyRole = user?.role?.startsWith('academy_');
+
+        if (user && isAcademyRole && user.password === password) {
+            delete user.password;
+            res.json({ user });
+        } else {
+            res.status(401).json({ error: "Email, mot de passe ou rôle incorrect pour l'Académie." });
+        }
+    } catch (error) {
+        if (error.code === 404) {
+            res.status(401).json({ error: "Email, mot de passe ou rôle incorrect pour l'Académie." });
+        } else {
+            console.error("Erreur de connexion Académie:", error);
+            res.status(500).json({ error: "Erreur du serveur." });
+        }
+    }
+});
+
+app.post('/api/academy/auth/signup', async (req, res) => {
+    if (!usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
+    const { email, password, role } = req.body;
+    
+    const validRoles = ['academy_student', 'academy_teacher', 'academy_parent'];
+    if (!validRoles.includes(role)) {
+         return res.status(400).json({ error: "Rôle de l'Académie invalide." });
+    }
+    
+    const newUser = { 
+        id: email, 
+        email, 
+        password, 
+        role, 
+        firstName: email.split('@')[0], 
+        avatar: 'default.png', 
+        academyProgress: {} 
+    }; 
+    try {
+        const { resource: createdUser } = await usersContainer.items.create(newUser);
+        delete createdUser.password;
+        res.status(201).json({ user: createdUser });
+    } catch (error) {
+        if (error.code === 409) {
+            res.status(409).json({ error: "Cet email est déjà utilisé." });
+        } else {
+            console.error("Erreur de création de compte Académie:", error);
+            res.status(500).json({ error: "Erreur lors de la création du compte Académie." });
+        }
+    }
+});
+// FIN ACADEMY AUTH
+
+
+// --- ACADEMY MRE : CHAT & VOIX ---
+
+// Route pour la synthèse vocale (réutilisation de la route existante avec ttsClient)
+app.post('/api/ai/synthesize-speech', async (req, res) => {
+    if (!ttsClient) { return res.status(500).json({ error: "Le service de synthèse vocale n'est pas configuré sur le serveur." }); }
+    const { text, voice, rate, pitch } = req.body;
+    if (!text) return res.status(400).json({ error: "Le texte est manquant." });
+    
+    // Pour l'Arabe Fusha, on utilise 'ar-XA-Wavenet-B' qui doit être passé par le Front-End
+    const request = { 
+        input: { text: text }, 
+        voice: { 
+            languageCode: voice ? voice.substring(0, 5) : 'fr-FR', 
+            name: voice || 'fr-FR-Wavenet-E' 
+        }, 
+        audioConfig: { 
+            audioEncoding: 'MP3', 
+            speakingRate: parseFloat(rate) || 1.0, 
+            pitch: parseFloat(pitch) || 0.0, 
+        }, 
+    };
+    try {
+        const [response] = await ttsClient.synthesizeSpeech(request);
+        const audioContent = response.audioContent.toString('base64');
+        res.json({ audioContent });
+    } catch (error) {
+        console.error("Erreur lors de la synthèse vocale Google:", error);
+        res.status(500).json({ error: "Impossible de générer l'audio." });
+    }
+});
+
+
+// Route pour le chat immersif (LLM)
 app.post('/api/academy/ai/chat', async (req, res) => {
-    const { history } = req.body;
+    const { history, response_format } = req.body;
     if (!history) { return res.status(400).json({ error: "L'historique de la conversation est manquant." }); }
     try {
-        const response = await axios.post('https://api.deepseek.com/chat/completions', {
+        const deepseekBody = {
             model: "deepseek-chat",
-            messages: history 
-        }, { headers: { 'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}` } });
+            messages: history
+        };
+        
+        if (response_format) {
+             deepseekBody.response_format = response_format;
+        }
+
+        const response = await axios.post('https://api.deepseek.com/chat/completions', deepseekBody, { 
+            headers: { 
+                'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`,
+                'Content-Type': 'application/json'
+            } 
+        });
+        
         const reply = response.data.choices[0].message.content;
         res.json({ reply });
+
     } catch (error) {
-        console.error("Erreur lors de la communication avec l'API Deepseek (Académie MRE):", error.response?.data);
+        console.error("Erreur Deepseek (Académie MRE):", error.response?.data || error.message);
         res.status(500).json({ error: "Désolé, une erreur est survenue en contactant l'IA pour l'Académie." });
     }
 });
 
-// --- NOUVEAU : ACADEMY SESSION SAVE (Phase 3) ---
-// Cette route enregistre le bilan et l'historique complet de la session pour le suivi
+
+// --- ACADEMY MRE : SUIVI ET GESTION (Routes Cosmos DB) ---
+
+// ROUTE 1 : SAUVEGARDE DE SESSION (Phase 3)
 app.post('/api/academy/session/save', async (req, res) => {
-    // Vérification des conteneurs de base de données
     if (!usersContainer) { 
         console.error("Erreur 503: Conteneur d'utilisateurs non disponible.");
         return res.status(503).json({ error: "Service de base de données indisponible." }); 
@@ -615,26 +718,21 @@ app.post('/api/academy/session/save', async (req, res) => {
         userId: userId,
         scenarioId: scenarioId,
         completedAt: new Date().toISOString(),
-        report: report, // Bilan structuré par l'IA
-        fullHistory: fullHistory // Historique complet de la conversation
+        report: report, 
+        fullHistory: fullHistory 
     };
 
     try {
-        // 1. Lire l'objet utilisateur actuel
         const { resource: user } = await usersContainer.item(userId, userId).read();
         
         if (!user) {
             return res.status(404).json({ error: "Utilisateur non trouvé." });
         }
         
-        // 2. Initialiser le champ d'historique de l'Académie s'il n'existe pas
         user.academyProgress = user.academyProgress || {};
         user.academyProgress.sessions = user.academyProgress.sessions || [];
-        
-        // 3. Ajouter la nouvelle session
         user.academyProgress.sessions.push(newSession);
 
-        // 4. Mettre à jour l'utilisateur dans la base de données
         await usersContainer.items.upsert(user);
         
         res.status(201).json({ message: "Session enregistrée avec succès.", sessionId: newSession.id });
@@ -645,95 +743,78 @@ app.post('/api/academy/session/save', async (req, res) => {
     }
 });
 
-// ... (Après la route /api/academy/session/save) ...
 
-// --- NOUVEAU: ROUTE POUR RÉCUPÉRER LES SCÉNARIOS (Phase 5 - Décentralisation) ---
-// Cette route simule la lecture de scénarios depuis une DB et prépare la création de scénarios par le prof.
+// ROUTE 2 : RÉCUPÉRATION DES SCÉNARIOS (Utilise la DB + Fallback)
 app.get('/api/academy/scenarios', async (req, res) => {
-    // NOTE: Dans une version avec DB, on lirait ici le conteneur 'scenarios'.
+    if (!scenariosContainer) { 
+        console.warn("Conteneur Scenarios non initialisé. Utilisation du Fallback.");
+        return res.json(defaultScenarios);
+    }
     
-    // Pour l'instant, on utilise les prototypes définis dans le Front-End pour simuler la liste
-    // En attendant que le Front-End puisse appeler cette route, nous avons besoin de définir les prototypes ici
-    // pour que la route puisse retourner quelque chose. Ceci est une solution temporaire pour la simulation.
-    
-    const hardcodedScenarios = [
-        {
-            id: 'scen-0',
-            title: "Scénario 0 : Répétiteur Vocal (Phrases de Base)",
-            language: "Arabe Littéraire (Al-Fusha)", 
-            level: "Débutant Absolu",
-            context: "L'IA joue le rôle d'un tuteur amical et patient. Ton objectif est de répéter les phrases pour maîtriser la prononciation et le vocabulaire de base.", 
-            characterName: "Le Répétiteur (المُعِيد)", 
-            characterIntro: "أهلاً بك! هيا نتدرب على النطق. كرر هذه الجملة: أنا بخير. <PHONETIQUE>Ahlan bik! Hayyā natadarab 'alā an-nuṭq. Karrir hādhihi al-jumla: Anā bi-khayr.</PHONETIQUE> <TRADUCTION>Bienvenue ! Entraînons-nous à la prononciation. Répète cette phrase : Je vais bien.</TRADUCTION>",
-            objectives: ["Répéter correctement 'Je vais bien'.", "Répéter correctement 'Merci'.", "Répéter correctement 'Quel est votre nom?'."]
-        },
-        {
-            id: 'scen-1',
-            title: "Scénario 1 : Commander son petit-déjeuner",
-            language: "Arabe Littéraire (Al-Fusha)", 
-            level: "Débutant",
-            context: "Vous entrez dans un café moderne au Caire. Le serveur vous sourit et vous attend.", 
-            characterName: "Le Serveur (النادِل)", 
-            characterIntro: "صباح الخير، تفضل. ماذا تود أن تطلب اليوم؟ <PHONETIQUE>Sabah al-khayr, tafaddal. Mādhā tawaddu an taṭlub al-yawm?</PHONETIQUE> <TRADUCTION>Bonjour, entrez. Que souhaitez-vous commander aujourd'hui ?</TRADUCTION>",
-            objectives: ["Demander un thé et un croissant.", "Comprendre le prix total.", "Dire 'Merci' et 'Au revoir'."]
+    try {
+        const { resources: dbScenarios } = await scenariosContainer.items.readAll().fetchAll();
+        
+        // Si la DB est vide, retourner les scénarios de base (pour la première utilisation)
+        if (dbScenarios.length === 0) {
+            // NOTE: On peut insérer les defaultScenarios ici si on veut les rendre persistants
+            return res.json(defaultScenarios);
         }
-    ];
+        
+        // Concaténer les scénarios par défaut et ceux créés, en assurant que les IDs des prototypes sont uniques
+        const allScenarios = [...defaultScenarios, ...dbScenarios.filter(s => 
+            !defaultScenarios.some(d => d.id === s.id)
+        )];
 
-    res.json(hardcodedScenarios);
+        res.json(allScenarios);
+
+    } catch (error) {
+        console.error("Erreur lors de la lecture des scénarios depuis la DB:", error.message);
+        // En cas d'échec de la DB, retourner au moins les scénarios par défaut
+        res.json(defaultScenarios); 
+    }
 });
 
-// --- NOUVEAU: ROUTE POUR LA CRÉATION DE SCÉNARIOS (Phase 5) ---
+
+// ROUTE 3 : CRÉATION DE SCÉNARIOS (Utilise la DB)
 app.post('/api/academy/scenarios/create', async (req, res) => {
-    // NOTE: Dans une application réelle, vous auriez ici un conteneur 'scenarios'
-    // et vous vérifieriez les permissions de l'utilisateur (doit être 'teacher').
+    if (!scenariosContainer) { 
+        return res.status(503).json({ error: "Conteneur de scénarios non disponible." }); 
+    }
     
     const newScenario = req.body;
     
     if (!newScenario.title || !newScenario.characterIntro) {
         return res.status(400).json({ error: "Les données de scénario sont incomplètes." });
     }
-
-    // SIMULATION D'ENREGISTREMENT EN BASE DE DONNÉES:
-    newScenario.id = `scen-${Date.now()}`;
-    newScenario.voiceCode = 'ar-XA-Wavenet-B'; // Défaut Arabe Fusha
     
-    console.log(`[SCENARIO CREATED] ID: ${newScenario.id}, Title: ${newScenario.title}`);
+    const scenarioToInsert = {
+        id: `scen-${Date.now()}`, // ID unique basé sur le timestamp
+        voiceCode: newScenario.voiceCode || 'ar-XA-Wavenet-B', 
+        createdAt: new Date().toISOString(),
+        ...newScenario
+    };
 
-    // Dans un vrai projet, vous inséreriez ici dans le conteneur 'scenarios'
-    // await scenariosContainer.items.create(newScenario);
-
-    // Retourne le nouveau scénario pour confirmation
-    res.status(201).json({ message: "Scénario créé avec succès (Simulé).", scenario: newScenario });
-});
-
-
-// BIBLIOTHÈQUE
-app.post('/api/library/publish', async (req, res) => {
-    if (!libraryContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
-    const { contentData, teacherName, subject } = req.body;
-    const libraryItem = { ...contentData, id: `lib-${Date.now()}`, authorName: teacherName, subject: subject, originalId: contentData.id };
     try {
-        await libraryContainer.items.create(libraryItem);
-        res.status(201).json(libraryItem);
-    } catch (error) { res.status(500).json({ error: "Erreur lors de la publication." }); }
-});
+        const { resource: createdScenario } = await scenariosContainer.items.create(scenarioToInsert);
+        
+        console.log(`[SCENARIO CREATED] ID: ${createdScenario.id}, Title: ${createdScenario.title}`);
 
-app.get('/api/library', async (req, res) => {
-    if (!libraryContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
-    const { searchTerm, subject } = req.query;
-    let query = "SELECT * FROM c";
-    const parameters = [];
-    const conditions = [];
-    if (searchTerm) { conditions.push("CONTAINS(c.title, @searchTerm, true)"); parameters.push({ name: "@searchTerm", value: searchTerm }); }
-    if (subject) { conditions.push("c.subject = @subject"); parameters.push({ name: "@subject", value: subject }); }
-    if (conditions.length > 0) { query += " WHERE " + conditions.join(" AND "); }
-    try {
-        const { resources } = await libraryContainer.items.query({ query, parameters }).fetchAll();
-        res.json(resources);
-    } catch (error) { res.status(500).json({ error: "Impossible de charger la bibliothèque." }); }
+        res.status(201).json({ message: "Scénario créé avec succès.", scenario: createdScenario });
+
+    } catch (error) {
+        console.error("Erreur lors de la création du scénario dans la DB:", error.message);
+        res.status(500).json({ error: "Erreur serveur lors de la création du scénario." });
+    }
 });
 
 
 // --- Démarrage du serveur ---
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Serveur AIDA démarré sur le port ${PORT}`));
+
+// On initialise la DB avant de démarrer le serveur
+initializeDatabase().then(() => {
+    app.listen(PORT, () => {
+        console.log(`Server AIDA démarré sur le port ${PORT}`);
+        console.log(`Accès à l'application via http://localhost:${PORT}`);
+    });
+});
