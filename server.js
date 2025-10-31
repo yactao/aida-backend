@@ -539,14 +539,29 @@ app.post('/api/ai/generate-lesson-plan', async (req, res) => {
 });
 
 // ROUTE AJOUTÉE POUR LA NOUVELLE MODAL D'AIDE DM/QUIZZ
+// MODIFIÉ : Accepte 'level' et l'utilise dans le system prompt
 app.post('/api/ai/get-aida-help', async (req, res) => {
-    const { history } = req.body;
+    // CORRECTION : Récupération du 'level' en plus de 'history'
+    const { history, level } = req.body;
+    
     if (!history) { return res.status(400).json({ error: "L'historique de la conversation est manquant." }); }
+    
+    // CORRECTION : Création d'un prompt système dynamique incluant le niveau
+    const systemPrompt = `Tu es AIDA, un tuteur IA bienveillant et pédagogue. Ton objectif est de guider les élèves vers la solution sans jamais donner la réponse directement, sauf en dernier recours. 
+    
+    CONTEXTE IMPORTANT : L'élève que tu aides est au niveau [${level || 'non spécifié'}]. 
+    
+    Tu dois adapter ton langage et la complexité de tes indices à ce niveau. Suis une méthode socratique : questionner d'abord, donner un indice ensuite, et valider la compréhension de l'élève.`;
+
     try {
         const response = await axios.post('https://api.deepseek.com/chat/completions', {
             model: "deepseek-chat",
-            messages: [ { role: "system", content: "Tu es AIDA, un tuteur IA bienveillant et pédagogue. Ton objectif est de guider les élèves vers la solution sans jamais donner la réponse directement, sauf en dernier recours. Tu dois adapter ton langage à l'âge de l'élève et suivre une méthode socratique : questionner d'abord, donner un indice ensuite, et valider la compréhension de l'élève." }, ...history ]
+            messages: [ 
+                { role: "system", content: systemPrompt }, // Utilisation du prompt dynamique
+                ...history 
+            ]
         }, { headers: { 'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}` } });
+        
         const reply = response.data.choices[0].message.content;
         res.json({ response: reply });
     } catch (error) {
