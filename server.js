@@ -392,6 +392,89 @@ app.post('/api/student/submit-quiz', async (req, res) => {
     } catch (error) { res.status(500).json({ error: "Erreur lors de la soumission." }); }
 });
 
+// --- BIBLIOTHÈQUE DE CONTENUS (Manquante) ---
+
+app.get('/api/library', async (req, res) => {
+    if (!libraryContainer) return res.status(503).json({ error: "Service de bibliothèque indisponible." });
+    
+    const { searchTerm, subject } = req.query;
+    
+    let query = "SELECT * FROM c";
+    const parameters = [];
+    const conditions = [];
+
+    // Le conteneur Library a pour clé de partition /subject
+    if (subject) {
+        conditions.push("c.subject = @subject");
+        parameters.push({ name: "@subject", value: subject });
+    }
+    
+    if (searchTerm) {
+        // Ajoute une recherche simple (insensible à la casse) sur le titre
+        conditions.push("CONTAINS(c.title, @searchTerm, true)"); 
+        parameters.push({ name: "@searchTerm", value: searchTerm });
+    }
+
+    if (conditions.length > 0) {
+        query += " WHERE " + conditions.join(" AND ");
+    }
+    
+    query += " ORDER BY c.publishedAt DESC"; // Trier par plus récent
+
+    const querySpec = { query, parameters };
+
+    try {
+        // Si aucun sujet n'est fourni, nous devons autoriser la requête sur toutes les partitions
+        const options = { enableCrossPartitionQuery: !subject };
+        const { resources: items } = await libraryContainer.items.query(querySpec, options).fetchAll();
+        res.json(items);
+    } catch (error) {
+        console.error("Erreur de recherche dans la bibliothèque:", error);
+        res.status(500).json({ error: "Impossible de récupérer la bibliothèque." });
+    }
+});
+
+app.post('/api/library/publish', async (req, res) => {
+    if (!libraryContainer) return res.status(503).json({ error: "Service de bibliothèque indisponible." });
+    
+    const { contentData, teacherName, subject } = req.body;
+    
+    if (!contentData || !teacherName || !subject) {
+        return res.status(400).json({ error: "Données de publication incomplètes." });
+    }
+
+    const newLibraryItem = {
+        ...contentData,
+        // Créer un nouvel ID unique pour la bibliothèque
+        id: `lib-${contentData.id || Date.now()}`, 
+        originalContentId: contentData.id,
+        authorName: teacherName,
+        publishedAt: new Date().toISOString(),
+        // Assurer que la clé de partition '/subject' est présente
+        subject: subject 
+    };
+
+    // Nettoyer les champs spécifiques à une classe
+    delete newLibraryItem.assignedAt;
+    delete newLibraryItem.dueDate;
+    delete newLibraryItem.isEvaluated;
+    delete newLibraryItem.classId;
+    delete newLibraryItem.teacherEmail;
+
+    try {
+        const { resource: publishedItem } = await libraryContainer.items.create(newLibraryItem);
+        res.status(201).json(publishedItem);
+    } catch (error) {
+         if (error.code === 409) {
+             res.status(409).json({ error: "Ce contenu (ou un contenu avec le même ID) existe déjà dans la bibliothèque." });
+         } else {
+             console.error("Erreur de publication dans la bibliothèque:", error);
+             res.status(500).json({ error: "Erreur lors de la publication." });
+         }
+    }
+});
+
+
 // IA & GENERATION
 app.post('/api/ai/generate-content', async (req, res) => {
     const { competences, contentType, exerciseCount, language } = req.body;
