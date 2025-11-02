@@ -912,6 +912,35 @@ app.post('/api/academy/scenarios/create', async (req, res) => {
     }
 });
 
+// ROUTE 4 : RÉCUPÉRATION DES ÉLÈVES (pour Dashboard Enseignant/Parent)
+app.get('/api/academy/teacher/students', async (req, res) => {
+    if (!usersContainer) { 
+        return res.status(503).json({ error: "Service de base de données indisponible." }); 
+    }
+
+  
+    const { teacherEmail } = req.query;
+
+    // Interroge le conteneur 'Users' pour tous les utilisateurs 
+    // qui ont le rôle 'academy_student'
+    const querySpec = {
+        query: "SELECT c.id, c.firstName, c.academyProgress FROM c WHERE c.role = @role",
+        parameters: [
+            { name: "@role", value: "academy_student" }
+        ]
+    };
+
+    try {
+        const { resources: students } = await usersContainer.items.query(querySpec).fetchAll();
+        
+        // Renvoie les données nécessaires : id, prénom, et progression
+        res.json(students);
+
+    } catch (error) {
+        console.error("Erreur lors de la récupération des élèves de l'académie:", error.message);
+        res.status(500).json({ error: "Erreur serveur lors de la récupération des élèves." });
+    }
+});
 
 // --- Point d'entrée et démarrage du serveur ---
 const PORT = process.env.PORT || 3000;
