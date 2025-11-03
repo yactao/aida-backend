@@ -621,6 +621,92 @@ app.post('/api/ai/generate-lesson-plan', async (req, res) => {
     }
 });
 
+// --- MODIFIÉ : AIDE À LA CORRECTION (pour 1 élève, N pages) ---
+// Utilise upload.array('copies', 10) pour accepter jusqu'à 10 pages pour UN élève
+app.post('/api/ai/grade-upload', upload.array('copies', 10), async (req, res) => {
+    if (!formRecognizerClient || !process.env.DEEPSEEK_API_KEY) {
+        return res.status(503).json({ error: "Les services d'analyse IA ou Document ne sont pas configurés sur le serveur." });
+    }
+    if (!req.files || req.files.length === 0) {
+        return res.status(400).json({ error: "Aucun fichier de copie n'a été reçu." });
+    }
+
+    const { sujet, criteres } = req.body;
+    if (!sujet || !criteres) {
+        return res.status(400).json({ error: "Le sujet et les critères de notation sont obligatoires." });
+    }
+
+    try {
+        console.log(`[Grading Module] Analyse OCR de ${req.files.length} page(s)...`);
+        
+        // --- ÉTAPE 1: OCR sur toutes les pages en parallèle ---
+        const ocrPromises = req.files.map(async (file) => {
+            const poller = await formRecognizerClient.beginAnalyzeDocument("prebuilt-layout", file.buffer);
+            const { content } = await poller.pollUntilDone();
+            console.log(`[Grading Module] Texte extrait de ${file.originalname} (${content.length} caractères).`);
+            return content;
+        });
+
+        const allTextSnippets = await Promise.all(ocrPromises);
+        
+        // --- ÉTAPE 2: Combiner tout le texte ---
+        const fullText = allTextSnippets.join("\n\n--- PAGE SUIVANTE ---\n\n");
+        console.log(`[Grading Module] Texte total combiné: ${fullText.length} caractères.`);
+
+        // --- ÉTAPE 3: IA (Analyse unique) ---
+        const systemPrompt = `Tu es un assistant de correction expert pour enseignants. Tu reçois le SUJET d'un devoir, les CRITÈRES de notation, et le TEXTE COMPLET d'une copie d'élève (qui peut s'étendre sur plusieurs pages, séparées par "--- PAGE SUIVANTE ---").
+        Ton objectif est de fournir une évaluation structurée et objective.
+        Ta réponse DOIT être un objet JSON valide, et rien d'autre.
+        
+        Voici la structure JSON ATTENDUE:
+        {
+          "analyseGlobale": "Une analyse claire et structurée...",
+          "criteres": [
+            { "nom": "Pertinence du contenu", "note": "X/Y", "commentaire": "..." },
+            { "nom": "Organisation et cohérence", "note": "X/Y", "commentaire": "..." }
+          ],
+          "noteFinale": "X/20",
+          "commentaireEleve": "Travail remarquable. L'essai est clair..."
+        }`;
+
+        const userPrompt = `Voici la correction à effectuer :
+        
+        1. SUJET DU DEVOIR:
+        "${sujet}"
+
+        2. CRITÈRES DE NOTATION:
+        "${criteres}"
+
+        3. TEXTE COMPLET DE LA COPIE DE L'ÉLÈVE (extrait par OCR):
+        "${fullText}"
+
+        Génère l'évaluation JSON structurée correspondante.`;
+
+        console.log(`[Grading Module] Envoi de la requête unique à Deepseek...`);
+        
+        const response = await axios.post('https://api.deepseek.com/chat/completions', {
+            model: "deepseek-chat",
+            messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: userPrompt }
+            ],
+            response_format: { type: "json_object" }
+        }, { headers: { 'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}` } });
+
+        console.log(`[Grading Module] Réponse IA reçue.`);
+        
+        const evaluationJson = JSON.parse(response.data.choices[0].message.content);
+        
+        // Renvoie UN SEUL objet d'analyse
+        res.json(evaluationJson);
+
+    } catch (error) {
+        console.error("Erreur dans le module d'aide à la correction:", error.response?.data || error.message);
+        res.status(500).json({ error: "Erreur lors de l'analyse des copies." });
+    }
+});
+
+
 // ROUTE AJOUTÉE POUR LA NOUVELLE MODAL D'AIDE DM/QUIZZ
 // MODIFIÉ : Accepte 'level' et l'utilise dans le system prompt
 app.post('/api/ai/get-aida-help', async (req, res) => {
