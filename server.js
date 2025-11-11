@@ -209,24 +209,29 @@ app.post('/api/ai/playground-chat', async (req, res) => {
 
     try {
         let reply = "";
+        let agentName = ""; // ▼ NOUVELLE VARIABLE
+        
         const lastUserMessage = history[history.length - 1].content.toLowerCase();
         
         // --- LOGIQUE DU ROUTEUR ---
-        // Si l'utilisateur mentionne "kimi", "analyse" ou "document", on appelle l'Agent Spécialiste Kimi.
         const keywordsForKimi = ['kimi', 'analyse ce document', 'lis ce texte'];
         
         if (keywordsForKimi.some(keyword => lastUserMessage.includes(keyword))) {
             
             console.log("Info: Routage vers l'Agent Kimi (Moonshot)...");
             reply = await callKimiCompletion(history);
+            agentName = "Aïda-kimi"; // ▼ TAG SPÉCIFIQUE
 
         } else {
             
             console.log("Info: Routage vers l'Agent Deepseek (Défaut)...");
             reply = await getDeepseekPlaygroundCompletion(history); 
+            agentName = "Aïda-deep"; // ▼ TAG SPÉCIFIQUE
         }
         
-        res.json({ reply });
+        // ▼ MODIFICATION DE LA RÉPONSE
+        // On renvoie un objet complet avec la réponse ET le nom de l'agent
+        res.json({ reply: reply, agent: agentName });
 
     } catch (error) {
         console.error("Erreur dans le routeur d'agent:", error);
@@ -846,12 +851,15 @@ app.post('/api/academy/auth/signup', async (req, res) => {
 // FIN ACADEMY AUTH
 
 
-// --- ACADEMY MRE : CHAT & VOIX (Réutilise la route existante pour TTS) ---
+// --- ACADEMY MRE : CHAT & VOIX ---
 
+// OPTIMISATION : Suppression de la route /api/ai/synthesize-speech en double.
+// Nous gardons celle-ci, qui est utilisée par l'Académie et le Playground.
 app.post('/api/ai/synthesize-speech', async (req, res) => {
     if (!ttsClient) { return res.status(500).json({ error: "Le service de synthèse vocale n'est pas configuré sur le serveur." }); }
     const { text, voice, rate, pitch } = req.body;
     if (!text) return res.status(400).json({ error: "Le texte est manquant." });
+    
     const request = { 
         input: { text: text }, 
         voice: { 
