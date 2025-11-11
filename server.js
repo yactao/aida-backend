@@ -2,7 +2,7 @@
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
-const axios = require('axios');
+const axios =require('axios');
 const path = require('path');
 const { CosmosClient } = require('@azure/cosmos');
 const { BlobServiceClient } = require('@azure/storage-blob');
@@ -96,7 +96,6 @@ const defaultScenarios = [
 ];
 
 // --- INITIALISATION DE LA BASE DE DONNÉES ET DES CONTENEURS ---
-// CETTE FONCTION EST PLACÉE ICI POUR ÊTRE DÉFINIE AVANT L'APPEL EN FIN DE FICHIER.
 async function initializeDatabase() {
     if (!dbClient || !database) return console.error("Base de données non initialisée. Les routes DB seront indisponibles.");
     try {
@@ -111,7 +110,6 @@ async function initializeDatabase() {
         result = await database.containers.createIfNotExists({ id: 'Library', partitionKey: '/subject' });
         libraryContainer = result.container;
 
-        // Conteneur Scenarios (CRUCIAL POUR L'ACADÉMIE)
         result = await database.containers.createIfNotExists({ id: 'Scenarios', partitionKey: '/id' }); 
         scenariosContainer = result.container;
         
@@ -128,6 +126,117 @@ async function initializeDatabase() {
 app.get('/', (req, res) => {
     res.send('<h1>Serveur AIDA</h1><p>Le serveur est en ligne et fonctionne correctement.</p>');
 });
+
+//
+// =========================================================================
+// === NOUVELLE ARCHITECTURE "AGENT-TO-AGENT" (POUR LE PLAYGROUND) ===
+// =========================================================================
+//
+
+/**
+ * NOUVEL AGENT 1 : Deepseek (Agent par Défaut)
+ * Spécialisé dans la conversation rapide et le tutorat général.
+ */
+async function getDeepseekPlaygroundCompletion(history) {
+    if (!process.env.DEEPSEEK_API_KEY) {
+        throw new Error("Clé API Deepseek non configurée.");
+    }
+    
+    // Ajoute le prompt système spécifique au Playground
+    const deepseekHistory = [
+        { role: "system", content: "Tu es AIDA, un tuteur IA bienveillant et pédagogue. Ton objectif est de guider les élèves vers la solution sans jamais donner la réponse directement, sauf en dernier recours. Tu dois adapter ton langage à l'âge de l'élève et suivre une méthode socratique : questionner d'abord, donner un indice ensuite, et valider la compréhension de l'élève." },
+        ...history.filter(msg => msg.role !== 'system') // Retire tout autre prompt système
+    ];
+
+    try {
+        const response = await axios.post('https://api.deepseek.com/chat/completions', {
+            model: "deepseek-chat",
+            messages: deepseekHistory
+        }, { headers: { 'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}` } });
+        
+        return response.data.choices[0].message.content;
+    } catch (error) {
+        console.error("Erreur lors de l'appel à l'API Deepseek:", error.response?.data || error.message);
+        throw new Error("L'agent Deepseek n'a pas pu répondre.");
+    }
+}
+
+/**
+ * NOUVEL AGENT 2 : Kimi (Moonshot AI) (Agent Spécialiste)
+ * Spécialisé dans l'analyse de contexte long (documents).
+ */
+async function callKimiCompletion(history) {
+    const MOONSHOT_API_KEY = process.env.MOONSHOT_API_KEY;
+    if (!MOONSHOT_API_KEY) {
+        throw new Error("Clé API Moonshot non configurée.");
+    }
+
+    const endpoint = 'https://api.moonshot.cn/v1/chat/completions';
+
+    // Ajoute un message système spécifique à Kimi
+    const kimiHistory = [
+        { role: "system", content: "Tu es Kimi, un assistant IA spécialisé dans l'analyse de documents longs et complexes. Réponds en te basant sur les documents fournis dans l'historique. Sois concis et factuel." },
+        ...history.filter(msg => msg.role !== 'system') // Retire tout autre prompt système
+    ];
+
+    try {
+        const response = await axios.post(endpoint, {
+            // NOTE: Utilisez 'moonshot-v1-128k' si vous prévoyez d'envoyer des documents très volumineux
+            model: "moonshot-v1-8k", 
+            messages: kimiHistory,
+            temperature: 0.3,
+        }, {
+            headers: {
+                'Authorization': `Bearer ${MOONSHOT_API_KEY}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        return response.data.choices[0].message.content;
+    } catch (error) {
+        console.error("Erreur lors de l'appel à l'API Moonshot:", error.response ? error.response.data : error.message);
+        throw new Error("L'agent Kimi n'a pas pu répondre.");
+    }
+}
+
+// ROUTE PLAYGROUND CHAT (MODIFIÉE EN AGENT MANAGER / ROUTEUR)
+app.post('/api/ai/playground-chat', async (req, res) => {
+    const { history } = req.body;
+
+    if (!history || history.length === 0) {
+        return res.status(400).json({ error: "L'historique est vide." });
+    }
+
+    try {
+        let reply = "";
+        const lastUserMessage = history[history.length - 1].content.toLowerCase();
+        
+        // --- LOGIQUE DU ROUTEUR ---
+        // Si l'utilisateur mentionne "kimi", "analyse" ou "document", on appelle l'Agent Spécialiste Kimi.
+        const keywordsForKimi = ['kimi', 'analyse ce document', 'lis ce texte'];
+        
+        if (keywordsForKimi.some(keyword => lastUserMessage.includes(keyword))) {
+            
+            console.log("Info: Routage vers l'Agent Kimi (Moonshot)...");
+            reply = await callKimiCompletion(history);
+
+        } else {
+            
+            console.log("Info: Routage vers l'Agent Deepseek (Défaut)...");
+            reply = await getDeepseekPlaygroundCompletion(history); 
+        }
+        
+        res.json({ reply });
+
+    } catch (error) {
+        console.error("Erreur dans le routeur d'agent:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+// =========================================================================
+// === FIN DE L'ARCHITECTURE "AGENT-TO-AGENT" (POUR LE PLAYGROUND) ===
+// =========================================================================
+//
 
 
 // --- API Routes (AIDA ÉDUCATION) ---
@@ -392,39 +501,27 @@ app.post('/api/student/submit-quiz', async (req, res) => {
     } catch (error) { res.status(500).json({ error: "Erreur lors de la soumission." }); }
 });
 
-// --- BIBLIOTHÈQUE DE CONTENUS (Manquante) ---
-
+// --- BIBLIOTHÈQUE DE CONTENUS ---
 app.get('/api/library', async (req, res) => {
     if (!libraryContainer) return res.status(503).json({ error: "Service de bibliothèque indisponible." });
-    
     const { searchTerm, subject } = req.query;
-    
     let query = "SELECT * FROM c";
     const parameters = [];
     const conditions = [];
-
-    // Le conteneur Library a pour clé de partition /subject
     if (subject) {
         conditions.push("c.subject = @subject");
         parameters.push({ name: "@subject", value: subject });
     }
-    
     if (searchTerm) {
-        // Ajoute une recherche simple (insensible à la casse) sur le titre
         conditions.push("CONTAINS(c.title, @searchTerm, true)"); 
         parameters.push({ name: "@searchTerm", value: searchTerm });
     }
-
     if (conditions.length > 0) {
         query += " WHERE " + conditions.join(" AND ");
     }
-    
-    query += " ORDER BY c.publishedAt DESC"; // Trier par plus récent
-
+    query += " ORDER BY c.publishedAt DESC";
     const querySpec = { query, parameters };
-
     try {
-        // Si aucun sujet n'est fourni, nous devons autoriser la requête sur toutes les partitions
         const options = { enableCrossPartitionQuery: !subject };
         const { resources: items } = await libraryContainer.items.query(querySpec, options).fetchAll();
         res.json(items);
@@ -436,31 +533,23 @@ app.get('/api/library', async (req, res) => {
 
 app.post('/api/library/publish', async (req, res) => {
     if (!libraryContainer) return res.status(503).json({ error: "Service de bibliothèque indisponible." });
-    
     const { contentData, teacherName, subject } = req.body;
-    
     if (!contentData || !teacherName || !subject) {
         return res.status(400).json({ error: "Données de publication incomplètes." });
     }
-
     const newLibraryItem = {
         ...contentData,
-        // Créer un nouvel ID unique pour la bibliothèque
         id: `lib-${contentData.id || Date.now()}`, 
         originalContentId: contentData.id,
         authorName: teacherName,
         publishedAt: new Date().toISOString(),
-        // Assurer que la clé de partition '/subject' est présente
         subject: subject 
     };
-
-    // Nettoyer les champs spécifiques à une classe
     delete newLibraryItem.assignedAt;
     delete newLibraryItem.dueDate;
     delete newLibraryItem.isEvaluated;
     delete newLibraryItem.classId;
     delete newLibraryItem.teacherEmail;
-
     try {
         const { resource: publishedItem } = await libraryContainer.items.create(newLibraryItem);
         res.status(201).json(publishedItem);
@@ -478,27 +567,21 @@ app.post('/api/library/publish', async (req, res) => {
 // IA & GENERATION
 app.post('/api/ai/generate-content', async (req, res) => {
     const { competences, contentType, exerciseCount, language } = req.body;
-
     const langMap = { 'Anglais': 'English', 'Arabe': 'Arabic', 'Espagnol': 'Spanish' };
     const targetLanguage = langMap[language];
-
     let systemPrompt;
     let userPromptContent;
-    
     const baseInstructions = {
         quiz: `Génère exactement ${exerciseCount} questions. La structure JSON DOIT être : { "title": "...", "type": "quiz", "questions": [ { "question_text": "...", "options": ["...", "...", "...", "..."], "correct_answer_index": 0 } ] }`,
         exercices: `Génère exactement ${exerciseCount} exercices. La structure JSON DOIT être : { "title": "...", "type": "exercices", "content": [ { "enonce": "..." } ] }`,
         dm: `Génère exactement ${exerciseCount} exercices. La structure JSON DOIT être : { "title": "...", "type": "dm", "content": [ { "enonce": "..." } ] }`,
         revision: `Génère une fiche de révision complète. La structure JSON DOIT être : { "title": "...", "type": "revision", "content": "..." }`
     };
-
     if (!baseInstructions[contentType]) {
         return res.status(400).json({ error: "Type de contenu non supporté" });
     }
-    
     if (targetLanguage) {
         systemPrompt = `You are an expert pedagogical assistant for creating language learning content. Your entire response must be a valid JSON object only, with no text before or after. All text content within the JSON MUST be in ${targetLanguage}.`;
-        
         const translatedInstructions = {
             quiz: `Generate exactly ${exerciseCount} questions. The JSON structure MUST be: { "title": "...", "type": "quiz", "questions": [ { "question_text": "...", "options": ["...", "...", "...", "..."], "correct_answer_index": 0 } ] }`,
             exercices: `Generate exactly ${exerciseCount} exercises. The JSON structure MUST be: { "title": "...", "type": "exercices", "content": [ { "enonce": "..." } ] }`,
@@ -512,7 +595,6 @@ app.post('/api/ai/generate-content', async (req, res) => {
         const specificInstructions = baseInstructions[contentType];
         userPromptContent = `Crée un contenu de type '${contentType}' pour un élève, basé sur la compétence suivante : '${competences}'. ${specificInstructions} Le contenu doit être en français.`;
     }
-
     try {
         const response = await axios.post('https://api.deepseek.com/chat/completions', {
             model: "deepseek-chat",
@@ -522,7 +604,6 @@ app.post('/api/ai/generate-content', async (req, res) => {
             ],
             response_format: { type: "json_object" }
         }, { headers: { 'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}` } });
-
         const structured_content = response.data.choices[0].message.content;
         res.json({ structured_content: JSON.parse(structured_content) });
     } catch (error) {
@@ -535,7 +616,6 @@ app.post('/api/ai/generate-content', async (req, res) => {
 app.post('/api/ai/generate-from-upload', upload.single('document'), async (req, res) => {
     if (!formRecognizerClient) { return res.status(503).json({ error: "Le service d'analyse de documents n'est pas configuré sur le serveur. Vérifiez les logs." }); }
     if (!req.file) return res.status(400).json({ error: "Aucun fichier n'a été chargé." });
-    
     const { contentType, exerciseCount } = req.body;
     let specificInstructions = '';
     switch(contentType) {
@@ -550,7 +630,6 @@ app.post('/api/ai/generate-from-upload', upload.single('document'), async (req, 
             specificInstructions = `Génère une fiche de révision. La structure JSON DOIT être : { "title": "...", "type": "revision", "content": "..." }`;
             break;
     }
-
     try {
         const poller = await formRecognizerClient.beginAnalyzeDocument("prebuilt-layout", req.file.buffer);
         const { content } = await poller.pollUntilDone();
@@ -621,8 +700,6 @@ app.post('/api/ai/generate-lesson-plan', async (req, res) => {
     }
 });
 
-// --- MODIFIÉ : AIDE À LA CORRECTION (pour 1 élève, N pages) ---
-// Utilise upload.array('copies', 10) pour accepter jusqu'à 10 pages pour UN élève
 app.post('/api/ai/grade-upload', upload.array('copies', 10), async (req, res) => {
     if (!formRecognizerClient || !process.env.DEEPSEEK_API_KEY) {
         return res.status(503).json({ error: "Les services d'analyse IA ou Document ne sont pas configurés sur le serveur." });
@@ -630,30 +707,21 @@ app.post('/api/ai/grade-upload', upload.array('copies', 10), async (req, res) =>
     if (!req.files || req.files.length === 0) {
         return res.status(400).json({ error: "Aucun fichier de copie n'a été reçu." });
     }
-
     const { sujet, criteres } = req.body;
     if (!sujet || !criteres) {
         return res.status(400).json({ error: "Le sujet et les critères de notation sont obligatoires." });
     }
-
     try {
         console.log(`[Grading Module] Analyse OCR de ${req.files.length} page(s)...`);
-        
-        // --- ÉTAPE 1: OCR sur toutes les pages en parallèle ---
         const ocrPromises = req.files.map(async (file) => {
             const poller = await formRecognizerClient.beginAnalyzeDocument("prebuilt-layout", file.buffer);
             const { content } = await poller.pollUntilDone();
             console.log(`[Grading Module] Texte extrait de ${file.originalname} (${content.length} caractères).`);
             return content;
         });
-
         const allTextSnippets = await Promise.all(ocrPromises);
-        
-        // --- ÉTAPE 2: Combiner tout le texte ---
         const fullText = allTextSnippets.join("\n\n--- PAGE SUIVANTE ---\n\n");
         console.log(`[Grading Module] Texte total combiné: ${fullText.length} caractères.`);
-
-        // --- ÉTAPE 3: IA (Analyse unique) ---
         const systemPrompt = `Tu es un assistant de correction expert pour enseignants. Tu reçois le SUJET d'un devoir, les CRITÈRES de notation, et le TEXTE COMPLET d'une copie d'élève (qui peut s'étendre sur plusieurs pages, séparées par "--- PAGE SUIVANTE ---").
         Ton objectif est de fournir une évaluation structurée et objective.
         Ta réponse DOIT être un objet JSON valide, et rien d'autre.
@@ -668,7 +736,6 @@ app.post('/api/ai/grade-upload', upload.array('copies', 10), async (req, res) =>
           "noteFinale": "X/20",
           "commentaireEleve": "Travail remarquable. L'essai est clair..."
         }`;
-
         const userPrompt = `Voici la correction à effectuer :
         
         1. SUJET DU DEVOIR:
@@ -681,9 +748,7 @@ app.post('/api/ai/grade-upload', upload.array('copies', 10), async (req, res) =>
         "${fullText}"
 
         Génère l'évaluation JSON structurée correspondante.`;
-
         console.log(`[Grading Module] Envoi de la requête unique à Deepseek...`);
-        
         const response = await axios.post('https://api.deepseek.com/chat/completions', {
             model: "deepseek-chat",
             messages: [
@@ -692,14 +757,9 @@ app.post('/api/ai/grade-upload', upload.array('copies', 10), async (req, res) =>
             ],
             response_format: { type: "json_object" }
         }, { headers: { 'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}` } });
-
         console.log(`[Grading Module] Réponse IA reçue.`);
-        
         const evaluationJson = JSON.parse(response.data.choices[0].message.content);
-        
-        // Renvoie UN SEUL objet d'analyse
         res.json(evaluationJson);
-
     } catch (error) {
         console.error("Erreur dans le module d'aide à la correction:", error.response?.data || error.message);
         res.status(500).json({ error: "Erreur lors de l'analyse des copies." });
@@ -707,30 +767,20 @@ app.post('/api/ai/grade-upload', upload.array('copies', 10), async (req, res) =>
 });
 
 
-// ROUTE AJOUTÉE POUR LA NOUVELLE MODAL D'AIDE DM/QUIZZ
-// MODIFIÉ : Accepte 'level' et l'utilise dans le system prompt
 app.post('/api/ai/get-aida-help', async (req, res) => {
-    // CORRECTION : Récupération du 'level' en plus de 'history'
     const { history, level } = req.body;
-    
     if (!history) { return res.status(400).json({ error: "L'historique de la conversation est manquant." }); }
-    
-    // CORRECTION : Création d'un prompt système dynamique incluant le niveau
     const systemPrompt = `Tu es AIDA, un tuteur IA bienveillant et pédagogue. Ton objectif est de guider les élèves vers la solution sans jamais donner la réponse directement, sauf en dernier recours. 
-    
     CONTEXTE IMPORTANT : L'élève que tu aides est au niveau [${level || 'non spécifié'}]. 
-    
     Tu dois adapter ton langage et la complexité de tes indices à ce niveau. Suis une méthode socratique : questionner d'abord, donner un indice ensuite, et valider la compréhension de l'élève.`;
-
     try {
         const response = await axios.post('https://api.deepseek.com/chat/completions', {
             model: "deepseek-chat",
             messages: [ 
-                { role: "system", content: systemPrompt }, // Utilisation du prompt dynamique
+                { role: "system", content: systemPrompt },
                 ...history 
             ]
         }, { headers: { 'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}` } });
-        
         const reply = response.data.choices[0].message.content;
         res.json({ response: reply });
     } catch (error) {
@@ -738,40 +788,7 @@ app.post('/api/ai/get-aida-help', async (req, res) => {
         res.status(500).json({ error: "Désolé, une erreur est survenue en contactant l'IA." });
     }
 });
-// FIN ROUTE AJOUTÉE
 
-// PLAYGROUND CHAT (L'espace de travail)
-app.post('/api/ai/playground-chat', async (req, res) => {
-    const { history } = req.body;
-    if (!history) { return res.status(400).json({ error: "L'historique de la conversation est manquant." }); }
-    try {
-        const response = await axios.post('https://api.deepseek.com/chat/completions', {
-            model: "deepseek-chat",
-            messages: [ { role: "system", content: "Tu es AIDA, un tuteur IA bienveillant et pédagogue. Ton objectif est de guider les élèves vers la solution sans jamais donner la réponse directement, sauf en dernier recours. Tu dois adapter ton langage à l'âge de l'élève et suivre une méthode socratique : questionner d'abord, donner un indice ensuite, et valider la compréhension de l'élève." }, ...history ]
-        }, { headers: { 'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}` } });
-        const reply = response.data.choices[0].message.content;
-        res.json({ reply });
-    } catch (error) {
-        console.error("Erreur lors de la communication avec l'API Deepseek:", error.response?.data);
-        res.status(500).json({ error: "Désolé, une erreur est survenue en contactant l'IA." });
-    }
-});
-
-
-app.post('/api/ai/synthesize-speech', async (req, res) => {
-    if (!ttsClient) { return res.status(500).json({ error: "Le service de synthèse vocale n'est pas configuré sur le serveur." }); }
-    const { text, voice, rate, pitch } = req.body;
-    if (!text) return res.status(400).json({ error: "Le texte est manquant." });
-    const request = { input: { text: text }, voice: { languageCode: voice ? voice.substring(0, 5) : 'fr-FR', name: voice || 'fr-FR-Wavenet-E' }, audioConfig: { audioEncoding: 'MP3', speakingRate: parseFloat(rate) || 1.0, pitch: parseFloat(pitch) || 0.0, }, };
-    try {
-        const [response] = await ttsClient.synthesizeSpeech(request);
-        const audioContent = response.audioContent.toString('base64');
-        res.json({ audioContent });
-    } catch (error) {
-        console.error("Erreur lors de la synthèse vocale Google:", error);
-        res.status(500).json({ error: "Impossible de générer l'audio." });
-    }
-});
 
 // --- ACADEMY AUTH ROUTES (NOUVEAU ET ISOLÉ) ---
 app.post('/api/academy/auth/login', async (req, res) => {
@@ -800,12 +817,10 @@ app.post('/api/academy/auth/login', async (req, res) => {
 app.post('/api/academy/auth/signup', async (req, res) => {
     if (!usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
     const { email, password, role } = req.body;
-    
     const validRoles = ['academy_student', 'academy_teacher', 'academy_parent'];
     if (!validRoles.includes(role)) {
          return res.status(400).json({ error: "Rôle de l'Académie invalide." });
     }
-    
     const newUser = { 
         id: email, 
         email, 
@@ -837,8 +852,6 @@ app.post('/api/ai/synthesize-speech', async (req, res) => {
     if (!ttsClient) { return res.status(500).json({ error: "Le service de synthèse vocale n'est pas configuré sur le serveur." }); }
     const { text, voice, rate, pitch } = req.body;
     if (!text) return res.status(400).json({ error: "Le texte est manquant." });
-    
-    // Logique TTS Google Cloud (doit être incluse dans ce bloc)
     const request = { 
         input: { text: text }, 
         voice: { 
@@ -870,21 +883,17 @@ app.post('/api/academy/ai/chat', async (req, res) => {
             model: "deepseek-chat",
             messages: history
         };
-        
         if (response_format) {
              deepseekBody.response_format = response_format;
         }
-
         const response = await axios.post('https://api.deepseek.com/chat/completions', deepseekBody, { 
             headers: { 
                 'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`,
                 'Content-Type': 'application/json'
             } 
         });
-        
         const reply = response.data.choices[0].message.content;
         res.json({ reply });
-
     } catch (error) {
         console.error("Erreur Deepseek (Académie MRE):", error.response?.data || error.message);
         res.status(500).json({ error: "Désolé, une erreur est survenue en contactant l'IA pour l'Académie." });
@@ -894,19 +903,15 @@ app.post('/api/academy/ai/chat', async (req, res) => {
 
 // --- ACADEMY MRE : SUIVI ET GESTION (Routes Cosmos DB) ---
 
-// ROUTE 1 : SAUVEGARDE DE SESSION (Phase 3)
 app.post('/api/academy/session/save', async (req, res) => {
     if (!usersContainer) { 
         console.error("Erreur 503: Conteneur d'utilisateurs non disponible.");
         return res.status(503).json({ error: "Service de base de données indisponible." }); 
     }
-    
     const { userId, scenarioId, report, fullHistory } = req.body;
-    
     if (!userId || !scenarioId || !report) {
         return res.status(400).json({ error: "Données de session incomplètes." });
     }
-
     const newSession = {
         id: `session-${Date.now()}-${userId}`,
         userId: userId,
@@ -915,113 +920,80 @@ app.post('/api/academy/session/save', async (req, res) => {
         report: report, 
         fullHistory: fullHistory 
     };
-
     try {
         const { resource: user } = await usersContainer.item(userId, userId).read();
-        
         if (!user) {
             return res.status(404).json({ error: "Utilisateur non trouvé." });
         }
-        
         user.academyProgress = user.academyProgress || {};
         user.academyProgress.sessions = user.academyProgress.sessions || [];
         user.academyProgress.sessions.push(newSession);
-
         await usersContainer.items.upsert(user);
-        
         res.status(201).json({ message: "Session enregistrée avec succès.", sessionId: newSession.id });
-
     } catch (error) { 
         console.error("Erreur lors de la sauvegarde de la session Académie:", error.message);
         res.status(500).json({ error: "Erreur serveur lors de la sauvegarde de la session." }); 
     }
 });
 
-
-// ROUTE 2 : RÉCUPÉRATION DES SCÉNARIOS (Utilise la DB + Fallback)
 app.get('/api/academy/scenarios', async (req, res) => {
     if (!scenariosContainer) { 
         console.warn("Conteneur Scenarios non initialisé. Utilisation du Fallback.");
         return res.json(defaultScenarios);
     }
-    
     try {
         const { resources: dbScenarios } = await scenariosContainer.items.readAll().fetchAll();
-        
         if (dbScenarios.length === 0) {
             return res.json(defaultScenarios);
         }
-        
-        // Fusionner les scénarios par défaut et ceux créés par les professeurs
         const allScenariosMap = new Map();
         defaultScenarios.forEach(s => allScenariosMap.set(s.id, s));
         dbScenarios.forEach(s => allScenariosMap.set(s.id, s));
-
         res.json(Array.from(allScenariosMap.values()));
-
     } catch (error) {
         console.error("Erreur lors de la lecture des scénarios depuis la DB:", error.message);
         res.json(defaultScenarios); 
     }
 });
 
-
-// ROUTE 3 : CRÉATION DE SCÉNARIOS (Utilise la DB)
 app.post('/api/academy/scenarios/create', async (req, res) => {
     if (!scenariosContainer) { 
         return res.status(503).json({ error: "Conteneur de scénarios non disponible." }); 
     }
-    
     const newScenario = req.body;
-    
     if (!newScenario.title || !newScenario.characterIntro) {
         return res.status(400).json({ error: "Les données de scénario sont incomplètes." });
     }
-    
     const scenarioToInsert = {
         id: `scen-${Date.now()}`, 
         voiceCode: newScenario.voiceCode || 'ar-XA-Wavenet-B', 
         createdAt: new Date().toISOString(),
         ...newScenario
     };
-
     try {
         const { resource: createdScenario } = await scenariosContainer.items.create(scenarioToInsert);
-        
         console.log(`[SCENARIO CREATED] ID: ${createdScenario.id}, Title: ${createdScenario.title}`);
-
         res.status(201).json({ message: "Scénario créé avec succès.", scenario: createdScenario });
-
     } catch (error) {
         console.error("Erreur lors de la création du scénario dans la DB:", error.message);
         res.status(500).json({ error: "Erreur serveur lors de la création du scénario." });
     }
 });
 
-// ROUTE 4 : RÉCUPÉRATION DES ÉLÈVES (pour Dashboard Enseignant/Parent)
 app.get('/api/academy/teacher/students', async (req, res) => {
     if (!usersContainer) { 
         return res.status(503).json({ error: "Service de base de données indisponible." }); 
     }
-
-  
     const { teacherEmail } = req.query;
-
-    // Interroge le conteneur 'Users' pour tous les utilisateurs 
-    // qui ont le rôle 'academy_student'
     const querySpec = {
         query: "SELECT c.id, c.firstName, c.academyProgress FROM c WHERE c.role = @role",
         parameters: [
             { name: "@role", value: "academy_student" }
         ]
     };
-
     try {
         const { resources: students } = await usersContainer.items.query(querySpec).fetchAll();
-        
-        // Renvoie les données nécessaires : id, prénom, et progression
         res.json(students);
-
     } catch (error) {
         console.error("Erreur lors de la récupération des élèves de l'académie:", error.message);
         res.status(500).json({ error: "Erreur serveur lors de la récupération des élèves." });
@@ -1031,7 +1003,6 @@ app.get('/api/academy/teacher/students', async (req, res) => {
 // --- Point d'entrée et démarrage du serveur ---
 const PORT = process.env.PORT || 3000;
 
-// On initialise la DB avant de démarrer le serveur pour éviter la ReferenceError
 initializeDatabase().then(() => {
     app.listen(PORT, () => {
         console.log(`Server AIDA démarré sur le port ${PORT}`);
