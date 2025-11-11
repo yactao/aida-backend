@@ -169,7 +169,7 @@ async function callKimiCompletion(history) {
     // ▼▼▼ CORRECTION : Lecture des variables d'environnement ▼▼▼
     const MOONSHOT_API_KEY = process.env.MOONSHOT_API_KEY;
     const MOONSHOT_BASE_URL = process.env.MOONSHOT_BASE_URL; // Ex: "https://api.moonshot.ai/v1"
-    const MOONSHOT_MODEL = process.env.MOONSHOT_MODEL;     // Ex: "kimi-k2-turbo-preview"
+    const MOONSHOT_MODEL = process.env.MOONSHOT_MODEL;     // Ex: ""
 
     if (!MOONSHOT_API_KEY || !MOONSHOT_BASE_URL || !MOONSHOT_MODEL) {
         throw new Error("Clé API, URL de base ou Modèle Moonshot non configuré.");
