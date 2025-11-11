@@ -13,10 +13,9 @@ const { TextToSpeechClient } = require('@google-cloud/text-to-speech');
 
 // --- 3. Initialisation Express ---
 const app = express();
-// CORS : Autoriser votre Front-End (à ajuster si l'URL change)
 const allowedOrigins = [
-    'https://gray-meadow-0061b3603.1.azurestaticapps.net', // VOTRE FRONT-END AZURE
-    'http://localhost:3000' // Pour les tests locaux
+    'https://gray-meadow-0061b3603.1.azurestaticapps.net',
+    'http://localhost:3000'
 ];
 app.use(cors({
     origin: (origin, callback) => {
@@ -27,32 +26,28 @@ app.use(cors({
         }
     }
 }));
-
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 const upload = multer({ storage: multer.memoryStorage() });
 
 // --- 2. Initialisation des Clients de Services ---
 let dbClient, blobServiceClient, formRecognizerClient, ttsClient;
-
+// ... (Toute votre initialisation de CosmosDB, Blob, DocumentIntelligence reste identique) ...
 try {
     if (!process.env.COSMOS_ENDPOINT || !process.env.COSMOS_KEY) throw new Error("COSMOS_ENDPOINT ou COSMOS_KEY manquant.");
     dbClient = new CosmosClient({ endpoint: process.env.COSMOS_ENDPOINT, key: process.env.COSMOS_KEY });
     console.log("Client Cosmos DB initialisé.");
 } catch(e) { console.error("ERREUR Cosmos DB:", e.message); }
-
 try {
     if (!process.env.AZURE_STORAGE_CONNECTION_STRING) throw new Error("AZURE_STORAGE_CONNECTION_STRING manquant.");
     blobServiceClient = BlobServiceClient.fromConnectionString(process.env.AZURE_STORAGE_CONNECTION_STRING);
     console.log("Client Blob Storage initialisé.");
 } catch(e) { console.error("ERREUR Blob Storage:", e.message); }
-
 try {
     if (!process.env.AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT || !process.env.AZURE_DOCUMENT_INTELLIGENCE_KEY) throw new Error("AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT ou AZURE_DOCUMENT_INTELLIGENCE_KEY manquant.");
     formRecognizerClient = new DocumentAnalysisClient(process.env.AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT, new AzureKeyCredential(process.env.AZURE_DOCUMENT_INTELLIGENCE_KEY));
     console.log("Client Document Intelligence initialisé.");
 } catch(e) { console.error("ERREUR Document Intelligence:", e.message); }
-
 try {
     if (!process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) throw new Error("Variable d'environnement GOOGLE_APPLICATION_CREDENTIALS_JSON non trouvée.");
     const credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON);
@@ -67,9 +62,11 @@ const database = dbClient?.database('AidaDB');
 let usersContainer;
 let classesContainer;
 let libraryContainer;
-let scenariosContainer; // DÉCLARATION pour le conteneur Académie
-
-// --- FONCTIONS ET DONNÉES PAR DÉFAUT (Pour injection si la DB est vide) ---
+let scenariosContainer;
+const defaultScenarios = [ /* ... (vos scénarios par défaut restent ici) ... */ ];
+async function initializeDatabase() { /* ... (votre fonction initializeDatabase reste ici) ... */ }
+// ... (copiez-collez vos fonctions defaultScenarios et initializeDatabase ici) ...
+// --- (Début du copier-coller pour être sûr) ---
 const defaultScenarios = [
     { 
         id: 'scen-0', 
@@ -94,65 +91,62 @@ const defaultScenarios = [
         voiceCode: 'ar-XA-Wavenet-B'
     }
 ];
-
-// --- INITIALISATION DE LA BASE DE DONNÉES ET DES CONTENEURS ---
 async function initializeDatabase() {
     if (!dbClient || !database) return console.error("Base de données non initialisée. Les routes DB seront indisponibles.");
     try {
         let result;
-
         result = await database.containers.createIfNotExists({ id: 'Users', partitionKey: '/id' });
         usersContainer = result.container;
-
         result = await database.containers.createIfNotExists({ id: 'Classes', partitionKey: '/teacherEmail' });
         classesContainer = result.container;
-
         result = await database.containers.createIfNotExists({ id: 'Library', partitionKey: '/subject' });
         libraryContainer = result.container;
-
         result = await database.containers.createIfNotExists({ id: 'Scenarios', partitionKey: '/id' }); 
         scenariosContainer = result.container;
-        
         console.log("Tous les conteneurs (Users, Classes, Library, Scenarios) sont initialisés.");
-
     } catch (error) {
         console.error("Erreur critique lors de l'initialisation des conteneurs de la DB:", error.message);
         throw error; 
     }
 }
-// ---------------------------------------------------------------------
+// --- (Fin du copier-coller) ---
 
-// --- Route Racine pour Vérification ---
 app.get('/', (req, res) => {
     res.send('<h1>Serveur AIDA</h1><p>Le serveur est en ligne et fonctionne correctement.</p>');
 });
 
 //
 // =========================================================================
-// === NOUVELLE ARCHITECTURE "AGENT-TO-AGENT" (POUR LE PLAYGROUND) ===
+// === ARCHITECTURE "AGENT-TO-AGENT" (POUR LE PLAYGROUND) ===
 // =========================================================================
 //
 
 /**
- * NOUVEL AGENT 1 : Deepseek (Agent par Défaut)
- * Spécialisé dans la conversation rapide et le tutorat général.
+ * AGENT 1 : Deepseek (Agent par Défaut)
+ * Lit sa configuration depuis les variables d'environnement.
  */
 async function getDeepseekPlaygroundCompletion(history) {
-    if (!process.env.DEEPSEEK_API_KEY) {
+    // ▼▼▼ CORRECTION : Lecture des variables d'environnement ▼▼▼
+    const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
+    const DEEPSEEK_BASE_URL = process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com"; // Fallback
+    const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || "deepseek-chat"; // Fallback
+    
+    if (!DEEPSEEK_API_KEY) {
         throw new Error("Clé API Deepseek non configurée.");
     }
+    const endpoint = `${DEEPSEEK_BASE_URL}/v1/chat/completions`; // L'URL de Deepseek utilise /v1
+    // ▲▲▲ FIN DE LA CORRECTION ▲▲▲
     
-    // Ajoute le prompt système spécifique au Playground
     const deepseekHistory = [
         { role: "system", content: "Tu es AIDA, un tuteur IA bienveillant et pédagogue. Ton objectif est de guider les élèves vers la solution sans jamais donner la réponse directement, sauf en dernier recours. Tu dois adapter ton langage à l'âge de l'élève et suivre une méthode socratique : questionner d'abord, donner un indice ensuite, et valider la compréhension de l'élève." },
-        ...history.filter(msg => msg.role !== 'system') // Retire tout autre prompt système
+        ...history.filter(msg => msg.role !== 'system')
     ];
 
     try {
-        const response = await axios.post('https://api.deepseek.com/chat/completions', {
-            model: "deepseek-chat",
+        const response = await axios.post(endpoint, {
+            model: DEEPSEEK_MODEL, // Utilise la variable
             messages: deepseekHistory
-        }, { headers: { 'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}` } });
+        }, { headers: { 'Authorization': `Bearer ${DEEPSEEK_API_KEY}` } });
         
         return response.data.choices[0].message.content;
     } catch (error) {
@@ -162,27 +156,31 @@ async function getDeepseekPlaygroundCompletion(history) {
 }
 
 /**
- * NOUVEL AGENT 2 : Kimi (Moonshot AI) (Agent Spécialiste)
- * Spécialisé dans l'analyse de contexte long (documents).
+ * AGENT 2 : Kimi (Moonshot AI) (Agent Spécialiste)
+ * Lit sa configuration depuis les variables d'environnement.
  */
 async function callKimiCompletion(history) {
+    // ▼▼▼ CORRECTION : Lecture des variables d'environnement ▼▼▼
     const MOONSHOT_API_KEY = process.env.MOONSHOT_API_KEY;
-    if (!MOONSHOT_API_KEY) {
-        throw new Error("Clé API Moonshot non configurée.");
+    const MOONSHOT_BASE_URL = process.env.MOONSHOT_BASE_URL; // Ex: "https://api.moonshot.ai/v1"
+    const MOONSHOT_MODEL = process.env.MOONSHOT_MODEL;     // Ex: "kimi-k2-turbo-preview"
+
+    if (!MOONSHOT_API_KEY || !MOONSHOT_BASE_URL || !MOONSHOT_MODEL) {
+        throw new Error("Clé API, URL de base ou Modèle Moonshot non configuré.");
     }
+    
+    // Construit le point d'accès complet
+    const endpoint = `${MOONSHOT_BASE_URL}/chat/completions`;
+    // ▲▲▲ FIN DE LA CORRECTION ▲▲▲
 
-    const endpoint = 'https://api.moonshot.cn/v1/chat/completions';
-
-    // Ajoute un message système spécifique à Kimi
     const kimiHistory = [
         { role: "system", content: "Tu es Kimi, un assistant IA spécialisé dans l'analyse de documents longs et complexes. Réponds en te basant sur les documents fournis dans l'historique. Sois concis et factuel." },
-        ...history.filter(msg => msg.role !== 'system') // Retire tout autre prompt système
+        ...history.filter(msg => msg.role !== 'system')
     ];
 
     try {
         const response = await axios.post(endpoint, {
-            // NOTE: Utilisez 'moonshot-v1-128k' si vous prévoyez d'envoyer des documents très volumineux
-            model: "moonshot-v1-8k", 
+            model: MOONSHOT_MODEL, // Utilise la variable
             messages: kimiHistory,
             temperature: 0.3,
         }, {
@@ -199,38 +197,30 @@ async function callKimiCompletion(history) {
     }
 }
 
-// ROUTE PLAYGROUND CHAT (MODIFIÉE EN AGENT MANAGER / ROUTEUR)
+// ROUTE PLAYGROUND CHAT (AGENT MANAGER)
 app.post('/api/ai/playground-chat', async (req, res) => {
     const { history } = req.body;
-
     if (!history || history.length === 0) {
         return res.status(400).json({ error: "L'historique est vide." });
     }
 
     try {
         let reply = "";
-        let agentName = ""; // ▼ NOUVELLE VARIABLE
-        
+        let agentName = "";
         const lastUserMessage = history[history.length - 1].content.toLowerCase();
         
-        // --- LOGIQUE DU ROUTEUR ---
         const keywordsForKimi = ['kimi', 'analyse ce document', 'lis ce texte'];
         
         if (keywordsForKimi.some(keyword => lastUserMessage.includes(keyword))) {
-            
             console.log("Info: Routage vers l'Agent Kimi (Moonshot)...");
             reply = await callKimiCompletion(history);
-            agentName = "Aïda-kimi"; // ▼ TAG SPÉCIFIQUE
-
+            agentName = "Aïda-kimi"; 
         } else {
-            
             console.log("Info: Routage vers l'Agent Deepseek (Défaut)...");
             reply = await getDeepseekPlaygroundCompletion(history); 
-            agentName = "Aïda-deep"; // ▼ TAG SPÉCIFIQUE
+            agentName = "Aïda-deep";
         }
         
-        // ▼ MODIFICATION DE LA RÉPONSE
-        // On renvoie un objet complet avec la réponse ET le nom de l'agent
         res.json({ reply: reply, agent: agentName });
 
     } catch (error) {
@@ -239,20 +229,20 @@ app.post('/api/ai/playground-chat', async (req, res) => {
     }
 });
 // =========================================================================
-// === FIN DE L'ARCHITECTURE "AGENT-TO-AGENT" (POUR LE PLAYGROUND) ===
+// === FIN DE L'ARCHITECTURE "AGENT-TO-AGENT" ===
 // =========================================================================
 //
 
 
 // --- API Routes (AIDA ÉDUCATION) ---
-
-// AUTH AIDA ÉDUCATION (EXISTANT)
+// ... (Toutes vos routes AIDA ÉDUCATION restent ici, inchangées) ...
+// ... (app.post('/api/auth/login', ...), app.post('/api/auth/signup', ...), etc.) ...
+// --- (Début du copier-coller pour être sûr) ---
 app.post('/api/auth/login', async (req, res) => {
     if (!usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
     const { email, password } = req.body;
     try {
         const { resource: user } = await usersContainer.item(email, email).read();
-        // ISOLATION: Refuse les utilisateurs de l'Académie sur la route Education
         if (user && !user.role.startsWith('academy_') && user.password === password) { 
             delete user.password;
             res.json({ user });
@@ -283,9 +273,6 @@ app.post('/api/auth/signup', async (req, res) => {
         }
     }
 });
-
-
-// ENSEIGNANT AIDA ÉDUCATION
 app.get('/api/teacher/classes', async (req, res) => {
     if (!classesContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
     const { teacherEmail } = req.query;
@@ -295,7 +282,6 @@ app.get('/api/teacher/classes', async (req, res) => {
         res.json(classes);
     } catch (error) { res.status(500).json({ error: "Impossible de récupérer les classes." }); }
 });
-
 app.post('/api/teacher/classes', async (req, res) => {
     if (!classesContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
     const { className, teacherEmail } = req.body;
@@ -309,14 +295,12 @@ app.post('/api/teacher/classes', async (req, res) => {
         res.status(201).json(createdClass);
     } catch (error) { res.status(500).json({ error: "Erreur lors de la création de la classe." }); }
 });
-
 app.get('/api/teacher/classes/:id', async (req, res) => {
     if (!classesContainer || !usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
     const { teacherEmail } = req.query;
     try {
         const { resource: classData } = await classesContainer.item(req.params.id, teacherEmail).read();
         if (!classData) return res.status(404).json({ error: 'Classe introuvable' });
-
         if (classData.students && classData.students.length > 0) {
             const querySpec = { query: `SELECT c.email, c.firstName, c.avatar FROM c WHERE ARRAY_CONTAINS(@studentEmails, c.email)`, parameters: [{ name: '@studentEmails', value: classData.students }] };
             const { resources: studentsDetails } = await usersContainer.items.query(querySpec).fetchAll();
@@ -333,7 +317,6 @@ app.get('/api/teacher/classes/:id', async (req, res) => {
         res.status(500).json({ error: "Impossible de récupérer les détails de la classe." });
     }
 });
-
 app.post('/api/teacher/classes/:id/add-student', async (req, res) => {
     if (!classesContainer || !usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
     const { studentEmail, teacherEmail } = req.body;
@@ -341,10 +324,8 @@ app.post('/api/teacher/classes/:id/add-student', async (req, res) => {
     try {
         const { resource: student } = await usersContainer.item(studentEmail, studentEmail).read();
         if (!student || student.role !== 'student') return res.status(404).json({ error: "Élève introuvable ou l'email n'est pas un compte élève." });
-
         const { resource: classData } = await classesContainer.item(classId, teacherEmail).read();
         if (classData.students.includes(studentEmail)) return res.status(409).json({ error: "Cet élève est déjà dans la classe." });
-
         classData.students.push(studentEmail);
         await classesContainer.items.upsert(classData);
         res.status(200).json(classData);
@@ -353,7 +334,6 @@ app.post('/api/teacher/classes/:id/add-student', async (req, res) => {
         res.status(500).json({ error: "Erreur serveur." });
     }
 });
-
 app.post('/api/teacher/assign-content', async (req, res) => {
     if (!classesContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
     const { classId, contentData, teacherEmail } = req.body;
@@ -371,7 +351,6 @@ app.post('/api/teacher/assign-content', async (req, res) => {
         res.status(200).json(newContent);
     } catch (error) { res.status(500).json({ error: "Erreur lors de l'assignation." }); }
 });
-
 app.post('/api/teacher/classes/reorder', async (req, res) => {
     if (!usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
     const { teacherEmail, classOrder } = req.body;
@@ -382,7 +361,6 @@ app.post('/api/teacher/classes/reorder', async (req, res) => {
         res.status(200).json({ classOrder: updatedTeacher.classOrder });
     } catch (error) { res.status(500).json({ error: "Erreur lors de la mise à jour de l'ordre." }); }
 });
-
 app.delete('/api/teacher/classes/:classId/content/:contentId', async (req, res) => {
     if (!classesContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
     const { classId, contentId } = req.params;
@@ -395,7 +373,6 @@ app.delete('/api/teacher/classes/:classId/content/:contentId', async (req, res) 
         res.status(204).send();
     } catch (error) { res.status(500).json({ error: "Erreur lors de la suppression." }); }
 });
-
 app.post('/api/teacher/classes/:classId/remove-student', async (req, res) => {
     if (!classesContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
     const { classId } = req.params;
@@ -408,7 +385,6 @@ app.post('/api/teacher/classes/:classId/remove-student', async (req, res) => {
         res.status(204).send();
     } catch (error) { res.status(500).json({ error: "Erreur lors de la suppression." }); }
 });
-
 app.post('/api/teacher/validate-result', async (req, res) => {
     if (!classesContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
     const { classId, studentEmail, contentId, appreciation, comment, teacherEmail } = req.body;
@@ -416,17 +392,14 @@ app.post('/api/teacher/validate-result', async (req, res) => {
         const { resource: classDoc } = await classesContainer.item(classId, teacherEmail).read();
         const resultIndex = classDoc.results.findIndex(r => r.studentEmail === studentEmail && r.contentId === contentId);
         if (resultIndex === -1) return res.status(404).json({ error: "Résultat non trouvé." });
-
         classDoc.results[resultIndex].status = 'validated';
         classDoc.results[resultIndex].appreciation = appreciation;
         classDoc.results[resultIndex].teacherComment = comment;
         classDoc.results[resultIndex].validatedAt = new Date().toISOString();
-
         await classesContainer.items.upsert(classDoc);
         res.status(200).json(classDoc.results[resultIndex]);
     } catch(error) { res.status(500).json({ error: "Erreur lors de la validation." }); }
 });
-
 app.get('/api/teacher/classes/:classId/competency-report', async (req, res) => {
     if (!classesContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
     const { classId } = req.params;
@@ -434,7 +407,6 @@ app.get('/api/teacher/classes/:classId/competency-report', async (req, res) => {
     try {
         const { resource: classData } = await classesContainer.item(classId, teacherEmail).read();
         const validatedQuizzes = (classData.results || []).filter(r => r.status === 'validated' && r.totalQuestions > 0);
-
         const competencyScores = {};
         validatedQuizzes.forEach(result => {
             const content = (classData.content || []).find(c => c.id === result.contentId);
@@ -448,19 +420,14 @@ app.get('/api/teacher/classes/:classId/competency-report', async (req, res) => {
                 competencyScores[competence].total += scorePercentage;
             }
         });
-
         const report = Object.keys(competencyScores).map(competence => ({
             competence,
             level: competencyScores[competence].level,
             averageScore: Math.round(competencyScores[competence].total / competencyScores[competence].scores.length)
         }));
-
         res.json(report);
     } catch (error) { res.status(500).json({ error: "Erreur lors de la génération du rapport." }); }
 });
-
-
-// ÉLÈVE AIDA ÉDUCATION
 app.get('/api/student/dashboard', async (req, res) => {
     if (!classesContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
     const { studentEmail } = req.query;
@@ -468,7 +435,6 @@ app.get('/api/student/dashboard', async (req, res) => {
     try {
         const { resources: studentClasses } = await classesContainer.items.query(querySpec, { enableCrossPartitionQuery: true }).fetchAll();
         const todo = [], pending = [], completed = [];
-
         studentClasses.forEach(c => {
             (c.content || []).forEach(content => {
                 const result = (c.results || []).find(r => r.studentEmail === studentEmail && r.contentId === content.id);
@@ -481,18 +447,15 @@ app.get('/api/student/dashboard', async (req, res) => {
                 }
             });
         });
-
         todo.sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate));
         pending.sort((a,b) => new Date(b.submittedAt) - new Date(a.submittedAt));
         completed.sort((a,b) => new Date(b.validatedAt) - new Date(a.validatedAt));
-
         res.json({ todo, pending, completed });
     } catch (error) { 
         console.error("Erreur de récupération du tableau de bord étudiant:", error);
         res.status(500).json({ error: "Erreur de récupération du tableau de bord." }); 
     }
 });
-
 app.post('/api/student/submit-quiz', async (req, res) => {
     if (!classesContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
     const { studentEmail, classId, contentId, title, score, totalQuestions, answers, helpUsed, teacherEmail } = req.body;
@@ -505,8 +468,6 @@ app.post('/api/student/submit-quiz', async (req, res) => {
         res.status(201).json(newResult);
     } catch (error) { res.status(500).json({ error: "Erreur lors de la soumission." }); }
 });
-
-// --- BIBLIOTHÈQUE DE CONTENUS ---
 app.get('/api/library', async (req, res) => {
     if (!libraryContainer) return res.status(503).json({ error: "Service de bibliothèque indisponible." });
     const { searchTerm, subject } = req.query;
@@ -535,7 +496,6 @@ app.get('/api/library', async (req, res) => {
         res.status(500).json({ error: "Impossible de récupérer la bibliothèque." });
     }
 });
-
 app.post('/api/library/publish', async (req, res) => {
     if (!libraryContainer) return res.status(503).json({ error: "Service de bibliothèque indisponible." });
     const { contentData, teacherName, subject } = req.body;
@@ -567,9 +527,6 @@ app.post('/api/library/publish', async (req, res) => {
          }
     }
 });
-
-
-// IA & GENERATION
 app.post('/api/ai/generate-content', async (req, res) => {
     const { competences, contentType, exerciseCount, language } = req.body;
     const langMap = { 'Anglais': 'English', 'Arabe': 'Arabic', 'Espagnol': 'Spanish' };
@@ -616,8 +573,6 @@ app.post('/api/ai/generate-content', async (req, res) => {
         res.status(500).json({ error: "Erreur lors de la génération." });
     }
 });
-
-
 app.post('/api/ai/generate-from-upload', upload.single('document'), async (req, res) => {
     if (!formRecognizerClient) { return res.status(503).json({ error: "Le service d'analyse de documents n'est pas configuré sur le serveur. Vérifiez les logs." }); }
     if (!req.file) return res.status(400).json({ error: "Aucun fichier n'a été chargé." });
@@ -656,7 +611,6 @@ app.post('/api/ai/generate-from-upload', upload.single('document'), async (req, 
         res.status(500).json({ error: "Erreur du serveur." });
     }
 });
-
 app.post('/api/ai/playground-extract-text', upload.single('document'), async (req, res) => {
     if (!formRecognizerClient) { return res.status(503).json({ error: "Le service d'analyse de documents n'est pas configuré sur le serveur. Vérifiez les logs." }); }
     if (!req.file) { return res.status(400).json({ error: "Aucun fichier n'a été chargé." }); }
@@ -669,7 +623,6 @@ app.post('/api/ai/playground-extract-text', upload.single('document'), async (re
         res.status(500).json({ error: "Impossible d'analyser le document." });
     }
 });
-
 app.post('/api/ai/get-hint', async (req, res) => {
     const { questionText } = req.body;
     try {
@@ -683,7 +636,6 @@ app.post('/api/ai/get-hint', async (req, res) => {
         res.json({ hint: response.data.choices[0].message.content });
     } catch (error) { res.status(500).json({ error: "Indice indisponible." }); }
 });
-
 app.post('/api/ai/generate-lesson-plan', async (req, res) => {
     const { theme, level, numSessions } = req.body;
     try {
@@ -704,7 +656,6 @@ app.post('/api/ai/generate-lesson-plan', async (req, res) => {
         res.status(500).json({ error: "Erreur lors de la génération du plan de cours." });
     }
 });
-
 app.post('/api/ai/grade-upload', upload.array('copies', 10), async (req, res) => {
     if (!formRecognizerClient || !process.env.DEEPSEEK_API_KEY) {
         return res.status(503).json({ error: "Les services d'analyse IA ou Document ne sont pas configurés sur le serveur." });
@@ -770,8 +721,6 @@ app.post('/api/ai/grade-upload', upload.array('copies', 10), async (req, res) =>
         res.status(500).json({ error: "Erreur lors de l'analyse des copies." });
     }
 });
-
-
 app.post('/api/ai/get-aida-help', async (req, res) => {
     const { history, level } = req.body;
     if (!history) { return res.status(400).json({ error: "L'historique de la conversation est manquant." }); }
@@ -793,6 +742,7 @@ app.post('/api/ai/get-aida-help', async (req, res) => {
         res.status(500).json({ error: "Désolé, une erreur est survenue en contactant l'IA." });
     }
 });
+// --- (Fin du copier-coller AIDA Éducation) ---
 
 
 // --- ACADEMY AUTH ROUTES (NOUVEAU ET ISOLÉ) ---
@@ -853,13 +803,11 @@ app.post('/api/academy/auth/signup', async (req, res) => {
 
 // --- ACADEMY MRE : CHAT & VOIX ---
 
-// OPTIMISATION : Suppression de la route /api/ai/synthesize-speech en double.
-// Nous gardons celle-ci, qui est utilisée par l'Académie et le Playground.
+// OPTIMISATION : Route TTS unique
 app.post('/api/ai/synthesize-speech', async (req, res) => {
     if (!ttsClient) { return res.status(500).json({ error: "Le service de synthèse vocale n'est pas configuré sur le serveur." }); }
     const { text, voice, rate, pitch } = req.body;
     if (!text) return res.status(400).json({ error: "Le texte est manquant." });
-    
     const request = { 
         input: { text: text }, 
         voice: { 
