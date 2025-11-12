@@ -279,6 +279,46 @@ app.post('/api/auth/signup', async (req, res) => {
         }
     }
 });
+// DANS server.js
+
+// NOUVELLE ROUTE : Débloquer un badge (Achievement)
+app.post('/api/academy/achievement/unlock', async (req, res) => {
+    if (!usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
+    
+    const { userId, badgeId } = req.body;
+    if (!userId || !badgeId) {
+        return res.status(400).json({ error: "userId et badgeId sont requis." });
+    }
+
+    try {
+        const { resource: user } = await usersContainer.item(userId, userId).read();
+        if (!user) {
+            return res.status(404).json({ error: "Utilisateur non trouvé." });
+        }
+
+        user.achievements = user.achievements || [];
+        
+        if (user.achievements.includes(badgeId)) {
+            // L'utilisateur a déjà ce badge
+            delete user.password;
+            return res.json({ message: "Badge déjà possédé.", user: user });
+        }
+
+        // Ajoute le nouveau badge
+        user.achievements.push(badgeId);
+
+        // Sauvegarde l'utilisateur
+        const { resource: updatedUser } = await usersContainer.item(userId).replace(user);
+        
+        delete updatedUser.password;
+        // Renvoie l'utilisateur mis à jour pour que le frontend puisse rafraîchir currentUser
+        res.status(201).json({ message: "Badge débloqué !", badgeId: badgeId, user: updatedUser });
+
+    } catch (error) {
+        console.error("Erreur lors du déblocage du badge:", error);
+        res.status(500).json({ error: "Erreur du serveur." });
+    }
+});
 app.get('/api/teacher/classes', async (req, res) => {
     if (!classesContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
     const { teacherEmail } = req.query;
@@ -756,6 +796,7 @@ app.post('/api/ai/get-aida-help', async (req, res) => {
 
 
 // --- ACADEMY AUTH ROUTES ---
+// DANS server.js
 app.post('/api/academy/auth/login', async (req, res) => {
     if (!usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
     const { email, password } = req.body;
@@ -764,8 +805,41 @@ app.post('/api/academy/auth/login', async (req, res) => {
         const isAcademyRole = user?.role?.startsWith('academy_');
 
         if (user && isAcademyRole && user.password === password) {
+            
+            // --- ▼▼▼ DÉBUT DE LA LOGIQUE DE STREAK ▼▼▼ ---
+            if (user.role === 'academy_student') {
+                const today = new Date().toISOString().split('T')[0];
+                const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+                
+                // Initialise les champs s'ils n'existent pas (pour les anciens utilisateurs)
+                let streak = user.dailyStreak || { count: 0, lastLogin: null };
+                user.achievements = user.achievements || [];
+
+                if (streak.lastLogin === yesterday) {
+                    // Connexion consécutive
+                    streak.count++;
+                    streak.lastLogin = today;
+                } else if (streak.lastLogin !== today) {
+                    // Streak brisée ou première connexion
+                    streak.count = 1;
+                    streak.lastLogin = today;
+                }
+                // Si lastLogin === today, on ne fait rien (l'utilisateur s'est déjà connecté aujourd'hui)
+
+                user.dailyStreak = streak;
+
+                // Débloque automatiquement un badge de streak (Exemple : 3 jours)
+                if (streak.count >= 3 && !user.achievements.includes('streak_3')) {
+                    user.achievements.push('streak_3');
+                }
+                
+                // Sauvegarde l'utilisateur avec la streak mise à jour
+                await usersContainer.item(user.id).replace(user);
+            }
+            // --- ▲▲▲ FIN DE LA LOGIQUE DE STREAK ▲▲▲ ---
+
             delete user.password;
-            res.json({ user });
+            res.json({ user }); // Renvoie l'utilisateur mis à jour
         } else {
             res.status(401).json({ error: "Email, mot de passe ou rôle incorrect pour l'Académie." });
         }
@@ -775,36 +849,6 @@ app.post('/api/academy/auth/login', async (req, res) => {
         } else {
             console.error("Erreur de connexion Académie:", error);
             res.status(500).json({ error: "Erreur du serveur." });
-        }
-    }
-});
-
-app.post('/api/academy/auth/signup', async (req, res) => {
-    if (!usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
-    const { email, password, role } = req.body;
-    const validRoles = ['academy_student', 'academy_teacher', 'academy_parent'];
-    if (!validRoles.includes(role)) {
-         return res.status(400).json({ error: "Rôle de l'Académie invalide." });
-    }
-    const newUser = { 
-        id: email, 
-        email, 
-        password, 
-        role, 
-        firstName: email.split('@')[0], 
-        avatar: 'default.png', 
-        academyProgress: {} 
-    }; 
-    try {
-        const { resource: createdUser } = await usersContainer.items.create(newUser);
-        delete createdUser.password;
-        res.status(201).json({ user: createdUser });
-    } catch (error) {
-        if (error.code === 409) {
-            res.status(409).json({ error: "Cet email est déjà utilisé." });
-        } else {
-            console.error("Erreur de création de compte Académie:", error);
-            res.status(500).json({ error: "Erreur lors de la création du compte Académie." });
         }
     }
 });
