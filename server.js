@@ -67,7 +67,7 @@ let classesContainer;
 let libraryContainer;
 let scenariosContainer;
 
-// --- FONCTIONS ET DONNÉES PAR DÉFAUT (Déclarés UNE SEULE FOIS) ---
+// --- FONCTIONS ET DONNÉES PAR DÉFAUT ---
 const defaultScenarios = [
     { 
         id: 'scen-0', 
@@ -93,7 +93,7 @@ const defaultScenarios = [
     }
 ];
 
-// --- INITIALISATION DE LA BASE DE DONNÉES (Déclarée UNE SEULE FOIS) ---
+// --- INITIALISATION DE LA BASE DE DONNÉES ---
 async function initializeDatabase() {
     if (!dbClient || !database) return console.error("Base de données non initialisée. Les routes DB seront indisponibles.");
     try {
@@ -126,7 +126,6 @@ app.get('/', (req, res) => {
 
 /**
  * AGENT 1 : Deepseek (Agent par Défaut)
- * Lit sa configuration depuis les variables d'environnement.
  */
 async function getDeepseekPlaygroundCompletion(history) {
     const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
@@ -158,18 +157,18 @@ async function getDeepseekPlaygroundCompletion(history) {
 
 /**
  * AGENT 2 : Kimi (Moonshot AI) (Agent Spécialiste)
- * Lit sa configuration depuis les variables d'environnement.
  */
 async function callKimiCompletion(history) {
     const MOONSHOT_API_KEY = process.env.MOONSHOT_API_KEY;
-    const MOONSHOT_BASE_URL = process.env.MOONSHOT_BASE_URL;
+    const MOONSHOT_BASE_URL = process.env.MOONSHOT_BASE_URL; 
     const MOONSHOT_MODEL = process.env.MOONSHOT_MODEL;
 
     if (!MOONSHOT_API_KEY || !MOONSHOT_BASE_URL || !MOONSHOT_MODEL) {
         throw new Error("Clé API, URL de base ou Modèle Moonshot non configuré.");
     }
     
-    const endpoint = `${MOONSHOT_BASE_URL}/chat/completions`;
+    // CORRECTION : Ajout de /v1
+    const endpoint = `${MOONSHOT_BASE_URL}/v1/chat/completions`;
 
     const kimiHistory = [
         { role: "system", content: "Tu es Kimi, un assistant IA spécialisé dans l'analyse de documents longs et complexes. Réponds en te basant sur les documents fournis dans l'historique. Sois concis et factuel." },
@@ -606,6 +605,8 @@ app.post('/api/ai/generate-from-upload', upload.single('document'), async (req, 
         res.status(500).json({ error: "Erreur du serveur." });
     }
 });
+
+// ▼▼▼ CETTE ROUTE MANQUAIT PROBABLEMENT SUR AZURE ▼▼▼
 app.post('/api/ai/playground-extract-text', upload.single('document'), async (req, res) => {
     if (!formRecognizerClient) { return res.status(503).json({ error: "Le service d'analyse de documents n'est pas configuré sur le serveur. Vérifiez les logs." }); }
     if (!req.file) { return res.status(400).json({ error: "Aucun fichier n'a été chargé." }); }
@@ -618,6 +619,8 @@ app.post('/api/ai/playground-extract-text', upload.single('document'), async (re
         res.status(500).json({ error: "Impossible d'analyser le document." });
     }
 });
+// ▲▲▲ FIN DE LA ROUTE ▲▲▲
+
 app.post('/api/ai/get-hint', async (req, res) => {
     const { questionText } = req.body;
     try {
