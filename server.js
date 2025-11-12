@@ -168,7 +168,7 @@ async function callKimiCompletion(history) {
     }
     
     // CORRECTION : Ajout de /v1
-    const endpoint = `${MOONSHOT_BASE_URL}/v1/chat/completions`;
+    const endpoint = `${MOONSHOT_BASE_URL}/chat/completions`;
 
     const kimiHistory = [
         { role: "system", content: "Tu es Kimi, un assistant IA spécialisé dans l'analyse de documents longs et complexes. Réponds en te basant sur les documents fournis dans l'historique. Sois concis et factuel." },
