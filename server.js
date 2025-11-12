@@ -196,7 +196,9 @@ async function callKimiCompletion(history) {
 
 // ROUTE PLAYGROUND CHAT (AGENT MANAGER)
 app.post('/api/ai/playground-chat', async (req, res) => {
-    const { history } = req.body;
+    // ▼▼▼ MODIFIÉ : Lit "preferredAgent" depuis le body ▼▼▼
+    const { history, preferredAgent } = req.body;
+
     if (!history || history.length === 0) {
         return res.status(400).json({ error: "L'historique est vide." });
     }
@@ -206,17 +208,23 @@ app.post('/api/ai/playground-chat', async (req, res) => {
         let agentName = "";
         const lastUserMessage = history[history.length - 1].content.toLowerCase();
         
+        // --- LOGIQUE DU ROUTEUR AMÉLIORÉE ---
         const keywordsForKimi = ['kimi', 'analyse ce document', 'lis ce texte'];
         
-        if (keywordsForKimi.some(keyword => lastUserMessage.includes(keyword))) {
-            console.log("Info: Routage vers l'Agent Kimi (Moonshot)...");
+        // ▼▼▼ MODIFIÉ : Le Manager vérifie l'agent préféré OU les mots-clés ▼▼▼
+        if (preferredAgent === 'kimi' || keywordsForKimi.some(keyword => lastUserMessage.includes(keyword))) {
+            
+            console.log("Info: Routage vers l'Agent Kimi (Persistant)...");
             reply = await callKimiCompletion(history);
             agentName = "Aïda-kimi"; 
+
         } else {
+            
             console.log("Info: Routage vers l'Agent Deepseek (Défaut)...");
             reply = await getDeepseekPlaygroundCompletion(history); 
             agentName = "Aïda-deep";
         }
+        // ▲▲▲ FIN DE LA MODIFICATION ▲▲▲
         
         res.json({ reply: reply, agent: agentName });
 
