@@ -196,7 +196,6 @@ async function callKimiCompletion(history) {
 
 // ROUTE PLAYGROUND CHAT (AGENT MANAGER)
 app.post('/api/ai/playground-chat', async (req, res) => {
-    // ▼▼▼ MODIFIÉ : Lit "preferredAgent" depuis le body ▼▼▼
     const { history, preferredAgent } = req.body;
 
     if (!history || history.length === 0) {
@@ -206,15 +205,20 @@ app.post('/api/ai/playground-chat', async (req, res) => {
     try {
         let reply = "";
         let agentName = "";
-        const lastUserMessage = history[history.length - 1].content.toLowerCase();
+        const lastUserMessage = history[history.length - 1].content;
+        const lastUserMessageLow = lastUserMessage.toLowerCase();
         
         // --- LOGIQUE DU ROUTEUR AMÉLIORÉE ---
         const keywordsForKimi = ['kimi', 'analyse ce document', 'lis ce texte'];
         
-        // ▼▼▼ MODIFIÉ : Le Manager vérifie l'agent préféré OU les mots-clés ▼▼▼
-        if (preferredAgent === 'kimi' || keywordsForKimi.some(keyword => lastUserMessage.includes(keyword))) {
+        // ▼▼▼ NOUVELLE RÈGLE : VÉRIFICATION DE LA LONGUEUR ▼▼▼
+        // Si le texte est très long, c'est un travail pour Kimi, peu importe les mots-clés.
+        // 4000 tokens ~ 15000 caractères. Mettons 10 000 pour être sûr.
+        const isLongText = lastUserMessage.length > 10000; 
+        
+        if (preferredAgent === 'kimi' || keywordsForKimi.some(keyword => lastUserMessageLow.includes(keyword)) || isLongText) {
             
-            console.log("Info: Routage vers l'Agent Kimi (Persistant)...");
+            console.log("Info: Routage vers l'Agent Kimi (Contexte Long)...");
             reply = await callKimiCompletion(history);
             agentName = "Aïda-kimi"; 
 
