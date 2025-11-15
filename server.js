@@ -854,7 +854,6 @@ app.post('/api/academy/auth/login', async (req, res) => {
 });
 // FIN ACADEMY AUTH
 
-
 // --- ACADEMY MRE : CHAT & VOIX ---
 
 // OPTIMISATION : Route TTS unique
@@ -862,8 +861,17 @@ app.post('/api/ai/synthesize-speech', async (req, res) => {
     if (!ttsClient) { return res.status(500).json({ error: "Le service de synthèse vocale n'est pas configuré sur le serveur." }); }
     const { text, voice, rate, pitch } = req.body;
     if (!text) return res.status(400).json({ error: "Le texte est manquant." });
+
+    // ▼▼▼ AJOUT : Nettoyage du texte ▼▼▼
+    // Regex pour supprimer les emojis et les caractères Markdown (comme *, #)
+    // que l'IA pourrait inclure dans sa réponse.
+    const cleanedText = text
+        .replace(/([\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}])/gu, '') // Supprime les emojis
+        .replace(/[*#_`]/g, ''); // Supprime les marqueurs markdown
+
     const request = { 
-        input: { text: text }, 
+        // ▼▼▼ MODIFIÉ : Utilise le texte nettoyé ▼▼▼
+        input: { text: cleanedText }, 
         voice: { 
             languageCode: voice ? voice.substring(0, 5) : 'fr-FR', 
             name: voice || 'fr-FR-Wavenet-E' 
