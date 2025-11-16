@@ -33,55 +33,43 @@ const upload = multer({ storage: multer.memoryStorage() });
 // --- 2. Initialisation des Clients de Services ---
 let dbClient, blobServiceClient, formRecognizerClient, ttsClient;
 
-// ▼▼▼ MODIFICATION : Clients IA déclarés ici ▼▼▼
+// ▼▼▼ MODIFICATION 1 : AJOUT DES CLIENTS IA GLOBAUX ▼▼▼
 let aiApiDeepseek, aiApiKimi; 
-// ▲▲▲ FIN MODIFICATION ▲▲▲
-
-// Initialisation de chaque service dans son propre bloc try...catch
-// Les services "optionnels" (TTS, Form Recognizer) passeront à 'null' en cas d'échec sans arrêter le serveur.
-// Les services "critiques" (DB, IA) arrêteront le serveur s'ils ne peuvent pas s'initialiser.
+// ▲▲▲ FIN MODIFICATION 1 ▲▲▲
 
 try {
     if (!process.env.COSMOS_ENDPOINT || !process.env.COSMOS_KEY) throw new Error("COSMOS_ENDPOINT ou COSMOS_KEY manquant.");
     dbClient = new CosmosClient({ endpoint: process.env.COSMOS_ENDPOINT, key: process.env.COSMOS_KEY });
     console.log("Client Cosmos DB initialisé.");
-} catch(e) { 
-    console.error("ERREUR CRITIQUE Cosmos DB:", e.message); 
-    process.exit(1); // Critique
-}
+} catch(e) { console.error("ERREUR Cosmos DB:", e.message); }
 
 try {
     if (!process.env.AZURE_STORAGE_CONNECTION_STRING) throw new Error("AZURE_STORAGE_CONNECTION_STRING manquant.");
     blobServiceClient = BlobServiceClient.fromConnectionString(process.env.AZURE_STORAGE_CONNECTION_STRING);
     console.log("Client Blob Storage initialisé.");
-} catch(e) { 
-    console.error("ERREUR CRITIQUE Blob Storage:", e.message); 
-    process.exit(1); // Critique
-}
+} catch(e) { console.error("ERREUR Blob Storage:", e.message); }
 
 try {
-    // Note : Vos variables s'appellent DOCUMENT_INTELLIGENCE
     if (!process.env.AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT || !process.env.AZURE_DOCUMENT_INTELLIGENCE_KEY) throw new Error("AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT ou AZURE_DOCUMENT_INTELLIGENCE_KEY manquant.");
     formRecognizerClient = new DocumentAnalysisClient(process.env.AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT, new AzureKeyCredential(process.env.AZURE_DOCUMENT_INTELLIGENCE_KEY));
     console.log("Client Document Intelligence initialisé.");
-} catch(e) { 
-    console.warn("AVERTISSEMENT Document Intelligence:", e.message); 
-    formRecognizerClient = null; // Optionnel
-}
+} catch(e) { console.error("ERREUR Document Intelligence:", e.message); }
 
 try {
-    // Note : Votre variable s'appelle GOOGLE_APPLICATION_CREDENTIALS_JSON
     if (!process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) throw new Error("Variable d'environnement GOOGLE_APPLICATION_CREDENTIALS_JSON non trouvée.");
     const credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON);
     ttsClient = new TextToSpeechClient({ credentials });
     console.log("Client Google Cloud Text-to-Speech prêt (via JSON).");
 } catch(e) {
     console.warn("AVERTISSEMENT Google Cloud TTS:", e.message);
-    ttsClient = null; // Optionnel
+    ttsClient = null;
 }
 
-// ▼▼▼ MODIFICATION : Initialisation des IA dans leurs propres blocs ▼▼▼
+// ▼▼▼ MODIFICATION 1 (suite) : INITIALISATION DES CLIENTS IA (CORRIGÉE) ▼▼▼
+// (Blocs placés à l'extérieur du 'catch' précédent)
+
 try {
+    // Client IA 1 (Deepseek - Défaut)
     if (!process.env.DEEPSEEK_API_ENDPOINT || !process.env.DEEPSEEK_API_KEY) throw new Error("Variables Deepseek manquantes.");
     aiApiDeepseek = axios.create({
         baseURL: process.env.DEEPSEEK_API_ENDPOINT,
@@ -90,10 +78,11 @@ try {
     console.log("Client IA (Deepseek) initialisé.");
 } catch(e) {
     console.error("ERREUR CRITIQUE Deepseek:", e.message);
-    process.exit(1); // Critique
+    process.exit(1);
 }
 
 try {
+    // Client IA 2 (Kimi-K2 - Documents)
     if (!process.env.KIMI_API_ENDPOINT || !process.env.KIMI_API_KEY) throw new Error("Variables Kimi manquantes.");
     aiApiKimi = axios.create({
         baseURL: process.env.KIMI_API_ENDPOINT,
@@ -102,17 +91,13 @@ try {
     console.log("Client IA (Kimi) initialisé.");
 } catch(e) {
     console.error("ERREUR CRITIQUE Kimi:", e.message);
-    process.exit(1); // Critique
-
-// ▲▲▲ FIN DE LA MODIFICATION ▲▲▲
-
-
-} catch (error) {
-    console.error("Erreur critique lors de l'initialisation des clients de service:", error.message);
-    process.exit(1); 
+    process.exit(1);
 }
+// ▲▲▲ FIN MODIFICATION 1 (CORRIGÉE) ▲▲▲
+
 
 // --- 4. Initialisation de la Base de Données ---
+// (Code original de lignes 77-99)
 let usersContainer, classesContainer, completedContentContainer, scenariosContainer;
 async function initializeDatabase() {
     try {
@@ -133,6 +118,7 @@ async function initializeDatabase() {
 }
 
 // Middleware pour vérifier la BDD
+// (Code original de lignes 101-107)
 app.use((req, res, next) => {
     if (!usersContainer || !classesContainer || !completedContentContainer || !scenariosContainer) {
         return res.status(503).json({ error: "Service de base de données non initialisé. Veuillez patienter." });
@@ -144,6 +130,7 @@ app.use((req, res, next) => {
 // =======================================================================
 // === AIDA ÉDUCATION : ROUTES API =======================================
 // =======================================================================
+// (Code original de lignes 113-447)
 
 // --- AUTHENTIFICATION (Éducation) ---
 app.post('/api/auth/login', async (req, res) => {
@@ -599,9 +586,10 @@ app.post('/api/ai/playground-chat', async (req, res) => {
     try {
         // 3. Appel de l'IA sélectionnée
         console.log(`Appel de l'IA ${agentName}...`);
+        // Le format de body (messages) est un exemple basé sur OpenAI/Deepseek
         const response = await clientToUse.post('', { // L'endpoint est déjà dans le baseURL
              model: modelName,
-             messages: [{ role: "user", content: prompt }], // Format 'messages'
+             messages: [{ role: "user", content: prompt }], 
              max_tokens: 500
         });
         
@@ -620,6 +608,7 @@ app.post('/api/ai/playground-chat', async (req, res) => {
 
 // ▼▼▼ MODIFICATION 3 : ROUTE GENERATE-FROM-UPLOAD MISE À JOUR (force Kimi) ▼▼▼
 app.post('/api/ai/generate-from-upload', upload.single('document'), async (req, res) => {
+    // Vérification que les services optionnels sont prêts
     if (!formRecognizerClient || !blobContainerClient) { 
         return res.status(503).json({ error: "Service d'analyse de document non prêt." }); 
     }
@@ -736,6 +725,7 @@ app.post('/api/ai/get-aida-help', async (req, res) => {
 // =======================================================================
 // === ACADEMY MRE : ROUTES API ==========================================
 // =======================================================================
+// (Code original de lignes 662-811)
 
 // --- AUTHENTIFICATION (Académie) ---
 app.post('/api/academy/auth/login', async (req, res) => {
@@ -960,9 +950,11 @@ app.get('/api/academy/teacher/students', async (req, res) => {
 
 // ▼▼▼ MODIFICATION 5 : ROUTE GRADE-UPLOAD MISE À JOUR (force Kimi) ▼▼▼
 app.post('/api/ai/grade-upload', upload.array('copies'), async (req, res) => {
+    // Vérification que les services optionnels sont prêts
     if (!formRecognizerClient || !blobContainerClient) { 
         return res.status(503).json({ error: "Service d'analyse de document non prêt." }); 
     }
+    
     const { sujet, criteres, lang } = req.body;
     if (!req.files || req.files.length === 0) {
         return res.status(400).json({ error: "Aucun fichier reçu." });
@@ -1014,10 +1006,9 @@ app.post('/api/ai/grade-upload', upload.array('copies'), async (req, res) => {
 
 
 // --- Point d'entrée et démarrage du serveur ---
+// (Code original de lignes 1018-1031)
 const PORT = process.env.PORT || 3000;
 
-// ▼▼▼ MODIFICATION 6 : DÉMARRAGE ROBUSTE ▼▼▼
-// (Attend que la DB soit initialisée AVANT de démarrer le serveur)
 initializeDatabase().then(() => {
     app.listen(PORT, () => {
         console.log(`Server AIDA démarré sur le port ${PORT}`);
@@ -1026,4 +1017,3 @@ initializeDatabase().then(() => {
     console.error("Échec de l'initialisation de la base de données, le serveur ne démarrera pas.", err);
     process.exit(1);
 });
-// ▲▲▲ FIN MODIFICATION 6 ▲▲▲
