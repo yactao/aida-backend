@@ -33,225 +33,99 @@ const upload = multer({ storage: multer.memoryStorage() });
 // --- 2. Initialisation des Clients de Services ---
 let dbClient, blobServiceClient, formRecognizerClient, ttsClient;
 
-try {
-    if (!process.env.COSMOS_ENDPOINT || !process.env.COSMOS_KEY) throw new Error("COSMOS_ENDPOINT ou COSMOS_KEY manquant.");
-    dbClient = new CosmosClient({ endpoint: process.env.COSMOS_ENDPOINT, key: process.env.COSMOS_KEY });
-    console.log("Client Cosmos DB initialisé.");
-} catch(e) { console.error("ERREUR Cosmos DB:", e.message); }
+// ▼▼▼ MODIFICATION 1 : AJOUT DES CLIENTS IA GLOBAUX ▼▼▼
+let aiApiDeepseek, aiApiKimi; // Remplacent l'ancien 'aiApi'
+// ▲▲▲ FIN MODIFICATION 1 ▲▲▲
 
 try {
-    if (!process.env.AZURE_STORAGE_CONNECTION_STRING) throw new Error("AZURE_STORAGE_CONNECTION_STRING manquant.");
+    if (!process.env.COSMOS_ENDPOINT || !process.env.COSMOS_KEY) throw new Error("COSMOS_ENDPOINT or COSMOS_KEY is missing from .env");
+    dbClient = new CosmosClient({
+        endpoint: process.env.COSMOS_ENDPOINT,
+        key: process.env.COSMOS_KEY
+    });
+    
+    if (!process.env.AZURE_STORAGE_CONNECTION_STRING) throw new Error("AZURE_STORAGE_CONNECTION_STRING is missing from .env");
     blobServiceClient = BlobServiceClient.fromConnectionString(process.env.AZURE_STORAGE_CONNECTION_STRING);
-    console.log("Client Blob Storage initialisé.");
-} catch(e) { console.error("ERREUR Blob Storage:", e.message); }
+    blobContainerClient = blobServiceClient.getContainerClient("graded-copies");
 
-try {
-    if (!process.env.AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT || !process.env.AZURE_DOCUMENT_INTELLIGENCE_KEY) throw new Error("AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT ou AZURE_DOCUMENT_INTELLIGENCE_KEY manquant.");
-    formRecognizerClient = new DocumentAnalysisClient(process.env.AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT, new AzureKeyCredential(process.env.AZURE_DOCUMENT_INTELLIGENCE_KEY));
-    console.log("Client Document Intelligence initialisé.");
-} catch(e) { console.error("ERREUR Document Intelligence:", e.message); }
+    if (!process.env.FORM_RECOGNIZER_ENDPOINT || !process.env.FORM_RECOGNIZER_KEY) throw new Error("FORM_RECOGNIZER_ENDPOINT or FORM_RECOGNIZER_KEY is missing from .env");
+    formRecognizerClient = new DocumentAnalysisClient(
+        process.env.FORM_RECOGNIZER_ENDPOINT,
+        new AzureKeyCredential(process.env.FORM_RECOGNIZER_KEY)
+    );
 
-try {
-    if (!process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) throw new Error("Variable d'environnement GOOGLE_APPLICATION_CREDENTIALS_JSON non trouvée.");
-    const credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON);
-    ttsClient = new TextToSpeechClient({ credentials });
-    console.log("Client Google Cloud Text-to-Speech prêt (via JSON).");
-} catch(e) {
-    console.warn("AVERTISSEMENT Google Cloud TTS:", e.message);
-    ttsClient = null;
+    if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) throw new Error("GOOGLE_APPLICATION_CREDENTIALS path is missing from .env");
+    ttsClient = new TextToSpeechClient();
+
+    // ▼▼▼ MODIFICATION 1 (suite) : INITIALISATION DES CLIENTS IA ▼▼▼
+    // (Remplace l'ancienne initialisation de 'aiApi')
+    
+    // 3.5. Client IA 1 (Deepseek - Défaut)
+    if (!process.env.DEEPSEEK_API_ENDPOINT || !process.env.DEEPSEEK_API_KEY) throw new Error("Variables Deepseek manquantes.");
+    aiApiDeepseek = axios.create({
+        baseURL: process.env.DEEPSEEK_API_ENDPOINT,
+        headers: { 'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}` }
+    });
+    
+    // 3.6. Client IA 2 (Kimi-K2 - Documents)
+    if (!process.env.KIMI_API_ENDPOINT || !process.env.KIMI_API_KEY) throw new Error("Variables Kimi manquantes.");
+    aiApiKimi = axios.create({
+        baseURL: process.env.KIMI_API_ENDPOINT,
+        headers: { 'Authorization': `Bearer ${process.env.KIMI_API_KEY}` }
+    });
+    
+    console.log("Tous les clients (DB, Blob, IA Deepseek, IA Kimi, TTS) sont prêts.");
+    // ▲▲▲ FIN MODIFICATION 1 ▲▲▲
+
+} catch (error) {
+    console.error("Erreur critique lors de l'initialisation des clients de service:", error.message);
+    process.exit(1); 
 }
 
-const database = dbClient?.database('AidaDB');
-let usersContainer;
-let classesContainer;
-let libraryContainer;
-let scenariosContainer;
-
-// --- FONCTIONS ET DONNÉES PAR DÉFAUT ---
-const defaultScenarios = [
-    { 
-        id: 'scen-0', 
-        title: "Scénario 0 : Répétiteur Vocal (Phrases de Base)", 
-        language: "Arabe Littéraire (Al-Fusha)", 
-        level: "Débutant Absolu", 
-        context: "L'IA joue le rôle d'un tuteur amical et patient...", 
-        characterName: "Le Répétiteur (المُعِيد)", 
-        characterIntro: "أهلاً بك! هيا نتدرب على النطق. كرر هذه الجملة: أنا بخير. <PHONETIQUE>Ahlan bik! Hayyā natadarab 'alā an-nuṭq. Karrir hādhihi al-jumla: Anā bi-khayr.</PHONETIQUE> <TRADUCTION>Bienvenue ! Entraînons-nous à la prononciation. Répète cette phrase : Je vais bien.</TRADUCTION>", 
-        objectives: ["Répéter correctement 'Je vais bien'.", "Répéter correctement 'Merci'.", "Répéter correctement 'Quel est votre nom?'."],
-        voiceCode: 'ar-XA-Wavenet-B'
-    },
-    { 
-        id: 'scen-1', 
-        title: "Scénario 1 : Commander son petit-déjeuner", 
-        language: "Arabe Littéraire (Al-Fusha)", 
-        level: "Débutant", 
-        context: "Vous entrez dans un café moderne au Caire...", 
-        characterName: "Le Serveur (النادِل)", 
-        characterIntro: "صباح الخير، تفضل. ماذا تود أن تطلب اليوم؟ <PHONETIQUE>Sabah al-khayr, tafaddal. Mādhā tawaddu an taṭlub al-yawm?</PHONETIQUE> <TRADUCTION>Bonjour, entrez. Que souhaitez-vous commander aujourd'hui ?</TRADUCTION>", 
-        objectives: ["Demander un thé et un croissant.", "Comprendre le prix total.", "Dire 'Merci' et 'Au revoir'."],
-        voiceCode: 'ar-XA-Wavenet-B'
-    }
-];
-
-// --- INITIALISATION DE LA BASE DE DONNÉES ---
+// --- 4. Initialisation de la Base de Données ---
+let usersContainer, classesContainer, completedContentContainer, scenariosContainer;
 async function initializeDatabase() {
-    if (!dbClient || !database) return console.error("Base de données non initialisée. Les routes DB seront indisponibles.");
     try {
-        let result;
-        result = await database.containers.createIfNotExists({ id: 'Users', partitionKey: '/id' });
-        usersContainer = result.container;
-        result = await database.containers.createIfNotExists({ id: 'Classes', partitionKey: '/teacherEmail' });
-        classesContainer = result.container;
-        result = await database.containers.createIfNotExists({ id: 'Library', partitionKey: '/subject' });
-        libraryContainer = result.container;
-        result = await database.containers.createIfNotExists({ id: 'Scenarios', partitionKey: '/id' }); 
-        scenariosContainer = result.container;
-        console.log("Tous les conteneurs (Users, Classes, Library, Scenarios) sont initialisés.");
+        const { database } = await dbClient.databases.createIfNotExists({ id: "AidaDB" });
+        const { container: usersCont } = await database.containers.createIfNotExists({ id: "Users", partitionKey: { paths: ["/email"] } });
+        usersContainer = usersCont;
+        const { container: classesCont } = await database.containers.createIfNotExists({ id: "Classes", partitionKey: { paths: ["/teacherEmail"] } });
+        classesContainer = classesCont;
+        const { container: completedCont } = await database.containers.createIfNotExists({ id: "CompletedContent", partitionKey: { paths: ["/studentEmail"] } });
+        completedContentContainer = completedCont;
+        const { container: scenariosCont } = await database.containers.createIfNotExists({ id: "AcademyScenarios", partitionKey: { paths: ["/teacherEmail"] } });
+        scenariosContainer = scenariosCont;
+        console.log("Conteneurs Cosmos DB (Users, Classes, CompletedContent, AcademyScenarios) prêts.");
     } catch (error) {
-        console.error("Erreur critique lors de l'initialisation des conteneurs de la DB:", error.message);
-        throw error; 
+        console.error("Erreur lors de l'initialisation de Cosmos DB:", error.message);
+        process.exit(1);
     }
 }
-// ---------------------------------------------------------------------
 
-app.get('/', (req, res) => {
-    res.send('<h1>Serveur AIDA</h1><p>Le serveur est en ligne et fonctionne correctement.</p>');
+// Middleware pour vérifier la BDD
+app.use((req, res, next) => {
+    if (!usersContainer || !classesContainer || !completedContentContainer || !scenariosContainer) {
+        return res.status(503).json({ error: "Service de base de données non initialisé. Veuillez patienter." });
+    }
+    next();
 });
 
-//
-// =========================================================================
-// === ARCHITECTURE "AGENT-TO-AGENT" (POUR LE PLAYGROUND) ===
-// =========================================================================
-//
 
-/**
- * AGENT 1 : Deepseek (Agent par Défaut)
- */
-async function getDeepseekPlaygroundCompletion(history) {
-    const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
-    const DEEPSEEK_BASE_URL = process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com";
-    const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || "deepseek-chat";
-    
-    if (!DEEPSEEK_API_KEY) {
-        throw new Error("Clé API Deepseek non configurée.");
-    }
-    const endpoint = `${DEEPSEEK_BASE_URL}/v1/chat/completions`; 
-    
-    const deepseekHistory = [
-        { role: "system", content: "Tu es AIDA, un tuteur IA bienveillant et pédagogue. Ton objectif est de guider les élèves vers la solution sans jamais donner la réponse directement, sauf en dernier recours. Tu dois adapter ton langage à l'âge de l'élève et suivre une méthode socratique : questionner d'abord, donner un indice ensuite, et valider la compréhension de l'élève." },
-        ...history.filter(msg => msg.role !== 'system')
-    ];
+// =======================================================================
+// === AIDA ÉDUCATION : ROUTES API =======================================
+// =======================================================================
 
-    try {
-        const response = await axios.post(endpoint, {
-            model: DEEPSEEK_MODEL,
-            messages: deepseekHistory
-        }, { headers: { 'Authorization': `Bearer ${DEEPSEEK_API_KEY}` } });
-        
-        return response.data.choices[0].message.content;
-    } catch (error) {
-        console.error("Erreur lors de l'appel à l'API Deepseek:", error.response?.data || error.message);
-        throw new Error("L'agent Deepseek n'a pas pu répondre.");
-    }
-}
-
-/**
- * AGENT 2 : Kimi (Moonshot AI) (Agent Spécialiste)
- */
-async function callKimiCompletion(history) {
-    const MOONSHOT_API_KEY = process.env.MOONSHOT_API_KEY;
-    const MOONSHOT_BASE_URL = process.env.MOONSHOT_BASE_URL; 
-    const MOONSHOT_MODEL = process.env.MOONSHOT_MODEL;
-
-    if (!MOONSHOT_API_KEY || !MOONSHOT_BASE_URL || !MOONSHOT_MODEL) {
-        throw new Error("Clé API, URL de base ou Modèle Moonshot non configuré.");
-    }
-    
-    // CORRECTION : Ajout de /v1
-    const endpoint = `${MOONSHOT_BASE_URL}/chat/completions`;
-
-    const kimiHistory = [
-        { role: "system", content: "Tu es Kimi, un assistant IA spécialisé dans l'analyse de documents longs et complexes. Réponds en te basant sur les documents fournis dans l'historique. Sois concis et factuel." },
-        ...history.filter(msg => msg.role !== 'system')
-    ];
-
-    try {
-        const response = await axios.post(endpoint, {
-            model: MOONSHOT_MODEL,
-            messages: kimiHistory,
-            temperature: 0.3,
-        }, {
-            headers: {
-                'Authorization': `Bearer ${MOONSHOT_API_KEY}`,
-                'Content-Type': 'application/json'
-            }
-        });
-
-        return response.data.choices[0].message.content;
-    } catch (error) {
-        console.error("Erreur lors de l'appel à l'API Moonshot:", error.response ? error.response.data : error.message);
-        throw new Error("L'agent Kimi n'a pas pu répondre.");
-    }
-}
-
-// ROUTE PLAYGROUND CHAT (AGENT MANAGER)
-app.post('/api/ai/playground-chat', async (req, res) => {
-    const { history, preferredAgent } = req.body;
-
-    if (!history || history.length === 0) {
-        return res.status(400).json({ error: "L'historique est vide." });
-    }
-
-    try {
-        let reply = "";
-        let agentName = "";
-        const lastUserMessage = history[history.length - 1].content;
-        const lastUserMessageLow = lastUserMessage.toLowerCase();
-        
-        // --- LOGIQUE DU ROUTEUR AMÉLIORÉE ---
-        const keywordsForKimi = ['kimi', 'analyse ce document', 'lis ce texte'];
-        
-        // ▼▼▼ NOUVELLE RÈGLE : VÉRIFICATION DE LA LONGUEUR ▼▼▼
-        // Si le texte est très long, c'est un travail pour Kimi, peu importe les mots-clés.
-        // 4000 tokens ~ 15000 caractères. Mettons 10 000 pour être sûr.
-        const isLongText = lastUserMessage.length > 10000; 
-        
-        if (preferredAgent === 'kimi' || keywordsForKimi.some(keyword => lastUserMessageLow.includes(keyword)) || isLongText) {
-            
-            console.log("Info: Routage vers l'Agent Kimi (Contexte Long)...");
-            reply = await callKimiCompletion(history);
-            agentName = "Aïda-kimi"; 
-
-        } else {
-            
-            console.log("Info: Routage vers l'Agent Deepseek (Défaut)...");
-            reply = await getDeepseekPlaygroundCompletion(history); 
-            agentName = "Aïda-deep";
-        }
-        // ▲▲▲ FIN DE LA MODIFICATION ▲▲▲
-        
-        res.json({ reply: reply, agent: agentName });
-
-    } catch (error) {
-        console.error("Erreur dans le routeur d'agent:", error);
-        res.status(500).json({ error: error.message });
-    }
-});
-// =========================================================================
-// === FIN DE L'ARCHITECTURE "AGENT-TO-AGENT" ===
-// =========================================================================
-//
-
-
-// --- API Routes (AIDA ÉDUCATION) ---
+// --- AUTHENTIFICATION (Éducation) ---
 app.post('/api/auth/login', async (req, res) => {
-    if (!usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
+    if (!usersContainer) { 
+        return res.status(503).json({ error: "Service de base de données indisponible." }); 
+    }
     const { email, password } = req.body;
     try {
         const { resource: user } = await usersContainer.item(email, email).read();
-        if (user && !user.role.startsWith('academy_') && user.password === password) { 
-            delete user.password;
-            res.json({ user });
+        if (user && user.password === password) {
+            const { password: _, ...userToReturn } = user;
+            res.json({ user: userToReturn });
         } else {
             res.status(401).json({ error: "Email ou mot de passe incorrect." });
         }
@@ -259,619 +133,657 @@ app.post('/api/auth/login', async (req, res) => {
         if (error.code === 404) {
             res.status(401).json({ error: "Email ou mot de passe incorrect." });
         } else {
-            res.status(500).json({ error: "Erreur du serveur." });
+            res.status(500).json({ error: "Erreur serveur lors de la connexion." });
         }
     }
 });
+
 app.post('/api/auth/signup', async (req, res) => {
-    if (!usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
+    if (!usersContainer) { 
+        return res.status(503).json({ error: "Service de base de données indisponible." }); 
+    }
     const { email, password, role } = req.body;
-    const newUser = { id: email, email, password, role, firstName: email.split('@')[0], avatar: 'default.png', classOrder: [] };
+    const newUser = {
+        id: email,
+        email,
+        password: password, 
+        role,
+        firstName: email.split('@')[0],
+        lastName: "",
+        avatar: `default_${Math.ceil(Math.random() * 8)}.png`
+    };
     try {
         const { resource: createdUser } = await usersContainer.items.create(newUser);
-        delete createdUser.password;
-        res.status(201).json({ user: createdUser });
+        const { password: _, ...userToReturn } = createdUser;
+        res.status(201).json({ user: userToReturn });
     } catch (error) {
         if (error.code === 409) {
-            res.status(409).json({ error: "Cet email est déjà utilisé." });
+            res.status(409).json({ error: "Un utilisateur avec cet email existe déjà." });
         } else {
             res.status(500).json({ error: "Erreur lors de la création du compte." });
         }
     }
 });
-// DANS server.js
 
-// NOUVELLE ROUTE : Débloquer un badge (Achievement)
-app.post('/api/academy/achievement/unlock', async (req, res) => {
-    if (!usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
-    
-    const { userId, badgeId } = req.body;
-    if (!userId || !badgeId) {
-        return res.status(400).json({ error: "userId et badgeId sont requis." });
-    }
-
-    try {
-        const { resource: user } = await usersContainer.item(userId, userId).read();
-        if (!user) {
-            return res.status(404).json({ error: "Utilisateur non trouvé." });
-        }
-
-        user.achievements = user.achievements || [];
-        
-        if (user.achievements.includes(badgeId)) {
-            // L'utilisateur a déjà ce badge
-            delete user.password;
-            return res.json({ message: "Badge déjà possédé.", user: user });
-        }
-
-        // Ajoute le nouveau badge
-        user.achievements.push(badgeId);
-
-        // Sauvegarde l'utilisateur
-        const { resource: updatedUser } = await usersContainer.item(userId).replace(user);
-        
-        delete updatedUser.password;
-        // Renvoie l'utilisateur mis à jour pour que le frontend puisse rafraîchir currentUser
-        res.status(201).json({ message: "Badge débloqué !", badgeId: badgeId, user: updatedUser });
-
-    } catch (error) {
-        console.error("Erreur lors du déblocage du badge:", error);
-        res.status(500).json({ error: "Erreur du serveur." });
-    }
-});
+// --- ENSEIGNANT (Éducation) ---
 app.get('/api/teacher/classes', async (req, res) => {
-    if (!classesContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
+    if (!classesContainer) { 
+        return res.status(503).json({ error: "Service de base de données indisponible." }); 
+    }
     const { teacherEmail } = req.query;
-    const querySpec = { query: "SELECT * FROM c WHERE c.teacherEmail = @teacherEmail", parameters: [{ name: "@teacherEmail", value: teacherEmail }] };
+    if (!teacherEmail) {
+        return res.status(400).json({ error: "Le 'teacherEmail' est manquant dans la requête." });
+    }
+    const querySpec = {
+        query: "SELECT * FROM c WHERE c.teacherEmail = @teacherEmail",
+        parameters: [
+            { name: "@teacherEmail", value: teacherEmail }
+        ]
+    };
     try {
         const { resources: classes } = await classesContainer.items.query(querySpec).fetchAll();
         res.json(classes);
-    } catch (error) { res.status(500).json({ error: "Impossible de récupérer les classes." }); }
+    } catch (error) {
+        res.status(500).json({ error: "Erreur serveur lors de la récupération des classes." });
+    }
 });
+
 app.post('/api/teacher/classes', async (req, res) => {
-    if (!classesContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
+    if (!classesContainer) { 
+        return res.status(503).json({ error: "Service de base de données indisponible." }); 
+    }
     const { className, teacherEmail } = req.body;
     const newClass = {
-        className, teacherEmail,
-        id: `class-${Date.now()}`,
-        students: [], content: [], results: []
+        id: `class-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+        className,
+        teacherEmail,
+        students: [],
+        content: [],
+        results: []
     };
     try {
         const { resource: createdClass } = await classesContainer.items.create(newClass);
         res.status(201).json(createdClass);
-    } catch (error) { res.status(500).json({ error: "Erreur lors de la création de la classe." }); }
+    } catch (error) {
+        res.status(500).json({ error: "Erreur serveur lors de la création de la classe." });
+    }
 });
+
 app.get('/api/teacher/classes/:id', async (req, res) => {
-    if (!classesContainer || !usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
+    if (!classesContainer || !usersContainer) { 
+        return res.status(503).json({ error: "Service de base de données indisponible." }); 
+    }
+    const { id } = req.params;
     const { teacherEmail } = req.query;
+
+    if (!teacherEmail) {
+        return res.status(400).json({ error: "Le 'teacherEmail' est manquant dans la requête." });
+    }
+
     try {
-        const { resource: classData } = await classesContainer.item(req.params.id, teacherEmail).read();
-        if (!classData) return res.status(404).json({ error: 'Classe introuvable' });
-        if (classData.students && classData.students.length > 0) {
-            const querySpec = { query: `SELECT c.email, c.firstName, c.avatar FROM c WHERE ARRAY_CONTAINS(@studentEmails, c.email)`, parameters: [{ name: '@studentEmails', value: classData.students }] };
-            const { resources: studentsDetails } = await usersContainer.items.query(querySpec).fetchAll();
-            classData.studentsWithDetails = studentsDetails;
-        } else {
+        const { resource: classData } = await classesContainer.item(id, teacherEmail).read();
+        
+        if (classData && classData.students && classData.students.length > 0) {
+            const studentEmails = classData.students;
+            const querySpec = {
+                query: `SELECT c.id, c.email, c.firstName, c.lastName, c.avatar FROM c WHERE ARRAY_CONTAINS(@studentEmails, c.email)`,
+                parameters: [
+                    { name: '@studentEmails', value: studentEmails }
+                ]
+            };
+            const { resources: studentsWithDetails } = await usersContainer.items.query(querySpec).fetchAll();
+            classData.studentsWithDetails = studentsWithDetails;
+        } else if (classData) {
             classData.studentsWithDetails = [];
+        }
+
+        res.json(classData);
+    } catch (error) {
+        if (error.code === 404) {
+            res.status(404).json({ error: "Classe non trouvée." });
+        } else {
+            res.status(500).json({ error: "Erreur serveur lors de la récupération de la classe." });
+        }
+    }
+});
+
+app.post('/api/teacher/classes/:id/add-student', async (req, res) => {
+    if (!classesContainer || !usersContainer) { 
+        return res.status(503).json({ error: "Service de base de données indisponible." }); 
+    }
+    const { id } = req.params;
+    const { studentEmail, teacherEmail } = req.body;
+
+    try {
+        const { resource: student } = await usersContainer.item(studentEmail, studentEmail).read();
+        if (!student) {
+            return res.status(404).json({ error: "Cet élève n'existe pas." });
+        }
+
+        const { resource: classData } = await classesContainer.item(id, teacherEmail).read();
+        if (!classData.students.includes(studentEmail)) {
+            classData.students.push(studentEmail);
+            await classesContainer.item(id, teacherEmail).replace(classData);
         }
         res.json(classData);
     } catch (error) {
         if (error.code === 404) {
-            return res.status(404).json({ error: 'Classe introuvable' });
+            res.status(404).json({ error: "Classe ou élève non trouvé." });
+        } else {
+            res.status(500).json({ error: "Erreur serveur lors de l'ajout de l'élève." });
         }
-        console.error(`Erreur pour la classe ${req.params.id} et prof ${teacherEmail}:`, error);
-        res.status(500).json({ error: "Impossible de récupérer les détails de la classe." });
     }
 });
-app.post('/api/teacher/classes/:id/add-student', async (req, res) => {
-    if (!classesContainer || !usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
+
+app.post('/api/teacher/classes/:id/remove-student', async (req, res) => {
+    if (!classesContainer) { 
+        return res.status(503).json({ error: "Service de base de données indisponible." }); 
+    }
+    const { id } = req.params;
     const { studentEmail, teacherEmail } = req.body;
-    const { id: classId } = req.params;
+
     try {
-        const { resource: student } = await usersContainer.item(studentEmail, studentEmail).read();
-        if (!student || student.role !== 'student') return res.status(404).json({ error: "Élève introuvable ou l'email n'est pas un compte élève." });
-        const { resource: classData } = await classesContainer.item(classId, teacherEmail).read();
-        if (classData.students.includes(studentEmail)) return res.status(409).json({ error: "Cet élève est déjà dans la classe." });
-        classData.students.push(studentEmail);
-        await classesContainer.items.upsert(classData);
-        res.status(200).json(classData);
+        const { resource: classData } = await classesContainer.item(id, teacherEmail).read();
+        classData.students = classData.students.filter(email => email !== studentEmail);
+        classData.results = classData.results.filter(result => result.studentEmail !== studentEmail);
+        
+        await classesContainer.item(id, teacherEmail).replace(classData);
+        res.status(200).json({ message: "Élève retiré avec succès." });
     } catch (error) {
-        if (error.code === 404) return res.status(404).json({ error: "Élève ou classe introuvable." });
-        res.status(500).json({ error: "Erreur serveur." });
+        res.status(500).json({ error: "Erreur serveur lors de la suppression de l'élève." });
     }
 });
-app.post('/api/teacher/assign-content', async (req, res) => {
-    if (!classesContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
-    const { classId, contentData, teacherEmail } = req.body;
-    const newContent = {
-        ...contentData,
-        id: `content-${Date.now()}`,
-        assignedAt: new Date().toISOString()
-    };
+
+app.delete('/api/teacher/classes/:id/content/:contentId', async (req, res) => {
+    if (!classesContainer) { 
+        return res.status(503).json({ error: "Service de base de données indisponible." }); 
+    }
+    const { id, contentId } = req.params;
+    const { teacherEmail } = req.query;
+
     try {
-        const { resource: classDoc } = await classesContainer.item(classId, teacherEmail).read();
-        if (!classDoc) return res.status(404).json({ error: 'Classe introuvable' });
-        classDoc.content = classDoc.content || [];
-        classDoc.content.push(newContent);
-        await classesContainer.items.upsert(classDoc);
-        res.status(200).json(newContent);
-    } catch (error) { res.status(500).json({ error: "Erreur lors de l'assignation." }); }
+        const { resource: classData } = await classesContainer.item(id, teacherEmail).read();
+        classData.content = classData.content.filter(c => c.id !== contentId);
+        classData.results = classData.results.filter(r => r.contentId !== contentId);
+        
+        await classesContainer.item(id, teacherEmail).replace(classData);
+        res.status(200).json({ message: "Contenu supprimé avec succès." });
+    } catch (error) {
+        res.status(500).json({ error: "Erreur serveur lors de la suppression du contenu." });
+    }
 });
+
 app.post('/api/teacher/classes/reorder', async (req, res) => {
-    if (!usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
+    if (!usersContainer) { 
+        return res.status(503).json({ error: "Service de base de données indisponible." }); 
+    }
     const { teacherEmail, classOrder } = req.body;
     try {
-        const { resource: teacher } = await usersContainer.item(teacherEmail, teacherEmail).read();
-        teacher.classOrder = classOrder;
-        const { resource: updatedTeacher } = await usersContainer.items.upsert(teacher);
-        res.status(200).json({ classOrder: updatedTeacher.classOrder });
-    } catch (error) { res.status(500).json({ error: "Erreur lors de la mise à jour de l'ordre." }); }
+        const { resource: user } = await usersContainer.item(teacherEmail, teacherEmail).read();
+        user.classOrder = classOrder;
+        await usersContainer.item(teacherEmail, teacherEmail).replace(user);
+        res.json({ classOrder });
+    } catch (error) {
+        res.status(500).json({ error: "Erreur lors de la sauvegarde de l'ordre des classes." });
+    }
 });
-app.delete('/api/teacher/classes/:classId/content/:contentId', async (req, res) => {
-    if (!classesContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
-    const { classId, contentId } = req.params;
+
+app.get('/api/teacher/classes/:id/competency-report', async (req, res) => {
+    if (!classesContainer) { 
+        return res.status(503).json({ error: "Service de base de données indisponible." }); 
+    }
+    const { id } = req.params;
     const { teacherEmail } = req.query;
+
     try {
-        const { resource: classDoc } = await classesContainer.item(classId, teacherEmail).read();
-        classDoc.content = classDoc.content.filter(c => c.id !== contentId);
-        classDoc.results = classDoc.results.filter(r => r.contentId !== contentId);
-        await classesContainer.items.upsert(classDoc);
-        res.status(204).send();
-    } catch (error) { res.status(500).json({ error: "Erreur lors de la suppression." }); }
+        const { resource: classData } = await classesContainer.item(id, teacherEmail).read();
+        const results = classData.results || [];
+        const content = classData.content || [];
+        
+        const contentMap = new Map(content.map(c => [c.id, c]));
+        const competencyScores = {};
+
+        results.forEach(result => {
+            if (result.status !== 'validated') return;
+            const relatedContent = contentMap.get(result.contentId);
+            if (!relatedContent || !relatedContent.competence || relatedContent.type !== 'quiz') return;
+
+            const { competence, level } = relatedContent.competence;
+            const score = (result.score / result.totalQuestions) * 100;
+
+            if (!competencyScores[competence]) {
+                competencyScores[competence] = { scores: [], level: level, count: 0 };
+            }
+            competencyScores[competence].scores.push(score);
+            competencyScores[competence].count++;
+        });
+
+        const report = Object.keys(competencyScores).map(competence => {
+            const data = competencyScores[competence];
+            const averageScore = data.scores.reduce((a, b) => a + b, 0) / data.count;
+            return {
+                competence,
+                level: data.level,
+                averageScore: Math.round(averageScore)
+            };
+        });
+
+        res.json(report);
+    } catch (error) {
+        res.status(500).json({ error: "Erreur lors de la génération du rapport de compétences." });
+    }
 });
-app.post('/api/teacher/classes/:classId/remove-student', async (req, res) => {
-    if (!classesContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
-    const { classId } = req.params;
-    const { studentEmail, teacherEmail } = req.body;
-    try {
-        const { resource: classDoc } = await classesContainer.item(classId, teacherEmail).read();
-        classDoc.students = classDoc.students.filter(email => email !== studentEmail);
-        classDoc.results = classDoc.results.filter(r => r.studentEmail !== studentEmail);
-        await classesContainer.items.upsert(classDoc);
-        res.status(204).send();
-    } catch (error) { res.status(500).json({ error: "Erreur lors de la suppression." }); }
-});
-app.post('/api/teacher/validate-result', async (req, res) => {
-    if (!classesContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
-    const { classId, studentEmail, contentId, appreciation, comment, teacherEmail } = req.body;
-    try {
-        const { resource: classDoc } = await classesContainer.item(classId, teacherEmail).read();
-        const resultIndex = classDoc.results.findIndex(r => r.studentEmail === studentEmail && r.contentId === contentId);
-        if (resultIndex === -1) return res.status(404).json({ error: "Résultat non trouvé." });
-        classDoc.results[resultIndex].status = 'validated';
-        classDoc.results[resultIndex].appreciation = appreciation;
-        classDoc.results[resultIndex].teacherComment = comment;
-        classDoc.results[resultIndex].validatedAt = new Date().toISOString();
-        await classesContainer.items.upsert(classDoc);
-        res.status(200).json(classDoc.results[resultIndex]);
-    } catch(error) { res.status(500).json({ error: "Erreur lors de la validation." }); }
-});
-app.get('/api/teacher/classes/:classId/competency-report', async (req, res) => {
-    if (!classesContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
-    const { classId } = req.params;
-    const { teacherEmail } = req.query;
+
+app.post('/api/teacher/assign-content', async (req, res) => {
+    if (!classesContainer) { 
+        return res.status(503).json({ error: "Service de base de données indisponible." }); 
+    }
+    const { classId, teacherEmail, contentData } = req.body;
+    
+    const newContent = {
+        id: `content-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+        assignedAt: new Date().toISOString(),
+        ...contentData
+    };
+
     try {
         const { resource: classData } = await classesContainer.item(classId, teacherEmail).read();
-        const validatedQuizzes = (classData.results || []).filter(r => r.status === 'validated' && r.totalQuestions > 0);
-        const competencyScores = {};
-        validatedQuizzes.forEach(result => {
-            const content = (classData.content || []).find(c => c.id === result.contentId);
-            if (content && content.competence && content.competence.competence) {
-                const { competence, level } = content.competence;
-                if (!competencyScores[competence]) {
-                    competencyScores[competence] = { scores: [], total: 0, level };
-                }
-                const scorePercentage = (result.score / result.totalQuestions) * 100;
-                competencyScores[competence].scores.push(scorePercentage);
-                competencyScores[competence].total += scorePercentage;
-            }
-        });
-        const report = Object.keys(competencyScores).map(competence => ({
-            competence,
-            level: competencyScores[competence].level,
-            averageScore: Math.round(competencyScores[competence].total / competencyScores[competence].scores.length)
-        }));
-        res.json(report);
-    } catch (error) { res.status(500).json({ error: "Erreur lors de la génération du rapport." }); }
+        classData.content.push(newContent);
+        await classesContainer.item(classId, teacherEmail).replace(classData);
+        res.status(201).json(newContent);
+    } catch (error) {
+        res.status(500).json({ error: "Erreur lors de l'assignation du contenu." });
+    }
 });
-app.get('/api/student/dashboard', async (req, res) => {
-    if (!classesContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
-    const { studentEmail } = req.query;
-    const querySpec = { query: "SELECT * FROM c WHERE ARRAY_CONTAINS(c.students, @studentEmail)", parameters: [{ name: "@studentEmail", value: studentEmail }] };
+
+app.post('/api/teacher/validate-result', async (req, res) => {
+    if (!classesContainer || !completedContentContainer) { 
+        return res.status(503).json({ error: "Service de base de données indisponible." }); 
+    }
+    const { classId, teacherEmail, studentEmail, contentId, appreciation, comment } = req.body;
+    
     try {
-        const { resources: studentClasses } = await classesContainer.items.query(querySpec, { enableCrossPartitionQuery: true }).fetchAll();
-        const todo = [], pending = [], completed = [];
-        studentClasses.forEach(c => {
-            (c.content || []).forEach(content => {
-                const result = (c.results || []).find(r => r.studentEmail === studentEmail && r.contentId === content.id);
-                const item = { ...content, className: c.className, classId: c.id, teacherEmail: c.teacherEmail };
-                if (!result) { todo.push(item); }
-                else {
-                    const fullResult = { ...item, ...result };
-                    if (result.status === 'pending_validation') { pending.push(fullResult); }
-                    else if (result.status === 'validated') { completed.push(fullResult); }
+        // Mettre à jour dans 'Classes'
+        const { resource: classData } = await classesContainer.item(classId, teacherEmail).read();
+        const resultInClass = classData.results.find(r => r.studentEmail === studentEmail && r.contentId === contentId);
+        if (resultInClass) {
+            resultInClass.status = 'validated';
+            resultInClass.appreciation = appreciation;
+            resultInClass.teacherComment = comment;
+            await classesContainer.item(classId, teacherEmail).replace(classData);
+        }
+
+        // Mettre à jour dans 'CompletedContent'
+        const resultId = `${studentEmail}-${contentId}`;
+        const { resource: resultData } = await completedContentContainer.item(resultId, studentEmail).read();
+        if (resultData) {
+            resultData.status = 'validated';
+            resultData.appreciation = appreciation;
+            resultData.teacherComment = comment;
+            await completedContentContainer.item(resultId, studentEmail).replace(resultData);
+        }
+        
+        res.status(200).json({ message: "Résultat validé." });
+    } catch (error) {
+        res.status(500).json({ error: "Erreur lors de la validation." });
+    }
+});
+
+// --- ÉLÈVE (Éducation) ---
+app.get('/api/student/dashboard', async (req, res) => {
+    if (!classesContainer || !completedContentContainer) { 
+        return res.status(503).json({ error: "Service de base de données indisponible." }); 
+    }
+    const { studentEmail } = req.query;
+
+    const querySpecClasses = {
+        query: "SELECT * FROM c WHERE ARRAY_CONTAINS(c.students, @studentEmail)",
+        parameters: [{ name: "@studentEmail", value: studentEmail }]
+    };
+    
+    const querySpecResults = {
+        query: "SELECT * FROM c WHERE c.studentEmail = @studentEmail",
+        parameters: [{ name: "@studentEmail", value: studentEmail }]
+    };
+
+    try {
+        const { resources: classes } = await classesContainer.items.query(querySpecClasses).fetchAll();
+        const { resources: results } = await completedContentContainer.items.query(querySpecResults).fetchAll();
+
+        let todo = [], pending = [], completed = [];
+        const resultMap = new Map(results.map(r => [r.contentId, r]));
+
+        classes.forEach(cls => {
+            (cls.content || []).forEach(content => {
+                const result = resultMap.get(content.id);
+                const assignment = { ...content, className: cls.className, classId: cls.id, teacherEmail: cls.teacherEmail };
+                
+                if (!result) {
+                    todo.push(assignment);
+                } else if (result.status === 'pending_validation') {
+                    pending.push({ ...assignment, ...result, completedAt: result.submittedAt });
+                } else if (result.status === 'validated') {
+                    completed.push({ ...assignment, ...result, completedAt: result.submittedAt });
                 }
             });
         });
-        todo.sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate));
-        pending.sort((a,b) => new Date(b.submittedAt) - new Date(a.submittedAt));
-        completed.sort((a,b) => new Date(b.validatedAt) - new Date(a.validatedAt));
+
         res.json({ todo, pending, completed });
-    } catch (error) { 
-        console.error("Erreur de récupération du tableau de bord étudiant:", error);
-        res.status(500).json({ error: "Erreur de récupération du tableau de bord." }); 
-    }
-});
-app.post('/api/student/submit-quiz', async (req, res) => {
-    if (!classesContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
-    const { studentEmail, classId, contentId, title, score, totalQuestions, answers, helpUsed, teacherEmail } = req.body;
-    const newResult = { studentEmail, contentId, title, score, totalQuestions, answers, helpUsed, submittedAt: new Date().toISOString(), status: 'pending_validation' };
-    try {
-        const { resource: classDoc } = await classesContainer.item(classId, teacherEmail).read();
-        classDoc.results = classDoc.results || [];
-        classDoc.results.push(newResult);
-        await classesContainer.items.upsert(classDoc);
-        res.status(201).json(newResult);
-    } catch (error) { res.status(500).json({ error: "Erreur lors de la soumission." }); }
-});
-app.get('/api/library', async (req, res) => {
-    if (!libraryContainer) return res.status(503).json({ error: "Service de bibliothèque indisponible." });
-    const { searchTerm, subject } = req.query;
-    let query = "SELECT * FROM c";
-    const parameters = [];
-    const conditions = [];
-    if (subject) {
-        conditions.push("c.subject = @subject");
-        parameters.push({ name: "@subject", value: subject });
-    }
-    if (searchTerm) {
-        conditions.push("CONTAINS(c.title, @searchTerm, true)"); 
-        parameters.push({ name: "@searchTerm", value: searchTerm });
-    }
-    if (conditions.length > 0) {
-        query += " WHERE " + conditions.join(" AND ");
-    }
-    query += " ORDER BY c.publishedAt DESC";
-    const querySpec = { query, parameters };
-    try {
-        const options = { enableCrossPartitionQuery: !subject };
-        const { resources: items } = await libraryContainer.items.query(querySpec, options).fetchAll();
-        res.json(items);
     } catch (error) {
-        console.error("Erreur de recherche dans la bibliothèque:", error);
-        res.status(500).json({ error: "Impossible de récupérer la bibliothèque." });
-    }
-});
-app.post('/api/library/publish', async (req, res) => {
-    if (!libraryContainer) return res.status(503).json({ error: "Service de bibliothèque indisponible." });
-    const { contentData, teacherName, subject } = req.body;
-    if (!contentData || !teacherName || !subject) {
-        return res.status(400).json({ error: "Données de publication incomplètes." });
-    }
-    const newLibraryItem = {
-        ...contentData,
-        id: `lib-${contentData.id || Date.now()}`, 
-        originalContentId: contentData.id,
-        authorName: teacherName,
-        publishedAt: new Date().toISOString(),
-        subject: subject 
-    };
-    delete newLibraryItem.assignedAt;
-    delete newLibraryItem.dueDate;
-    delete newLibraryItem.isEvaluated;
-    delete newLibraryItem.classId;
-    delete newLibraryItem.teacherEmail;
-    try {
-        const { resource: publishedItem } = await libraryContainer.items.create(newLibraryItem);
-        res.status(201).json(publishedItem);
-    } catch (error) {
-         if (error.code === 409) {
-             res.status(409).json({ error: "Ce contenu (ou un contenu avec le même ID) existe déjà dans la bibliothèque." });
-         } else {
-             console.error("Erreur de publication dans la bibliothèque:", error);
-             res.status(500).json({ error: "Erreur lors de la publication." });
-         }
-    }
-});
-app.post('/api/ai/generate-content', async (req, res) => {
-    const { competences, contentType, exerciseCount, language } = req.body;
-    const langMap = { 'Anglais': 'English', 'Arabe': 'Arabic', 'Espagnol': 'Spanish' };
-    const targetLanguage = langMap[language];
-    let systemPrompt;
-    let userPromptContent;
-    const baseInstructions = {
-        quiz: `Génère exactement ${exerciseCount} questions. La structure JSON DOIT être : { "title": "...", "type": "quiz", "questions": [ { "question_text": "...", "options": ["...", "...", "...", "..."], "correct_answer_index": 0 } ] }`,
-        exercices: `Génère exactement ${exerciseCount} exercices. La structure JSON DOIT être : { "title": "...", "type": "exercices", "content": [ { "enonce": "..." } ] }`,
-        dm: `Génère exactement ${exerciseCount} exercices. La structure JSON DOIT être : { "title": "...", "type": "dm", "content": [ { "enonce": "..." } ] }`,
-        revision: `Génère une fiche de révision complète. La structure JSON DOIT être : { "title": "...", "type": "revision", "content": "..." }`
-    };
-    if (!baseInstructions[contentType]) {
-        return res.status(400).json({ error: "Type de contenu non supporté" });
-    }
-    if (targetLanguage) {
-        systemPrompt = `You are an expert pedagogical assistant for creating language learning content. Your entire response must be a valid JSON object only, with no text before or after. All text content within the JSON MUST be in ${targetLanguage}.`;
-        const translatedInstructions = {
-            quiz: `Generate exactly ${exerciseCount} questions. The JSON structure MUST be: { "title": "...", "type": "quiz", "questions": [ { "question_text": "...", "options": ["...", "...", "...", "..."], "correct_answer_index": 0 } ] }`,
-            exercices: `Generate exactly ${exerciseCount} exercises. The JSON structure MUST be: { "title": "...", "type": "exercices", "content": [ { "enonce": "..." } ] }`,
-            dm: `Generate exactly ${exerciseCount} exercises. The JSON structure MUST be: { "title": "...", "type": "dm", "content": [ { "enonce": "..." } ] }`,
-            revision: `Generate a complete review sheet. The JSON structure MUST be: { "title": "...", "type": "revision", "content": "..." }`
-        };
-        const specificInstructions = translatedInstructions[contentType];
-        userPromptContent = `I will provide a pedagogical skill described in French. Your task is to create a '${contentType}' in ${targetLanguage} for a student learning that language. The exercise should help them practice the provided skill. The French skill is: '${competences}'. Now, follow these structural rules: ${specificInstructions}`;
-    } else {
-        systemPrompt = "Tu es un assistant pédagogique expert dans la création de contenus éducatifs en français. Ta réponse doit être uniquement un objet JSON valide, sans aucun texte avant ou après.";
-        const specificInstructions = baseInstructions[contentType];
-        userPromptContent = `Crée un contenu de type '${contentType}' pour un élève, basé sur la compétence suivante : '${competences}'. ${specificInstructions} Le contenu doit être en français.`;
-    }
-    try {
-        const response = await axios.post('https://api.deepseek.com/chat/completions', {
-            model: "deepseek-chat",
-            messages: [
-                { role: "system", content: systemPrompt },
-                { role: "user", content: userPromptContent }
-            ],
-            response_format: { type: "json_object" }
-        }, { headers: { 'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}` } });
-        const structured_content = response.data.choices[0].message.content;
-        res.json({ structured_content: JSON.parse(structured_content) });
-    } catch (error) {
-        console.error("Erreur Deepseek:", error.response?.data || error.message);
-        res.status(500).json({ error: "Erreur lors de la génération." });
-    }
-});
-app.post('/api/ai/generate-from-upload', upload.single('document'), async (req, res) => {
-    if (!formRecognizerClient) { return res.status(503).json({ error: "Le service d'analyse de documents n'est pas configuré sur le serveur. Vérifiez les logs." }); }
-    if (!req.file) return res.status(400).json({ error: "Aucun fichier n'a été chargé." });
-    const { contentType, exerciseCount } = req.body;
-    let specificInstructions = '';
-    switch(contentType) {
-        case 'quiz':
-            specificInstructions = `Génère exactement ${exerciseCount} questions. La structure JSON DOIT être : { "title": "...", "type": "quiz", "questions": [ { "question_text": "...", "options": ["...", "...", "...", "..."], "correct_answer_index": 0 } ] }`;
-            break;
-        case 'exercices':
-        case 'dm':
-            specificInstructions = `Génère exactement ${exerciseCount} exercices. La structure JSON DOIT être : { "title": "...", "type": "${contentType}", "content": [ { "enonce": "..." } ] }`;
-            break;
-        case 'revision':
-            specificInstructions = `Génère une fiche de révision. La structure JSON DOIT être : { "title": "...", "type": "revision", "content": "..." }`;
-            break;
-    }
-    try {
-        const poller = await formRecognizerClient.beginAnalyzeDocument("prebuilt-layout", req.file.buffer);
-        const { content } = await poller.pollUntilDone();
-        const response = await axios.post('https://api.deepseek.com/chat/completions', {
-            model: "deepseek-chat",
-            messages: [{
-                role: "system",
-                content: "Tu es un assistant pédagogique expert. Ta réponse doit être uniquement un objet JSON valide, sans texte additionnel."
-            }, {
-                role: "user",
-                content: `À partir du texte suivant: "${content}". Crée un contenu de type '${contentType}'. ${specificInstructions}`
-            }],
-            response_format: { type: "json_object" }
-        }, { headers: { 'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}` } });
-        const structured_content = response.data.choices[0].message.content;
-        res.json({ structured_content: JSON.parse(structured_content) });
-    } catch (error) {
-        console.error("Erreur lors de l'analyse ou de la génération:", error);
-        res.status(500).json({ error: "Erreur du serveur." });
+        res.status(500).json({ error: "Erreur lors de la récupération du dashboard élève." });
     }
 });
 
-// ▼▼▼ CETTE ROUTE MANQUAIT PROBABLEMENT SUR AZURE ▼▼▼
-app.post('/api/ai/playground-extract-text', upload.single('document'), async (req, res) => {
-    if (!formRecognizerClient) { return res.status(503).json({ error: "Le service d'analyse de documents n'est pas configuré sur le serveur. Vérifiez les logs." }); }
-    if (!req.file) { return res.status(400).json({ error: "Aucun fichier n'a été chargé." }); }
+app.post('/api/student/submit-quiz', async (req, res) => {
+    if (!classesContainer || !completedContentContainer) { 
+        return res.status(503).json({ error: "Service de base de données indisponible." }); 
+    }
+    const { studentEmail, classId, contentId, title, score, totalQuestions, answers, helpUsed, teacherEmail } = req.body;
+    
+    let status = 'pending_validation';
+    let appreciation = null;
+    let teacherComment = null;
+
     try {
-        const poller = await formRecognizerClient.beginAnalyzeDocument("prebuilt-layout", req.file.buffer);
+        const { resource: classData } = await classesContainer.item(classId, teacherEmail).read();
+        const content = classData.content.find(c => c.id === contentId);
+        if (content && content.type === 'quiz') {
+            status = 'validated';
+            appreciation = 'acquis';
+            teacherComment = 'Quiz complété automatiquement.';
+        }
+
+        const newResult = {
+            id: `${studentEmail}-${contentId}`,
+            studentEmail,
+            contentId,
+            title,
+            score,
+            totalQuestions,
+            answers,
+            helpUsed,
+            submittedAt: new Date().toISOString(),
+            status: status,
+            appreciation: appreciation,
+            teacherComment: teacherComment
+        };
+
+        // 1. Sauvegarder dans CompletedContent
+        await completedContentContainer.items.upsert(newResult);
+
+        // 2. Mettre à jour le tableau 'results' de la classe
+        const resultIndex = classData.results.findIndex(r => r.studentEmail === studentEmail && r.contentId === contentId);
+        if (resultIndex > -1) {
+            classData.results[resultIndex] = newResult;
+        } else {
+            classData.results.push(newResult);
+        }
+        await classesContainer.item(classId, teacherEmail).replace(classData);
+
+        res.status(201).json(newResult);
+    } catch (error) {
+        res.status(500).json({ error: "Erreur lors de la soumission du quiz." });
+    }
+});
+
+// --- BIBLIOTHÈQUE (Éducation) ---
+app.get('/api/library', async (req, res) => {
+    // Logique de bibliothèque à implémenter
+    res.json([]);
+});
+
+app.post('/api/library/publish', async (req, res) => {
+    // Logique de bibliothèque à implémenter
+    res.json({ message: "Contenu publié (simulation)." });
+});
+
+
+// =======================================================================
+// === SERVICES IA (Partagés) ============================================
+// =======================================================================
+
+// --- IA : CHAT & GÉNÉRATION ---
+
+// ▼▼▼ MODIFICATION 2 : ROUTE PLAYGROUND-CHAT MISE À JOUR ▼▼▼
+app.post('/api/ai/playground-chat', async (req, res) => {
+    const { history, preferredAgent } = req.body;
+    
+    // 1. Préparer le prompt (inchangé)
+    const prompt = history.map(m => `${m.role}: ${m.content}`).join('\n') + "\nassistant:";
+    
+    // 2. Logique d'aiguillage
+    let clientToUse;
+    let agentName;
+
+    if (preferredAgent === 'kimi') {
+        clientToUse = aiApiKimi;
+        agentName = 'Kimi-K2';
+    } else {
+        clientToUse = aiApiDeepseek; // Deepseek est le défaut
+        agentName = 'Deepseek';
+    }
+
+    try {
+        // 3. Appel de l'IA sélectionnée
+        const response = await clientToUse.post('', { // L'endpoint est déjà dans le baseURL du client
+             model: agentName === 'Kimi-K2' ? "kimi-k2" : "deepseek-chat", // (Adaptez le nom du modèle)
+             messages: [{ role: "user", content: prompt }], // (Format 'messages' typique)
+             max_tokens: 500
+        });
+        
+        // 4. Renvoyer la réponse
+        res.json({ 
+            reply: response.data.choices[0].message.content, 
+            agent: agentName 
+        });
+
+    } catch(e) {
+        console.error(`Erreur API IA (${agentName}):`, e.message);
+        res.status(500).json({error: `Erreur de l'API ${agentName}`});
+    }
+});
+// ▲▲▲ FIN MODIFICATION 2 ▲▲▲
+
+// ▼▼▼ MODIFICATION 3 : ROUTE GENERATE-FROM-UPLOAD MISE À JOUR ▼▼▼
+app.post('/api/ai/generate-from-upload', upload.single('document'), async (req, res) => {
+    const { contentType, exerciseCount, language } = req.body;
+    if (!req.file) return res.status(400).json({ error: "Aucun document reçu." });
+
+    try {
+        const file = req.file;
+        const blobName = `${Date.now()}-gen-${file.originalname}`;
+        const blockBlobClient = blobContainerClient.getBlockBlobClient(blobName);
+        await blockBlobClient.uploadData(file.buffer);
+        const fileUrl = blockBlobClient.url;
+
+        const poller = await formRecognizerClient.beginAnalyzeDocument("prebuilt-read", fileUrl);
         const { content } = await poller.pollUntilDone();
+
+        const prompt = `
+            Voici le contenu d'un document:
+            ---
+            ${content}
+            ---
+            Crée un ${contentType} de ${exerciseCount} questions basé sur ce texte.
+            Langue: ${language}.
+            Réponds en JSON structuré.
+        `;
+        
+        // AIGUILLAGE : Forcer Kimi pour cette tâche
+        console.log("Appel de Kimi pour la génération depuis document...");
+        const response = await aiApiKimi.post('', {
+            model: "kimi-k2", // (Adaptez le nom du modèle)
+            messages: [{ role: "user", content: prompt }],
+            response_format: { type: "json_object" },
+            max_tokens: 2048
+        });
+
+        res.json({ structured_content: JSON.parse(response.data.choices[0].message.content) });
+
+    } catch (error) {
+        console.error("Erreur lors de la génération depuis document (Kimi):", error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+// ▲▲▲ FIN MODIFICATION 3 ▲▲▲
+
+
+app.post('/api/ai/generate-lesson-plan', async (req, res) => {
+    // (Cette route utilise l'ancien 'aiApi' qui n'existe plus)
+    // (Nous la faisons pointer sur Deepseek par défaut)
+    const { theme, level, numSessions, lang } = req.body;
+    const prompt = `Crée un plan de leçon sur le thème "${theme}" pour un niveau ${level} en ${numSessions} sessions. Langue: ${lang}. Réponds en JSON structuré.`;
+    
+    try {
+        const response = await aiApiDeepseek.post('', {
+            model: "deepseek-chat",
+            messages: [{ role: "user", content: prompt }],
+            response_format: { type: "json_object" },
+            max_tokens: 2048
+        });
+        res.json({ structured_plan: JSON.parse(response.data.choices[0].message.content) });
+    } catch(e) {
+        res.status(500).json({error: "Erreur IA (Deepseek) " + e.message});
+    }
+});
+
+// --- IA : PLAYGROUND UPLOAD (Extraction) ---
+app.post('/api/ai/playground-extract-text', upload.single('document'), async (req, res) => {
+    if (!req.file) return res.status(400).json({ error: "Aucun document reçu." });
+    
+    try {
+        const file = req.file;
+        const blobName = `${Date.now()}-extract-${file.originalname}`;
+        const blockBlobClient = blobContainerClient.getBlockBlobClient(blobName);
+        
+        await blockBlobClient.uploadData(file.buffer);
+        const fileUrl = blockBlobClient.url;
+
+        const poller = await formRecognizerClient.beginAnalyzeDocument("prebuilt-read", fileUrl);
+        const { content } = await poller.pollUntilDone();
+
         res.json({ extractedText: content });
     } catch (error) {
         console.error("Erreur lors de l'extraction de texte:", error);
-        res.status(500).json({ error: "Impossible d'analyser le document." });
+        res.status(500).json({ error: error.message });
     }
 });
-// ▲▲▲ FIN DE LA ROUTE ▲▲▲
 
-app.post('/api/ai/get-hint', async (req, res) => {
-    const { questionText } = req.body;
-    try {
-        const response = await axios.post('https://api.deepseek.com/chat/completions', {
-            model: "deepseek-chat",
-            messages: [{
-                role: "system",
-                content: "Tu es un tuteur. Donne un indice pour aider à résoudre la question, mais ne donne JAMAIS la réponse. Sois bref et encourageant."
-            }, { role: "user", content: `Donne un indice pour la question : "${questionText}"` }]
-        }, { headers: { 'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}` } });
-        res.json({ hint: response.data.choices[0].message.content });
-    } catch (error) { res.status(500).json({ error: "Indice indisponible." }); }
-});
-app.post('/api/ai/generate-lesson-plan', async (req, res) => {
-    const { theme, level, numSessions } = req.body;
-    try {
-        const response = await axios.post('https://api.deepseek.com/chat/completions', {
-            model: "deepseek-chat",
-            messages: [{
-                role: "system",
-                content: "Tu es un concepteur pédagogique expert. Génère un plan de cours structuré en JSON. Ta réponse doit être uniquement un objet JSON valide."
-            }, {
-                role: "user",
-                content: `Crée un plan de cours sur le thème "${theme}" pour un niveau "${level}" en ${numSessions} séances. Pour chaque séance, donne un titre, un objectif, des idées d'activités et des suggestions de ressources AIDA. Pour chaque ressource suggérée, fournis un objet JSON avec les clés "type" (choisi parmi "quiz", "exercices", "revision", "dm"), "sujet" (un titre court et descriptif), et "competence" (une compétence pédagogique précise et complète liée au sujet). La structure JSON finale doit être : { "planTitle": "...", "level": "...", "sessions": [{ "sessionNumber": 1, "title": "...", "objective": "...", "activities": ["..."], "resources": [{"type": "quiz", "sujet": "Les capitales européennes", "competence": "Localiser les principales capitales européennes sur une carte"}] }] }.`
-            }],
-            response_format: { type: "json_object" }
-        }, { headers: { 'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}` } });
-        res.json({ structured_plan: JSON.parse(response.data.choices[0].message.content) });
-    } catch (error) { 
-        console.error("Erreur Deepseek (planificateur):", error.response?.data || error.message);
-        res.status(500).json({ error: "Erreur lors de la génération du plan de cours." });
-    }
-});
-app.post('/api/ai/grade-upload', upload.array('copies', 10), async (req, res) => {
-    if (!formRecognizerClient || !process.env.DEEPSEEK_API_KEY) {
-        return res.status(503).json({ error: "Les services d'analyse IA ou Document ne sont pas configurés sur le serveur." });
-    }
-    if (!req.files || req.files.length === 0) {
-        return res.status(400).json({ error: "Aucun fichier de copie n'a été reçu." });
-    }
-    const { sujet, criteres } = req.body;
-    if (!sujet || !criteres) {
-        return res.status(400).json({ error: "Le sujet et les critères de notation sont obligatoires." });
-    }
-    try {
-        console.log(`[Grading Module] Analyse OCR de ${req.files.length} page(s)...`);
-        const ocrPromises = req.files.map(async (file) => {
-            const poller = await formRecognizerClient.beginAnalyzeDocument("prebuilt-layout", file.buffer);
-            const { content } = await poller.pollUntilDone();
-            console.log(`[Grading Module] Texte extrait de ${file.originalname} (${content.length} caractères).`);
-            return content;
-        });
-        const allTextSnippets = await Promise.all(ocrPromises);
-        const fullText = allTextSnippets.join("\n\n--- PAGE SUIVANTE ---\n\n");
-        console.log(`[Grading Module] Texte total combiné: ${fullText.length} caractères.`);
-        const systemPrompt = `Tu es un assistant de correction expert pour enseignants. Tu reçois le SUJET d'un devoir, les CRITÈRES de notation, et le TEXTE COMPLET d'une copie d'élève (qui peut s'étendre sur plusieurs pages, séparées par "--- PAGE SUIVANTE ---").
-        Ton objectif est de fournir une évaluation structurée et objective.
-        Ta réponse DOIT être un objet JSON valide, et rien d'autre.
-        
-        Voici la structure JSON ATTENDUE:
-        {
-          "analyseGlobale": "Une analyse claire et structurée...",
-          "criteres": [
-            { "nom": "Pertinence du contenu", "note": "X/Y", "commentaire": "..." },
-            { "nom": "Organisation et cohérence", "note": "X/Y", "commentaire": "..." }
-          ],
-          "noteFinale": "X/20",
-          "commentaireEleve": "Travail remarquable. L'essai est clair..."
-        }`;
-        const userPrompt = `Voici la correction à effectuer :
-        
-        1. SUJET DU DEVOIR:
-        "${sujet}"
-
-        2. CRITÈRES DE NOTATION:
-        "${criteres}"
-
-        3. TEXTE COMPLET DE LA COPIE DE L'ÉLÈVE (extrait par OCR):
-        "${fullText}"
-
-        Génère l'évaluation JSON structurée correspondante.`;
-        console.log(`[Grading Module] Envoi de la requête unique à Deepseek...`);
-        const response = await axios.post('https://api.deepseek.com/chat/completions', {
-            model: "deepseek-chat",
-            messages: [
-                { role: "system", content: systemPrompt },
-                { role: "user", content: userPrompt }
-            ],
-            response_format: { type: "json_object" }
-        }, { headers: { 'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}` } });
-        console.log(`[Grading Module] Réponse IA reçue.`);
-        const evaluationJson = JSON.parse(response.data.choices[0].message.content);
-        res.json(evaluationJson);
-    } catch (error) {
-        console.error("Erreur dans le module d'aide à la correction:", error.response?.data || error.message);
-        res.status(500).json({ error: "Erreur lors de l'analyse des copies." });
-    }
-});
+// --- IA : AIDE (Éducation) ---
 app.post('/api/ai/get-aida-help', async (req, res) => {
-    const { history, level } = req.body;
-    if (!history) { return res.status(400).json({ error: "L'historique de la conversation est manquant." }); }
-    const systemPrompt = `Tu es AIDA, un tuteur IA bienveillant et pédagogue. Ton objectif est de guider les élèves vers la solution sans jamais donner la réponse directement, sauf en dernier recours. 
-    CONTEXTE IMPORTANT : L'élève que tu aides est au niveau [${level || 'non spécifié'}]. 
-    Tu dois adapter ton langage et la complexité de tes indices à ce niveau. Suis une méthode socratique : questionner d'abord, donner un indice ensuite, et valider la compréhension de l'élève.`;
+    // (Cette route utilise Deepseek par défaut)
+    const { history } = req.body;
+    const prompt = history.map(m => `${m.role}: ${m.content}`).join('\n') + "\nassistant:";
+
     try {
-        const response = await axios.post('https://api.deepseek.com/chat/completions', {
+        const response = await aiApiDeepseek.post('', {
             model: "deepseek-chat",
-            messages: [ 
-                { role: "system", content: systemPrompt },
-                ...history 
-            ]
-        }, { headers: { 'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}` } });
-        const reply = response.data.choices[0].message.content;
-        res.json({ response: reply });
-    } catch (error) {
-        console.error("Erreur lors de la communication avec l'API Deepseek pour l'aide modale:", error.response?.data || error.message);
-        res.status(500).json({ error: "Désolé, une erreur est survenue en contactant l'IA." });
+            messages: [{ role: "user", content: prompt }],
+            max_tokens: 500
+        });
+        res.json({ response: response.data.choices[0].message.content });
+    } catch (e) {
+        res.status(500).json({ error: "Erreur IA (Deepseek) " + e.message });
     }
 });
-// --- FIN AIDA ÉDUCATION ---
 
+// =======================================================================
+// === ACADEMY MRE : ROUTES API ==========================================
+// =======================================================================
 
-// --- ACADEMY AUTH ROUTES ---
-// DANS server.js
+// --- AUTHENTIFICATION (Académie) ---
 app.post('/api/academy/auth/login', async (req, res) => {
-    if (!usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
+    if (!usersContainer) { 
+        return res.status(503).json({ error: "Service de base de données indisponible." }); 
+    }
     const { email, password } = req.body;
     try {
         const { resource: user } = await usersContainer.item(email, email).read();
-        const isAcademyRole = user?.role?.startsWith('academy_');
-
-        if (user && isAcademyRole && user.password === password) {
-            
-            // --- ▼▼▼ DÉBUT DE LA LOGIQUE DE STREAK ▼▼▼ ---
-            if (user.role === 'academy_student') {
-                const today = new Date().toISOString().split('T')[0];
-                const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-                
-                // Initialise les champs s'ils n'existent pas (pour les anciens utilisateurs)
-                let streak = user.dailyStreak || { count: 0, lastLogin: null };
-                user.achievements = user.achievements || [];
-
-                if (streak.lastLogin === yesterday) {
-                    // Connexion consécutive
-                    streak.count++;
-                    streak.lastLogin = today;
-                } else if (streak.lastLogin !== today) {
-                    // Streak brisée ou première connexion
-                    streak.count = 1;
-                    streak.lastLogin = today;
-                }
-                // Si lastLogin === today, on ne fait rien (l'utilisateur s'est déjà connecté aujourd'hui)
-
-                user.dailyStreak = streak;
-
-                // Débloque automatiquement un badge de streak (Exemple : 3 jours)
-                if (streak.count >= 3 && !user.achievements.includes('streak_3')) {
-                    user.achievements.push('streak_3');
-                }
-                
-                // Sauvegarde l'utilisateur avec la streak mise à jour
-                await usersContainer.item(user.id).replace(user);
-            }
-            // --- ▲▲▲ FIN DE LA LOGIQUE DE STREAK ▲▲▲ ---
-
-            delete user.password;
-            res.json({ user }); // Renvoie l'utilisateur mis à jour
+        if (user && user.password === password) {
+            const { password: _, ...userToReturn } = user;
+            res.json({ user: userToReturn });
         } else {
-            res.status(401).json({ error: "Email, mot de passe ou rôle incorrect pour l'Académie." });
+            res.status(401).json({ error: "Email ou mot de passe incorrect." });
         }
     } catch (error) {
         if (error.code === 404) {
-            res.status(401).json({ error: "Email, mot de passe ou rôle incorrect pour l'Académie." });
+            res.status(401).json({ error: "Email ou mot de passe incorrect." });
         } else {
-            console.error("Erreur de connexion Académie:", error);
-            res.status(500).json({ error: "Erreur du serveur." });
+            res.status(500).json({ error: "Erreur serveur lors de la connexion." });
         }
     }
 });
-// FIN ACADEMY AUTH
+
+app.post('/api/academy/auth/signup', async (req, res) => {
+    if (!usersContainer) { 
+        return res.status(503).json({ error: "Service de base de données indisponible." }); 
+    }
+    const { email, password, role } = req.body;
+    
+    if (!role.startsWith('academy_')) {
+        return res.status(400).json({ error: "Rôle invalide pour l'inscription à l'académie." });
+    }
+    
+    const newUser = {
+        id: email,
+        email,
+        password: password,
+        role,
+        firstName: email.split('@')[0],
+        lastName: "",
+        avatar: `default_${Math.ceil(Math.random() * 8)}.png`,
+        dailyStreak: { count: 0, lastLogin: null },
+        achievements: [],
+        academyProgress: {
+            sessions: [],
+            badges: []
+        }
+    };
+    try {
+        const { resource: createdUser } = await usersContainer.items.create(newUser);
+        const { password: _, ...userToReturn } = createdUser;
+        res.status(201).json({ user: userToReturn });
+    } catch (error) {
+        if (error.code === 409) {
+            res.status(409).json({ error: "Un utilisateur avec cet email existe déjà." });
+        } else {
+            res.status(500).json({ error: "Erreur lors de la création du compte." });
+        }
+    }
+});
 
 // --- ACADEMY MRE : CHAT & VOIX ---
+app.post('/api/academy/ai/chat', async (req, res) => {
+    // (Cette route utilise Deepseek par défaut)
+    const { history, response_format } = req.body;
+    const prompt = history.map(m => `${m.role}: ${m.content}`).join('\n') + "\nassistant:";
+    const isJson = response_format && response_format.type === 'json_object';
 
-// OPTIMISATION : Route TTS unique
+    try {
+        const response = await aiApiDeepseek.post('', {
+            model: "deepseek-chat",
+            messages: [{ role: "user", content: prompt }],
+            response_format: isJson ? { type: "json_object" } : undefined,
+            max_tokens: 2048
+        });
+        res.json({ reply: response.data.choices[0].message.content });
+    } catch(e) {
+        res.status(500).json({error: "Erreur IA (Deepseek) " + e.message});
+    }
+});
+
 app.post('/api/ai/synthesize-speech', async (req, res) => {
     if (!ttsClient) { return res.status(500).json({ error: "Le service de synthèse vocale n'est pas configuré sur le serveur." }); }
     const { text, voice, rate, pitch } = req.body;
     if (!text) return res.status(400).json({ error: "Le texte est manquant." });
 
-    // ▼▼▼ AJOUT : Nettoyage du texte ▼▼▼
-    // Regex pour supprimer les emojis et les caractères Markdown (comme *, #)
-    // que l'IA pourrait inclure dans sa réponse.
+    // ▼▼▼ AJOUT : Nettoyage du texte (emojis, markdown) ▼▼▼
     const cleanedText = text
-        .replace(/([\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}])/gu, '') // Supprime les emojis
-        .replace(/[*#_`]/g, ''); // Supprime les marqueurs markdown
+        .replace(/([\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}])/gu, '')
+        .replace(/[*#_`]/g, '');
 
     const request = { 
-        // ▼▼▼ MODIFIÉ : Utilise le texte nettoyé ▼▼▼
-        input: { text: cleanedText }, 
+        input: { text: cleanedText }, // Utilise le texte nettoyé
         voice: { 
             languageCode: voice ? voice.substring(0, 5) : 'fr-FR', 
             name: voice || 'fr-FR-Wavenet-E' 
@@ -892,105 +804,83 @@ app.post('/api/ai/synthesize-speech', async (req, res) => {
     }
 });
 
-// Route pour le chat immersif (LLM)
-app.post('/api/academy/ai/chat', async (req, res) => {
-    const { history, response_format } = req.body;
-    if (!history) { return res.status(400).json({ error: "L'historique de la conversation est manquant." }); }
+// --- ACADEMY MRE : PROGRESSION & GAMIFICATION ---
+app.post('/api/academy/achievement/unlock', async (req, res) => {
+    if (!usersContainer) { 
+        return res.status(503).json({ error: "Service de base de données indisponible." }); 
+    }
+    const { userId, badgeId } = req.body;
     try {
-        const deepseekBody = {
-            model: "deepseek-chat",
-            messages: history
-        };
-        if (response_format) {
-             deepseekBody.response_format = response_format;
+        const { resource: user } = await usersContainer.item(userId, userId).read();
+        if (!user.achievements) user.achievements = [];
+        if (!user.achievements.includes(badgeId)) {
+            user.achievements.push(badgeId);
+            await usersContainer.item(userId, userId).replace(user);
         }
-        const response = await axios.post('https://api.deepseek.com/chat/completions', deepseekBody, { 
-            headers: { 
-                'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`,
-                'Content-Type': 'application/json'
-            } 
-        });
-        const reply = response.data.choices[0].message.content;
-        res.json({ reply });
+        const { password: _, ...userToReturn } = user;
+        res.json({ user: userToReturn });
     } catch (error) {
-        console.error("Erreur Deepseek (Académie MRE):", error.response?.data || error.message);
-        res.status(500).json({ error: "Désolé, une erreur est survenue en contactant l'IA pour l'Académie." });
+        res.status(500).json({ error: "Erreur lors du déblocage du badge." });
     }
 });
-
-
-// --- ACADEMY MRE : SUIVI ET GESTION (Routes Cosmos DB) ---
 
 app.post('/api/academy/session/save', async (req, res) => {
     if (!usersContainer) { 
-        console.error("Erreur 503: Conteneur d'utilisateurs non disponible.");
         return res.status(503).json({ error: "Service de base de données indisponible." }); 
     }
     const { userId, scenarioId, report, fullHistory } = req.body;
-    if (!userId || !scenarioId || !report) {
-        return res.status(400).json({ error: "Données de session incomplètes." });
-    }
-    const newSession = {
-        id: `session-${Date.now()}-${userId}`,
-        userId: userId,
-        scenarioId: scenarioId,
-        completedAt: new Date().toISOString(),
-        report: report, 
-        fullHistory: fullHistory 
-    };
     try {
         const { resource: user } = await usersContainer.item(userId, userId).read();
-        if (!user) {
-            return res.status(404).json({ error: "Utilisateur non trouvé." });
-        }
-        user.academyProgress = user.academyProgress || {};
-        user.academyProgress.sessions = user.academyProgress.sessions || [];
-        user.academyProgress.sessions.push(newSession);
-        await usersContainer.items.upsert(user);
-        res.status(201).json({ message: "Session enregistrée avec succès.", sessionId: newSession.id });
-    } catch (error) { 
-        console.error("Erreur lors de la sauvegarde de la session Académie:", error.message);
-        res.status(500).json({ error: "Erreur serveur lors de la sauvegarde de la session." }); 
+        if (!user.academyProgress) user.academyProgress = { sessions: [], badges: [] };
+        if (!user.academyProgress.sessions) user.academyProgress.sessions = [];
+        
+        user.academyProgress.sessions.push({
+            id: scenarioId,
+            completedAt: new Date().toISOString(),
+            report: report,
+            history: fullHistory
+        });
+        
+        await usersContainer.item(userId, userId).replace(user);
+        res.status(200).json({ message: "Session sauvegardée." });
+    } catch (error) {
+        console.error("Erreur lors de la sauvegarde de la session:", error.message);
+        res.status(500).json({ error: "Erreur serveur lors de la sauvegarde." });
     }
 });
 
+// --- ACADEMY MRE : ROUTES ENSEIGNANT ---
 app.get('/api/academy/scenarios', async (req, res) => {
     if (!scenariosContainer) { 
-        console.warn("Conteneur Scenarios non initialisé. Utilisation du Fallback.");
-        return res.json(defaultScenarios);
+        return res.status(503).json({ error: "Service de base de données indisponible." }); 
     }
     try {
-        const { resources: dbScenarios } = await scenariosContainer.items.readAll().fetchAll();
-        if (dbScenarios.length === 0) {
-            return res.json(defaultScenarios);
-        }
-        const allScenariosMap = new Map();
-        defaultScenarios.forEach(s => allScenariosMap.set(s.id, s));
-        dbScenarios.forEach(s => allScenariosMap.set(s.id, s));
-        res.json(Array.from(allScenariosMap.values()));
+        const { resources: scenarios } = await scenariosContainer.items.query("SELECT * FROM c").fetchAll();
+        res.json(scenarios);
     } catch (error) {
-        console.error("Erreur lors de la lecture des scénarios depuis la DB:", error.message);
-        res.json(defaultScenarios); 
+        console.error("Erreur lors de la récupération des scénarios:", error.message);
+        res.status(500).json({ error: "Erreur serveur." });
     }
 });
 
 app.post('/api/academy/scenarios/create', async (req, res) => {
     if (!scenariosContainer) { 
-        return res.status(503).json({ error: "Conteneur de scénarios non disponible." }); 
+        return res.status(503).json({ error: "Service de base de données indisponible." }); 
     }
-    const newScenario = req.body;
-    if (!newScenario.title || !newScenario.characterIntro) {
-        return res.status(400).json({ error: "Les données de scénario sont incomplètes." });
-    }
-    const scenarioToInsert = {
-        id: `scen-${Date.now()}`, 
-        voiceCode: newScenario.voiceCode || 'ar-XA-Wavenet-B', 
-        createdAt: new Date().toISOString(),
-        ...newScenario
+    const scenarioData = req.body;
+    
+    // Simulé: dans une vraie app, on prendrait le teacherEmail du token JWT
+    const simulatedTeacherEmail = "enseignant.demo@aida.com";
+
+    const newScenario = {
+        ...scenarioData,
+        id: `scen-${Date.now()}`,
+        teacherEmail: simulatedTeacherEmail // Clé de partition
     };
+
     try {
-        const { resource: createdScenario } = await scenariosContainer.items.create(scenarioToInsert);
-        console.log(`[SCENARIO CREATED] ID: ${createdScenario.id}, Title: ${createdScenario.title}`);
+        const { resource: createdScenario } = await scenariosContainer.items.create(newScenario);
+        console.log(`Scénario créé: ${createdScenario.id}`);
         res.status(201).json({ message: "Scénario créé avec succès.", scenario: createdScenario });
     } catch (error) {
         console.error("Erreur lors de la création du scénario dans la DB:", error.message);
@@ -1018,6 +908,59 @@ app.get('/api/academy/teacher/students', async (req, res) => {
     }
 });
 
+
+// ▼▼▼ MODIFICATION 4 : ROUTE GRADE-UPLOAD MISE À JOUR ▼▼▼
+app.post('/api/ai/grade-upload', upload.array('copies'), async (req, res) => {
+    const { sujet, criteres, lang } = req.body;
+    if (!req.files || req.files.length === 0) {
+        return res.status(400).json({ error: "Aucun fichier reçu." });
+    }
+    
+    try {
+        const file = req.files[0];
+        const blobName = `${Date.now()}-${file.originalname}`;
+        const blockBlobClient = blobContainerClient.getBlockBlobClient(blobName);
+        await blockBlobClient.uploadData(file.buffer);
+        const fileUrl = blockBlobClient.url;
+        
+        console.log(`Fichier uploadé sur Blob Storage: ${fileUrl}`);
+
+        const poller = await formRecognizerClient.beginAnalyzeDocument("prebuilt-read", fileUrl);
+        const { content } = await poller.pollUntilDone();
+        
+        console.log("Texte extrait par Form Recognizer.");
+
+        const gradingPrompt = `
+            Tu es un assistant professeur. Analyse la copie suivante basée sur le sujet et les critères.
+            Sujet: ${sujet}
+            Critères: ${criteres}
+            ---
+            Contenu de la copie extraite:
+            ${content}
+            ---
+            Fournis une évaluation en JSON structuré (langue: ${lang}) avec les clés: "noteFinale", "analyseGlobale", "commentaireEleve", et "criteres" (un tableau d'objets {nom, note, commentaire}).
+        `;
+        
+        // AIGUILLAGE : Forcer Kimi pour cette tâche
+        console.log("Appel de Kimi pour l'analyse de la copie...");
+        const response = await aiApiKimi.post('', {
+            model: "kimi-k2", // (Adaptez le nom du modèle)
+            messages: [{ role: "user", content: gradingPrompt }],
+            response_format: { type: "json_object" },
+            max_tokens: 2048
+        });
+
+        const analysis = JSON.parse(response.data.choices[0].message.content);
+        res.json(analysis);
+
+    } catch (error) {
+        console.error("Erreur lors de l'analyse de la copie:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+// ▲▲▲ FIN MODIFICATION 4 ▲▲▲
+
+
 // --- Point d'entrée et démarrage du serveur ---
 const PORT = process.env.PORT || 3000;
 
@@ -1025,7 +968,7 @@ initializeDatabase().then(() => {
     app.listen(PORT, () => {
         console.log(`Server AIDA démarré sur le port ${PORT}`);
     });
-}).catch((error) => {
-    console.error("Le serveur ne peut pas démarrer en raison d'une erreur critique de DB:", error.message);
-    process.exit(1); 
+}).catch(err => {
+    console.error("Échec de l'initialisation de la base de données, le serveur ne démarrera pas.", err);
+    process.exit(1);
 });
