@@ -33,49 +33,79 @@ const upload = multer({ storage: multer.memoryStorage() });
 // --- 2. Initialisation des Clients de Services ---
 let dbClient, blobServiceClient, formRecognizerClient, ttsClient;
 
-// ▼▼▼ MODIFICATION 1 : AJOUT DES CLIENTS IA GLOBAUX ▼▼▼
+// ▼▼▼ MODIFICATION : Clients IA déclarés ici ▼▼▼
 let aiApiDeepseek, aiApiKimi; 
-// ▲▲▲ FIN MODIFICATION 1 ▲▲▲
+// ▲▲▲ FIN MODIFICATION ▲▲▲
+
+// Initialisation de chaque service dans son propre bloc try...catch
+// Les services "optionnels" (TTS, Form Recognizer) passeront à 'null' en cas d'échec sans arrêter le serveur.
+// Les services "critiques" (DB, IA) arrêteront le serveur s'ils ne peuvent pas s'initialiser.
 
 try {
-    if (!process.env.COSMOS_ENDPOINT || !process.env.COSMOS_KEY) throw new Error("COSMOS_ENDPOINT or COSMOS_KEY is missing from .env");
-    dbClient = new CosmosClient({
-        endpoint: process.env.COSMOS_ENDPOINT,
-        key: process.env.COSMOS_KEY
-    });
-    
-    if (!process.env.AZURE_STORAGE_CONNECTION_STRING) throw new Error("AZURE_STORAGE_CONNECTION_STRING is missing from .env");
+    if (!process.env.COSMOS_ENDPOINT || !process.env.COSMOS_KEY) throw new Error("COSMOS_ENDPOINT ou COSMOS_KEY manquant.");
+    dbClient = new CosmosClient({ endpoint: process.env.COSMOS_ENDPOINT, key: process.env.COSMOS_KEY });
+    console.log("Client Cosmos DB initialisé.");
+} catch(e) { 
+    console.error("ERREUR CRITIQUE Cosmos DB:", e.message); 
+    process.exit(1); // Critique
+}
+
+try {
+    if (!process.env.AZURE_STORAGE_CONNECTION_STRING) throw new Error("AZURE_STORAGE_CONNECTION_STRING manquant.");
     blobServiceClient = BlobServiceClient.fromConnectionString(process.env.AZURE_STORAGE_CONNECTION_STRING);
-    blobContainerClient = blobServiceClient.getContainerClient("graded-copies");
+    console.log("Client Blob Storage initialisé.");
+} catch(e) { 
+    console.error("ERREUR CRITIQUE Blob Storage:", e.message); 
+    process.exit(1); // Critique
+}
 
-    if (!process.env.FORM_RECOGNIZER_ENDPOINT || !process.env.FORM_RECOGNIZER_KEY) throw new Error("FORM_RECOGNIZER_ENDPOINT or FORM_RECOGNIZER_KEY is missing from .env");
-    formRecognizerClient = new DocumentAnalysisClient(
-        process.env.FORM_RECOGNIZER_ENDPOINT,
-        new AzureKeyCredential(process.env.FORM_RECOGNIZER_KEY)
-    );
+try {
+    // Note : Vos variables s'appellent DOCUMENT_INTELLIGENCE
+    if (!process.env.AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT || !process.env.AZURE_DOCUMENT_INTELLIGENCE_KEY) throw new Error("AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT ou AZURE_DOCUMENT_INTELLIGENCE_KEY manquant.");
+    formRecognizerClient = new DocumentAnalysisClient(process.env.AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT, new AzureKeyCredential(process.env.AZURE_DOCUMENT_INTELLIGENCE_KEY));
+    console.log("Client Document Intelligence initialisé.");
+} catch(e) { 
+    console.warn("AVERTISSEMENT Document Intelligence:", e.message); 
+    formRecognizerClient = null; // Optionnel
+}
 
-    if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) throw new Error("GOOGLE_APPLICATION_CREDENTIALS path is missing from .env");
-    ttsClient = new TextToSpeechClient();
+try {
+    // Note : Votre variable s'appelle GOOGLE_APPLICATION_CREDENTIALS_JSON
+    if (!process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) throw new Error("Variable d'environnement GOOGLE_APPLICATION_CREDENTIALS_JSON non trouvée.");
+    const credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON);
+    ttsClient = new TextToSpeechClient({ credentials });
+    console.log("Client Google Cloud Text-to-Speech prêt (via JSON).");
+} catch(e) {
+    console.warn("AVERTISSEMENT Google Cloud TTS:", e.message);
+    ttsClient = null; // Optionnel
+}
 
-    // ▼▼▼ MODIFICATION 1 (suite) : INITIALISATION DES CLIENTS IA ▼▼▼
-    // (Remplace l'ancienne initialisation 'aiApi' qui était à l'intérieur des routes)
-    
-    // Client IA 1 (Deepseek - Défaut)
+// ▼▼▼ MODIFICATION : Initialisation des IA dans leurs propres blocs ▼▼▼
+try {
     if (!process.env.DEEPSEEK_API_ENDPOINT || !process.env.DEEPSEEK_API_KEY) throw new Error("Variables Deepseek manquantes.");
     aiApiDeepseek = axios.create({
         baseURL: process.env.DEEPSEEK_API_ENDPOINT,
         headers: { 'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}` }
     });
-    
-    // Client IA 2 (Kimi-K2 - Documents)
+    console.log("Client IA (Deepseek) initialisé.");
+} catch(e) {
+    console.error("ERREUR CRITIQUE Deepseek:", e.message);
+    process.exit(1); // Critique
+}
+
+try {
     if (!process.env.KIMI_API_ENDPOINT || !process.env.KIMI_API_KEY) throw new Error("Variables Kimi manquantes.");
     aiApiKimi = axios.create({
         baseURL: process.env.KIMI_API_ENDPOINT,
         headers: { 'Authorization': `Bearer ${process.env.KIMI_API_KEY}` }
     });
-    
-    console.log("Tous les clients (DB, Blob, IA Deepseek, IA Kimi, TTS) sont prêts.");
-    // ▲▲▲ FIN MODIFICATION 1 ▲▲▲
+    console.log("Client IA (Kimi) initialisé.");
+} catch(e) {
+    console.error("ERREUR CRITIQUE Kimi:", e.message);
+    process.exit(1); // Critique
+
+// ▲▲▲ FIN DE LA MODIFICATION ▲▲▲
+
 
 } catch (error) {
     console.error("Erreur critique lors de l'initialisation des clients de service:", error.message);
