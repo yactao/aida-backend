@@ -70,9 +70,9 @@ try {
 
 try {
     // Client IA 1 (Deepseek - Défaut)
-    if (!process.env.DEEPSEEK_API_ENDPOINT || !process.env.DEEPSEEK_API_KEY) throw new Error("Variables Deepseek manquantes.");
+    if (!process.env.DEEPSEEK_BASE_URL || !process.env.DEEPSEEK_API_KEY) throw new Error("Variables Deepseek manquantes.");
     aiApiDeepseek = axios.create({
-        baseURL: process.env.DEEPSEEK_API_ENDPOINT,
+        baseURL: process.env.DEEPSEEK_BASE_URL,
         headers: { 'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}` }
     });
     console.log("Client IA (Deepseek) initialisé.");
@@ -83,10 +83,10 @@ try {
 
 try {
     // Client IA 2 (Kimi-K2 - Documents)
-    if (!process.env.KIMI_API_ENDPOINT || !process.env.KIMI_API_KEY) throw new Error("Variables Kimi manquantes.");
+    if (!process.env.MOONSHOT_BASE_URL || !process.env.MOONSHOT_API_KEY) throw new Error("Variables Kimi manquantes.");
     aiApiKimi = axios.create({
-        baseURL: process.env.KIMI_API_ENDPOINT,
-        headers: { 'Authorization': `Bearer ${process.env.KIMI_API_KEY}` }
+        baseURL: process.env.MOONSHOT_BASE_URL,
+        headers: { 'Authorization': `Bearer ${process.env.MOONSHOT_API_KEY}` }
     });
     console.log("Client IA (Kimi) initialisé.");
 } catch(e) {
@@ -580,7 +580,7 @@ app.post('/api/ai/playground-chat', async (req, res) => {
     } else {
         clientToUse = aiApiDeepseek; // Deepseek est le défaut
         agentName = 'Deepseek';
-        modelName = "deepseek-chat"; // (Adaptez ce nom de modèle si nécessaire)
+        modelName = "deepseek-reasoner"; // (Adaptez ce nom de modèle si nécessaire)
     }
 
     try {
@@ -665,7 +665,7 @@ app.post('/api/ai/generate-lesson-plan', async (req, res) => {
     try {
         console.log("Appel de Deepseek pour la génération de plan...");
         const response = await aiApiDeepseek.post('', {
-            model: "deepseek-chat",
+            model: "deepseek-reasoner",
             messages: [{ role: "user", content: prompt }],
             response_format: { type: "json_object" },
             max_tokens: 2048
@@ -711,7 +711,7 @@ app.post('/api/ai/get-aida-help', async (req, res) => {
     try {
         console.log("Appel de Deepseek pour Aida-Help...");
         const response = await aiApiDeepseek.post('', {
-            model: "deepseek-chat",
+            model: "deepseek-reasoner",
             messages: [{ role: "user", content: prompt }],
             max_tokens: 500
         });
@@ -798,7 +798,7 @@ app.post('/api/academy/ai/chat', async (req, res) => {
     try {
         console.log("Appel de Deepseek pour Academy-Chat...");
         const response = await aiApiDeepseek.post('', {
-            model: "deepseek-chat",
+            model: "deepseek-reasoner",
             messages: [{ role: "user", content: prompt }],
             response_format: isJson ? { type: "json_object" } : undefined,
             max_tokens: 2048
