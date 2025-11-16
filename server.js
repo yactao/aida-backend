@@ -34,7 +34,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 let dbClient, blobServiceClient, formRecognizerClient, ttsClient;
 
 // ▼▼▼ MODIFICATION 1 : AJOUT DES CLIENTS IA GLOBAUX ▼▼▼
-let aiApiDeepseek, aiApiKimi; // Remplacent l'ancien 'aiApi'
+let aiApiDeepseek, aiApiKimi; 
 // ▲▲▲ FIN MODIFICATION 1 ▲▲▲
 
 try {
@@ -58,16 +58,16 @@ try {
     ttsClient = new TextToSpeechClient();
 
     // ▼▼▼ MODIFICATION 1 (suite) : INITIALISATION DES CLIENTS IA ▼▼▼
-    // (Remplace l'ancienne initialisation de 'aiApi')
+    // (Remplace l'ancienne initialisation 'aiApi' qui était à l'intérieur des routes)
     
-    // 3.5. Client IA 1 (Deepseek - Défaut)
+    // Client IA 1 (Deepseek - Défaut)
     if (!process.env.DEEPSEEK_API_ENDPOINT || !process.env.DEEPSEEK_API_KEY) throw new Error("Variables Deepseek manquantes.");
     aiApiDeepseek = axios.create({
         baseURL: process.env.DEEPSEEK_API_ENDPOINT,
         headers: { 'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}` }
     });
     
-    // 3.6. Client IA 2 (Kimi-K2 - Documents)
+    // Client IA 2 (Kimi-K2 - Documents)
     if (!process.env.KIMI_API_ENDPOINT || !process.env.KIMI_API_KEY) throw new Error("Variables Kimi manquantes.");
     aiApiKimi = axios.create({
         baseURL: process.env.KIMI_API_ENDPOINT,
@@ -544,7 +544,7 @@ app.post('/api/library/publish', async (req, res) => {
 
 // --- IA : CHAT & GÉNÉRATION ---
 
-// ▼▼▼ MODIFICATION 2 : ROUTE PLAYGROUND-CHAT MISE À JOUR ▼▼▼
+// ▼▼▼ MODIFICATION 2 : ROUTE PLAYGROUND-CHAT MISE À JOUR (AIGUILLAGE) ▼▼▼
 app.post('/api/ai/playground-chat', async (req, res) => {
     const { history, preferredAgent } = req.body;
     
@@ -554,20 +554,24 @@ app.post('/api/ai/playground-chat', async (req, res) => {
     // 2. Logique d'aiguillage
     let clientToUse;
     let agentName;
+    let modelName;
 
     if (preferredAgent === 'kimi') {
         clientToUse = aiApiKimi;
         agentName = 'Kimi-K2';
+        modelName = "kimi-k2"; // (Adaptez ce nom de modèle si nécessaire)
     } else {
         clientToUse = aiApiDeepseek; // Deepseek est le défaut
         agentName = 'Deepseek';
+        modelName = "deepseek-chat"; // (Adaptez ce nom de modèle si nécessaire)
     }
 
     try {
         // 3. Appel de l'IA sélectionnée
-        const response = await clientToUse.post('', { // L'endpoint est déjà dans le baseURL du client
-             model: agentName === 'Kimi-K2' ? "kimi-k2" : "deepseek-chat", // (Adaptez le nom du modèle)
-             messages: [{ role: "user", content: prompt }], // (Format 'messages' typique)
+        console.log(`Appel de l'IA ${agentName}...`);
+        const response = await clientToUse.post('', { // L'endpoint est déjà dans le baseURL
+             model: modelName,
+             messages: [{ role: "user", content: prompt }], // Format 'messages'
              max_tokens: 500
         });
         
@@ -584,8 +588,11 @@ app.post('/api/ai/playground-chat', async (req, res) => {
 });
 // ▲▲▲ FIN MODIFICATION 2 ▲▲▲
 
-// ▼▼▼ MODIFICATION 3 : ROUTE GENERATE-FROM-UPLOAD MISE À JOUR ▼▼▼
+// ▼▼▼ MODIFICATION 3 : ROUTE GENERATE-FROM-UPLOAD MISE À JOUR (force Kimi) ▼▼▼
 app.post('/api/ai/generate-from-upload', upload.single('document'), async (req, res) => {
+    if (!formRecognizerClient || !blobContainerClient) { 
+        return res.status(503).json({ error: "Service d'analyse de document non prêt." }); 
+    }
     const { contentType, exerciseCount, language } = req.body;
     if (!req.file) return res.status(400).json({ error: "Aucun document reçu." });
 
@@ -629,12 +636,15 @@ app.post('/api/ai/generate-from-upload', upload.single('document'), async (req, 
 
 
 app.post('/api/ai/generate-lesson-plan', async (req, res) => {
-    // (Cette route utilise l'ancien 'aiApi' qui n'existe plus)
-    // (Nous la faisons pointer sur Deepseek par défaut)
+    // (Cette route utilise Deepseek par défaut)
     const { theme, level, numSessions, lang } = req.body;
     const prompt = `Crée un plan de leçon sur le thème "${theme}" pour un niveau ${level} en ${numSessions} sessions. Langue: ${lang}. Réponds en JSON structuré.`;
     
+    // NOTE: L'objet JSON 'fakeStructuredPlan' de 130 lignes a été retiré.
+    // Nous appelons l'IA.
+    
     try {
+        console.log("Appel de Deepseek pour la génération de plan...");
         const response = await aiApiDeepseek.post('', {
             model: "deepseek-chat",
             messages: [{ role: "user", content: prompt }],
@@ -643,12 +653,16 @@ app.post('/api/ai/generate-lesson-plan', async (req, res) => {
         });
         res.json({ structured_plan: JSON.parse(response.data.choices[0].message.content) });
     } catch(e) {
+        console.error("Erreur IA (Deepseek - Plan):", e.message);
         res.status(500).json({error: "Erreur IA (Deepseek) " + e.message});
     }
 });
 
 // --- IA : PLAYGROUND UPLOAD (Extraction) ---
 app.post('/api/ai/playground-extract-text', upload.single('document'), async (req, res) => {
+    if (!formRecognizerClient || !blobContainerClient) { 
+        return res.status(503).json({ error: "Service d'analyse de document non prêt." }); 
+    }
     if (!req.file) return res.status(400).json({ error: "Aucun document reçu." });
     
     try {
@@ -676,6 +690,7 @@ app.post('/api/ai/get-aida-help', async (req, res) => {
     const prompt = history.map(m => `${m.role}: ${m.content}`).join('\n') + "\nassistant:";
 
     try {
+        console.log("Appel de Deepseek pour Aida-Help...");
         const response = await aiApiDeepseek.post('', {
             model: "deepseek-chat",
             messages: [{ role: "user", content: prompt }],
@@ -683,6 +698,7 @@ app.post('/api/ai/get-aida-help', async (req, res) => {
         });
         res.json({ response: response.data.choices[0].message.content });
     } catch (e) {
+        console.error("Erreur IA (Deepseek - Help):", e.message);
         res.status(500).json({ error: "Erreur IA (Deepseek) " + e.message });
     }
 });
@@ -760,6 +776,7 @@ app.post('/api/academy/ai/chat', async (req, res) => {
     const isJson = response_format && response_format.type === 'json_object';
 
     try {
+        console.log("Appel de Deepseek pour Academy-Chat...");
         const response = await aiApiDeepseek.post('', {
             model: "deepseek-chat",
             messages: [{ role: "user", content: prompt }],
@@ -768,19 +785,21 @@ app.post('/api/academy/ai/chat', async (req, res) => {
         });
         res.json({ reply: response.data.choices[0].message.content });
     } catch(e) {
+        console.error("Erreur IA (Deepseek - Academy):", e.message);
         res.status(500).json({error: "Erreur IA (Deepseek) " + e.message});
     }
 });
 
+// ▼▼▼ MODIFICATION 4 : CORRECTION BUG VOIX (EMOJI) ▼▼▼
 app.post('/api/ai/synthesize-speech', async (req, res) => {
     if (!ttsClient) { return res.status(500).json({ error: "Le service de synthèse vocale n'est pas configuré sur le serveur." }); }
     const { text, voice, rate, pitch } = req.body;
     if (!text) return res.status(400).json({ error: "Le texte est manquant." });
 
-    // ▼▼▼ AJOUT : Nettoyage du texte (emojis, markdown) ▼▼▼
+    // Nettoyage du texte pour supprimer les emojis et markdown
     const cleanedText = text
-        .replace(/([\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}])/gu, '')
-        .replace(/[*#_`]/g, '');
+        .replace(/([\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}])/gu, '') // Supprime les emojis
+        .replace(/[*#_`]/g, ''); // Supprime les marqueurs markdown
 
     const request = { 
         input: { text: cleanedText }, // Utilise le texte nettoyé
@@ -803,6 +822,7 @@ app.post('/api/ai/synthesize-speech', async (req, res) => {
         res.status(500).json({ error: "Impossible de générer l'audio." });
     }
 });
+// ▲▲▲ FIN MODIFICATION 4 ▲▲▲
 
 // --- ACADEMY MRE : PROGRESSION & GAMIFICATION ---
 app.post('/api/academy/achievement/unlock', async (req, res) => {
@@ -908,9 +928,11 @@ app.get('/api/academy/teacher/students', async (req, res) => {
     }
 });
 
-
-// ▼▼▼ MODIFICATION 4 : ROUTE GRADE-UPLOAD MISE À JOUR ▼▼▼
+// ▼▼▼ MODIFICATION 5 : ROUTE GRADE-UPLOAD MISE À JOUR (force Kimi) ▼▼▼
 app.post('/api/ai/grade-upload', upload.array('copies'), async (req, res) => {
+    if (!formRecognizerClient || !blobContainerClient) { 
+        return res.status(503).json({ error: "Service d'analyse de document non prêt." }); 
+    }
     const { sujet, criteres, lang } = req.body;
     if (!req.files || req.files.length === 0) {
         return res.status(400).json({ error: "Aucun fichier reçu." });
@@ -958,12 +980,14 @@ app.post('/api/ai/grade-upload', upload.array('copies'), async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-// ▲▲▲ FIN MODIFICATION 4 ▲▲▲
+// ▲▲▲ FIN MODIFICATION 5 ▲▲▲
 
 
 // --- Point d'entrée et démarrage du serveur ---
 const PORT = process.env.PORT || 3000;
 
+// ▼▼▼ MODIFICATION 6 : DÉMARRAGE ROBUSTE ▼▼▼
+// (Attend que la DB soit initialisée AVANT de démarrer le serveur)
 initializeDatabase().then(() => {
     app.listen(PORT, () => {
         console.log(`Server AIDA démarré sur le port ${PORT}`);
@@ -972,3 +996,4 @@ initializeDatabase().then(() => {
     console.error("Échec de l'initialisation de la base de données, le serveur ne démarrera pas.", err);
     process.exit(1);
 });
+// ▲▲▲ FIN MODIFICATION 6 ▲▲▲
