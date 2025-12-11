@@ -163,9 +163,17 @@ async function callKimiCompletion(history) {
     
     const endpoint = `${MOONSHOT_BASE_URL}/chat/completions`;
 
+    // CORRECTION ICI : On filtre les messages vides pour éviter l'erreur 400
+    const validHistory = history.filter(msg => 
+        msg.role !== 'system' &&             // On enlève les anciens system prompts
+        msg.content &&                       // On vérifie que le contenu existe
+        typeof msg.content === 'string' &&   // On vérifie que c'est du texte
+        msg.content.trim().length > 0        // On vérifie qu'il n'est pas vide
+    );
+
     const kimiHistory = [
         { role: "system", content: "Tu es Kimi, un assistant IA spécialisé dans l'analyse de documents longs et complexes. Réponds en te basant sur les documents fournis dans l'historique. Sois concis et factuel." },
-        ...history.filter(msg => msg.role !== 'system')
+        ...validHistory
     ];
 
     try {
@@ -183,49 +191,13 @@ async function callKimiCompletion(history) {
         return response.data.choices[0].message.content;
     } catch (error) {
         console.error("Erreur lors de l'appel à l'API Moonshot:", error.response ? error.response.data : error.message);
+        // Ajout d'un log pour voir le message fautif si ça se reproduit
+        if (error.response && error.response.data && error.response.data.error) {
+             console.error("Détail de l'erreur API:", JSON.stringify(error.response.data.error));
+        }
         throw new Error("L'agent Kimi n'a pas pu répondre.");
     }
 }
-
-// ROUTE PLAYGROUND CHAT (AGENT MANAGER SIMPLIFIÉ)
-app.post('/api/ai/playground-chat', async (req, res) => {
-    const { history, preferredAgent } = req.body;
-
-    if (!history || history.length === 0) {
-        return res.status(400).json({ error: "L'historique est vide." });
-    }
-
-    try {
-        let reply = "";
-        let agentName = "";
-        const lastUserMessage = history[history.length - 1].content;
-        
-        // --- ROUTAGE : Kimi vs Deepseek ---
-        const keywordsForKimi = ['kimi', 'analyse ce document', 'lis ce texte', 'résume'];
-        const isLongText = lastUserMessage.length > 10000; 
-
-        if (preferredAgent === 'kimi' || keywordsForKimi.some(k => lastUserMessage.toLowerCase().includes(k)) || isLongText) {
-            
-            console.log("Info: Routage vers l'Agent Kimi (Contexte Long)...");
-            reply = await callKimiCompletion(history);
-            agentName = "Aïda-Kimi"; 
-
-        } else {
-            
-            // Deepseek gère TOUT le reste : Chat, Maths, Dessin SVG, Mermaid
-            console.log("Info: Routage vers l'Agent Deepseek (Standard + Visuel)...");
-            reply = await getDeepseekPlaygroundCompletion(history); 
-            agentName = "Aïda-Deep";
-        }
-        
-        res.json({ reply: reply, agent: agentName });
-
-    } catch (error) {
-        console.error("Erreur dans le routeur d'agent:", error);
-        res.status(500).json({ error: error.message });
-    }
-});
-
 // =========================================================================
 // === FIN DE L'ARCHITECTURE "AGENT-TO-AGENT" ===
 // =========================================================================
