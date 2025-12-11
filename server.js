@@ -203,7 +203,7 @@ async function callGeminiLearnLM(history) {
     // Initialisation
     const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GEN_AI_KEY);
     // Le modèle "Flash" est très rapide et excellent pour la logique/maths
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
     // On prépare l'historique pour Gemini
     // (Note: Gemini a un format d'historique spécifique, on simplifie ici pour l'intégration rapide)
