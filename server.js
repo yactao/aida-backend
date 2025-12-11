@@ -201,10 +201,50 @@ async function callKimiCompletion(history) {
 // =========================================================================
 // === FIN DE L'ARCHITECTURE "AGENT-TO-AGENT" ===
 // =========================================================================
-//
+
 
 
 // --- API Routes (AIDA ÉDUCATION) ---
+app.post('/api/ai/playground-chat', async (req, res) => {
+    const { history, preferredAgent } = req.body;
+
+    if (!history || history.length === 0) {
+        return res.status(400).json({ error: "L'historique est vide." });
+    }
+
+    try {
+        let reply = "";
+        let agentName = "";
+        const lastUserMessage = history[history.length - 1].content;
+        
+        // --- ROUTAGE SIMPLIFIÉ (Kimi vs Deepseek) ---
+        // On détecte si l'utilisateur veut analyser un document long
+        const keywordsForKimi = ['kimi', 'analyse ce document', 'lis ce texte', 'résume'];
+        const isLongText = lastUserMessage.length > 10000; 
+
+        if (preferredAgent === 'kimi' || keywordsForKimi.some(k => lastUserMessage.toLowerCase().includes(k)) || isLongText) {
+            
+            console.log("Info: Routage vers l'Agent Kimi (Contexte Long)...");
+            reply = await callKimiCompletion(history);
+            agentName = "Aïda-Kimi"; 
+
+        } else {
+            
+            // Pour tout le reste (Chat, Maths, Dessin SVG, Mermaid)
+            console.log("Info: Routage vers l'Agent Deepseek (Standard + Visuel)...");
+            reply = await getDeepseekPlaygroundCompletion(history); 
+            agentName = "Aïda-Deep";
+        }
+        
+        res.json({ reply: reply, agent: agentName });
+
+    } catch (error) {
+        console.error("Erreur dans le routeur d'agent:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+
 app.post('/api/auth/login', async (req, res) => {
     if (!usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
     const { email, password } = req.body;
