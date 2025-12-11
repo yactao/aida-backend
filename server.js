@@ -200,9 +200,9 @@ async function callKimiCompletion(history) {
  */
 // --- FONCTION AGENT SPÉCIALISTE : GEMINI (LearnLM + Visuel) ---
 async function callGeminiLearnLM(history) {
-    // Utilise le modèle qui a fonctionné pour toi (Flash 2.5 ou 1.5 selon disponibilité)
+    // Utilise le modèle Flash 2.5
     const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GEN_AI_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); // Ou 2.5 selon ton test
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const lastMessage = history[history.length - 1].content;
 
