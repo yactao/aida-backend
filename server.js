@@ -198,34 +198,44 @@ async function callKimiCompletion(history) {
 /**
  * AGENT 3 : Gemini (LearnLM) (Agent Spécialiste)
  */
-// Fonction spécialisée pour Gemini (LearnLM)
+// --- FONCTION AGENT SPÉCIALISTE : GEMINI (LearnLM + Visuel) ---
 async function callGeminiLearnLM(history) {
-    // Initialisation
+    // Utilise le modèle Flash 2.5
     const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GEN_AI_KEY);
-    // Le modèle "Flash" est très rapide et excellent pour la logique/maths
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-    // On prépare l'historique pour Gemini
-    // (Note: Gemini a un format d'historique spécifique, on simplifie ici pour l'intégration rapide)
     const lastMessage = history[history.length - 1].content;
 
-    const systemPrompt = `Tu es AIDA, un tuteur expert en Mathématiques et Sciences.
-    Si l'élève demande de dessiner une figure géométrique (triangle, cercle, courbe...), TU DOIS générer le code SVG correspondant.
+    // PROMPT SYSTÈME "PARTS" (Persona, Act, Recipient, Theme, Structure) [cite: 56, 60, 62, 64, 72, 74]
+    const systemInstruction = `
+    [ROLE] Tu es AIDA, un coach pédagogique expert et bienveillant.
+    [OBJECTIF] Ton but est d'aider l'élève à comprendre par lui-même. Ne donne JAMAIS la réponse finale directement (sauf si on te demande explicitement de créer un contenu). [cite: 7, 125, 126]
     
-    Règles pour le SVG :
-    1. Le code doit commencer par <svg ...> et finir par </svg>.
-    2. Utilise width="300" et height="300" par défaut.
-    3. Utilise des traits noirs (stroke="black") et un fond transparent ou blanc (fill="none" ou fill="white").
-    4. Ajoute des étiquettes (A, B, C...) avec la balise <text> si nécessaire.
+    [RÈGLE ABSOLUE DE CONTINUITÉ]
+    Si l'historique montre que nous sommes déjà en discussion :
+    1. NE DIS PAS "Bonjour" ou "Je suis AIDA".
+    2. Ne te présente pas à nouveau.
+    3. Enchaîne directement en prenant en compte la réponse de l'élève à ta question précédente.
+
+    [MÉTHODE PÉDAGOGIQUE]
+    1. **Méthode Socratique** : Pose des questions pour guider la réflexion.
+    2. **Étayage (Scaffolding)** : Décompose les problèmes complexes en étapes simples.
+    3. **Gestion de l'Erreur** : Si l'élève se trompe, ne dis pas juste "Faux". Explique pourquoi ou donne un indice. [cite: 126]
+    4. **Adaptabilité** : Adapte ton langage au niveau supposé de l'élève (Primaire/Collège/Lycée).
+
+    [CAPACITÉS VISUELLES & GÉOMÉTRIE]
+    Si la demande implique de la géométrie, des graphiques ou des schémas :
+    - Tu DOIS générer le code SVG correspondant.
+    - Règles SVG : Commencer par <svg ...> (width="300" height="300", fond blanc/transparent, traits noirs).
+    - N'explique pas le code SVG, insère-le simplement dans ton explication pédagogique.
     
-    N'explique pas le code SVG, affiche-le simplement au milieu de ton explication.`;
+    [TON] Encouruageant, patient et curieux.
+    `;
 
     const chat = model.startChat({
         history: [
-            {
-                role: "user",
-                parts: [{ text: systemPrompt }],
-            },
+            { role: "user", parts: [{ text: systemInstruction }] },
+            // On pourrait injecter ici l'historique précédent pour le contexte
         ],
     });
 
@@ -235,12 +245,12 @@ async function callGeminiLearnLM(history) {
         return response.text();
     } catch (error) {
         console.error("Erreur Gemini:", error);
-        throw new Error("Désolé, je n'ai pas pu générer la réponse visuelle.");
+        throw new Error("L'agent Aïda-LearnLM n'a pas pu répondre.");
     }
 }
 
 
-// ROUTE PLAYGROUND CHAT (AGENT MANAGER)
+// ROUTE PLAYGROUND CHAT (AGENT MANAGER V4)
 app.post('/api/ai/playground-chat', async (req, res) => {
     const { history, preferredAgent } = req.body;
 
@@ -254,41 +264,62 @@ app.post('/api/ai/playground-chat', async (req, res) => {
         const lastUserMessage = history[history.length - 1].content;
         const lastUserMessageLow = lastUserMessage.toLowerCase();
         
-        // --- LOGIQUE DU ROUTEUR AMÉLIORÉE (V3 - Avec Visuel) ---
+        // --- 1. LOGIQUE DE MÉMOIRE (STICKY SESSION) ---
+        let lastAgentName = null;
+        // On regarde l'avant-dernier message (la réponse de l'IA précédente)
+        if (history.length >= 2) {
+             const lastAssistantMsg = history[history.length - 2];
+             // Si le frontend nous a renvoyé le nom de l'agent, on le récupère
+             if (lastAssistantMsg.role === 'assistant' && lastAssistantMsg.agent) {
+                 lastAgentName = lastAssistantMsg.agent;
+             }
+        }
+// Si le tuteur parlait, on force le tuteur à continuer
+        const isTutorSessionActive = (lastAgentName === 'Aïda-Tuteur' || lastAgentName === 'Aïda-Visuel');
 
-        // 1. Définitions pour Kimi (Documents longs)
-        const keywordsForKimi = ['kimi', 'analyse ce document', 'lis ce texte', 'résume'];
+        // --- 2. DÉTECTION DES DÉCLENCHEURS (TRIGGERS) ---
+        
+        // A. Kimi (Priorité absolue pour les documents)
+        const keywordsForKimi = ['kimi', 'analyse ce document', 'lis ce texte', 'résume ce fichier'];
         const isLongText = lastUserMessage.length > 10000; 
 
-        // 2. Définitions pour LearnLM/Gemini (Visuel & Géométrie)
-        const keywordsForVisual = [
-            'dessine', 'trace', 'figure', 'géométrie', 'triangle', 'cercle', 
-            'carré', 'rectangle', 'schéma', 'svg', 'graphique', 'visuel'
+        // B. Gemini (Visuel & Pédagogie)
+        // Mots-clés visuels (Géométrie, Schémas)
+        const visualKeywords = [
+            'dessin', 'trace', 'figur', 'géométri', 'triangle', 'cercle', 'carré', 'rectangl', 
+            'schéma', 'svg', 'graphique', 'visuel'
         ];
-        // On vérifie si un mot-clé visuel est présent
-        const needsVisual = keywordsForVisual.some(keyword => lastUserMessageLow.includes(keyword));
         
-        // --- ARBRE DE DÉCISION ---
+        // Mots-clés pédagogiques (On coupe les mots pour capter "comprend" ET "comprends")
+        const eduKeywords = [
+            'expli', 'comprend', 'aide', 'comment', 'pourquoi', // Racines de mots
+            'math', 'fraction', 'equation', 'calcul', 'algebra', // Maths
+            'physique', 'chimie', 'svt', 'scienc', 'biologie', // Sciences
+            'anglais', 'arabe', 'espagnol', 'grammaire', 'conjugaison', // Langues
+            'quiz', 'exercic', 'devoir', 'problème', 'exo' // Scolaire
+        ];
+        
+        // On vérifie si l'un des mots-clés est contenu dans le message
+        const triggersGemini = visualKeywords.some(k => lastUserMessageLow.includes(k)) || 
+                               eduKeywords.some(k => lastUserMessageLow.includes(k));
+        
 
-        if (preferredAgent === 'kimi' || keywordsForKimi.some(k => lastUserMessageLow.includes(k)) || isLongText) {
-            
-            // PRIORITÉ 1 : Documents Longs -> Kimi
-            console.log("Info: Routage vers l'Agent Kimi (Contexte Long)...");
+        // --- 3. ARBRE DE DÉCISION DU ROUTEUR ---
+
+      if (preferredAgent === 'kimi' || keywordsForKimi.some(k => lastUserMessageLow.includes(k)) || isLongText) {
+            console.log("-> Kimi (Doc Long)");
             reply = await callKimiCompletion(history);
             agentName = "Aïda-Kimi"; 
 
-        } else if (preferredAgent === 'gemini' || needsVisual) {
-
-            // PRIORITÉ 2 : Demandes Visuelles/Maths -> Gemini (LearnLM)
-            console.log("Info: Routage vers l'Agent Gemini (Spécialiste Visuel)...");
-            // Appelle la fonction que nous avons créée à l'étape précédente
+        } else if (preferredAgent === 'gemini' || triggersGemini || isTutorSessionActive) {
+            // ICI : On rentre si mot-clé OU si session active
+            console.log("-> Gemini (Tuteur/Visuel/Suite de conversation)");
             reply = await callGeminiLearnLM(history); 
-            agentName = "Aïda-Visuel";
+            // On garde le nom Tuteur pour que la session reste "sticky" au prochain tour
+            agentName = "Aïda-Tuteur"; 
 
         } else {
-            
-            // PRIORITÉ 3 : Conversation Standard -> Deepseek (Défaut)
-            console.log("Info: Routage vers l'Agent Deepseek (Défaut)...");
+            console.log("-> Deepseek (Défaut)");
             reply = await getDeepseekPlaygroundCompletion(history); 
             agentName = "Aïda-Deep";
         }
@@ -296,7 +327,7 @@ app.post('/api/ai/playground-chat', async (req, res) => {
         res.json({ reply: reply, agent: agentName });
 
     } catch (error) {
-        console.error("Erreur dans le routeur d'agent:", error);
+        console.error("Erreur routeur:", error);
         res.status(500).json({ error: error.message });
     }
 });
