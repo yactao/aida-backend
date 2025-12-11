@@ -2,7 +2,7 @@
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
-const axios = require('axios');
+const axios =require('axios');
 const path = require('path');
 const { CosmosClient } = require('@azure/cosmos');
 const { BlobServiceClient } = require('@azure/storage-blob');
@@ -11,7 +11,7 @@ const { AzureKeyCredential } = require('@azure/core-auth');
 const multer = require('multer');
 const { TextToSpeechClient } = require('@google-cloud/text-to-speech');
 
-// --- 2. Initialisation Express ---
+// --- 3. Initialisation Express ---
 const app = express();
 const allowedOrigins = [
     'https://gray-meadow-0061b3603.1.azurestaticapps.net',
@@ -30,7 +30,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 const upload = multer({ storage: multer.memoryStorage() });
 
-// --- 3. Initialisation des Clients de Services ---
+// --- 2. Initialisation des Clients de Services ---
 let dbClient, blobServiceClient, formRecognizerClient, ttsClient;
 
 try {
@@ -67,6 +67,32 @@ let classesContainer;
 let libraryContainer;
 let scenariosContainer;
 
+// --- FONCTIONS ET DONNÉES PAR DÉFAUT ---
+const defaultScenarios = [
+    { 
+        id: 'scen-0', 
+        title: "Scénario 0 : Répétiteur Vocal (Phrases de Base)", 
+        language: "Arabe Littéraire (Al-Fusha)", 
+        level: "Débutant Absolu", 
+        context: "L'IA joue le rôle d'un tuteur amical et patient...", 
+        characterName: "Le Répétiteur (المُعِيد)", 
+        characterIntro: "أهلاً بك! هيا نتدرب على النطق. كرر هذه الجملة: أنا بخير. <PHONETIQUE>Ahlan bik! Hayyā natadarab 'alā an-nuṭq. Karrir hādhihi al-jumla: Anā bi-khayr.</PHONETIQUE> <TRADUCTION>Bienvenue ! Entraînons-nous à la prononciation. Répète cette phrase : Je vais bien.</TRADUCTION>", 
+        objectives: ["Répéter correctement 'Je vais bien'.", "Répéter correctement 'Merci'.", "Répéter correctement 'Quel est votre nom?'."],
+        voiceCode: 'ar-XA-Wavenet-B'
+    },
+    { 
+        id: 'scen-1', 
+        title: "Scénario 1 : Commander son petit-déjeuner", 
+        language: "Arabe Littéraire (Al-Fusha)", 
+        level: "Débutant", 
+        context: "Vous entrez dans un café moderne au Caire...", 
+        characterName: "Le Serveur (النادِل)", 
+        characterIntro: "صباح الخير، تفضل. ماذا تود أن تطلب اليوم؟ <PHONETIQUE>Sabah al-khayr, tafaddal. Mādhā tawaddu an taṭlub al-yawm?</PHONETIQUE> <TRADUCTION>Bonjour, entrez. Que souhaitez-vous commander aujourd'hui ?</TRADUCTION>", 
+        objectives: ["Demander un thé et un croissant.", "Comprendre le prix total.", "Dire 'Merci' et 'Au revoir'."],
+        voiceCode: 'ar-XA-Wavenet-B'
+    }
+];
+
 // --- INITIALISATION DE LA BASE DE DONNÉES ---
 async function initializeDatabase() {
     if (!dbClient || !database) return console.error("Base de données non initialisée. Les routes DB seront indisponibles.");
@@ -86,17 +112,20 @@ async function initializeDatabase() {
         throw error; 
     }
 }
+// ---------------------------------------------------------------------
 
 app.get('/', (req, res) => {
     res.send('<h1>Serveur AIDA</h1><p>Le serveur est en ligne et fonctionne correctement.</p>');
 });
 
+//
 // =========================================================================
-// === ARCHITECTURE IA (DEEPSEEK + KIMI) ===
+// === ARCHITECTURE "AGENT-TO-AGENT" (POUR LE PLAYGROUND) ===
 // =========================================================================
+//
 
 /**
- * AGENT 1 : Deepseek (Agent Polyvalent : Chat + Visuel Code)
+ * AGENT 1 : Deepseek (Agent par Défaut)
  */
 async function getDeepseekPlaygroundCompletion(history) {
     const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
@@ -108,31 +137,8 @@ async function getDeepseekPlaygroundCompletion(history) {
     }
     const endpoint = `${DEEPSEEK_BASE_URL}/v1/chat/completions`; 
     
-    // NOUVEAU PROMPT SYSTÈME HYBRIDE (Texte + Visuel)
-    const systemContent = `Tu es AIDA, un tuteur IA bienveillant et pédagogue.
-    
-    [MÉTHODE PÉDAGOGIQUE]
-    - Guide l'élève, ne donne pas la réponse tout de suite.
-    - Adapte ton langage à l'âge de l'élève.
-    - Utilise la méthode socratique : questionner d'abord, donner un indice ensuite.
-
-    [CAPACITÉS VISUELLES - IMPORTANT]
-    Si l'élève demande un dessin, un schéma, de la géométrie ou une illustration :
-    
-    1. POUR LA GÉOMÉTRIE (Formes, Triangles, Graphiques simples) :
-       - Génère un code SVG valide.
-       - Commence le bloc par \`\`\`svg et finis par \`\`\`.
-       - Utilise width="300" height="300", fond blanc, traits noirs (stroke="black", fill="none").
-       - Ajoute des lettres (A, B, C) avec <text> si pertinent.
-    
-    2. POUR LES SCHÉMAS (Cycles, Processus, Chronologies) :
-       - Génère un code Mermaid.js valide.
-       - Commence le bloc par \`\`\`mermaid et finis par \`\`\`.
-       - Ex: "graph TD; A[Début]-->B[Fin];"
-    `;
-
     const deepseekHistory = [
-        { role: "system", content: systemContent },
+        { role: "system", content: "Tu es AIDA, un tuteur IA bienveillant et pédagogue. Ton objectif est de guider les élèves vers la solution sans jamais donner la réponse directement, sauf en dernier recours. Tu dois adapter ton langage à l'âge de l'élève et suivre une méthode socratique : questionner d'abord, donner un indice ensuite, et valider la compréhension de l'élève." },
         ...history.filter(msg => msg.role !== 'system')
     ];
 
@@ -150,7 +156,7 @@ async function getDeepseekPlaygroundCompletion(history) {
 }
 
 /**
- * AGENT 2 : Kimi (Moonshot AI) (Spécialiste Documents Longs)
+ * AGENT 2 : Kimi (Moonshot AI) (Agent Spécialiste)
  */
 async function callKimiCompletion(history) {
     const MOONSHOT_API_KEY = process.env.MOONSHOT_API_KEY;
@@ -161,19 +167,12 @@ async function callKimiCompletion(history) {
         throw new Error("Clé API, URL de base ou Modèle Moonshot non configuré.");
     }
     
+    // CORRECTION : Ajout de /v1
     const endpoint = `${MOONSHOT_BASE_URL}/chat/completions`;
-
-    // CORRECTION ICI : On filtre les messages vides pour éviter l'erreur 400
-    const validHistory = history.filter(msg => 
-        msg.role !== 'system' &&             // On enlève les anciens system prompts
-        msg.content &&                       // On vérifie que le contenu existe
-        typeof msg.content === 'string' &&   // On vérifie que c'est du texte
-        msg.content.trim().length > 0        // On vérifie qu'il n'est pas vide
-    );
 
     const kimiHistory = [
         { role: "system", content: "Tu es Kimi, un assistant IA spécialisé dans l'analyse de documents longs et complexes. Réponds en te basant sur les documents fournis dans l'historique. Sois concis et factuel." },
-        ...validHistory
+        ...history.filter(msg => msg.role !== 'system')
     ];
 
     try {
@@ -191,20 +190,11 @@ async function callKimiCompletion(history) {
         return response.data.choices[0].message.content;
     } catch (error) {
         console.error("Erreur lors de l'appel à l'API Moonshot:", error.response ? error.response.data : error.message);
-        // Ajout d'un log pour voir le message fautif si ça se reproduit
-        if (error.response && error.response.data && error.response.data.error) {
-             console.error("Détail de l'erreur API:", JSON.stringify(error.response.data.error));
-        }
         throw new Error("L'agent Kimi n'a pas pu répondre.");
     }
 }
-// =========================================================================
-// === FIN DE L'ARCHITECTURE "AGENT-TO-AGENT" ===
-// =========================================================================
 
-
-
-// --- API Routes (AIDA ÉDUCATION) ---
+// ROUTE PLAYGROUND CHAT (AGENT MANAGER)
 app.post('/api/ai/playground-chat', async (req, res) => {
     const { history, preferredAgent } = req.body;
 
@@ -216,25 +206,29 @@ app.post('/api/ai/playground-chat', async (req, res) => {
         let reply = "";
         let agentName = "";
         const lastUserMessage = history[history.length - 1].content;
+        const lastUserMessageLow = lastUserMessage.toLowerCase();
         
-        // --- ROUTAGE SIMPLIFIÉ (Kimi vs Deepseek) ---
-        // On détecte si l'utilisateur veut analyser un document long
-        const keywordsForKimi = ['kimi', 'analyse ce document', 'lis ce texte', 'résume'];
+        // --- LOGIQUE DU ROUTEUR AMÉLIORÉE ---
+        const keywordsForKimi = ['kimi', 'analyse ce document', 'lis ce texte'];
+        
+        // ▼▼▼ NOUVELLE RÈGLE : VÉRIFICATION DE LA LONGUEUR ▼▼▼
+        // Si le texte est très long, c'est un travail pour Kimi, peu importe les mots-clés.
+        // 4000 tokens ~ 15000 caractères. Mettons 10 000 pour être sûr.
         const isLongText = lastUserMessage.length > 10000; 
-
-        if (preferredAgent === 'kimi' || keywordsForKimi.some(k => lastUserMessage.toLowerCase().includes(k)) || isLongText) {
+        
+        if (preferredAgent === 'kimi' || keywordsForKimi.some(keyword => lastUserMessageLow.includes(keyword)) || isLongText) {
             
             console.log("Info: Routage vers l'Agent Kimi (Contexte Long)...");
             reply = await callKimiCompletion(history);
-            agentName = "Aïda-Kimi"; 
+            agentName = "Aïda-kimi"; 
 
         } else {
             
-            // Pour tout le reste (Chat, Maths, Dessin SVG, Mermaid)
-            console.log("Info: Routage vers l'Agent Deepseek (Standard + Visuel)...");
+            console.log("Info: Routage vers l'Agent Deepseek (Défaut)...");
             reply = await getDeepseekPlaygroundCompletion(history); 
-            agentName = "Aïda-Deep";
+            agentName = "Aïda-deep";
         }
+        // ▲▲▲ FIN DE LA MODIFICATION ▲▲▲
         
         res.json({ reply: reply, agent: agentName });
 
@@ -243,8 +237,13 @@ app.post('/api/ai/playground-chat', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+// =========================================================================
+// === FIN DE L'ARCHITECTURE "AGENT-TO-AGENT" ===
+// =========================================================================
+//
 
 
+// --- API Routes (AIDA ÉDUCATION) ---
 app.post('/api/auth/login', async (req, res) => {
     if (!usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
     const { email, password } = req.body;
