@@ -244,7 +244,7 @@ async function callGeminiLearnLM(history) {
 }
 
 
-// ROUTE PLAYGROUND CHAT (AGENT MANAGER V3)
+// ROUTE PLAYGROUND CHAT (AGENT MANAGER V4)
 app.post('/api/ai/playground-chat', async (req, res) => {
     const { history, preferredAgent } = req.body;
 
@@ -258,45 +258,63 @@ app.post('/api/ai/playground-chat', async (req, res) => {
         const lastUserMessage = history[history.length - 1].content;
         const lastUserMessageLow = lastUserMessage.toLowerCase();
         
-        // --- 1. DÉTECTION POUR KIMI (Contexte Long / Archiviste) ---
+        // --- 1. ANALYSE DU CONTEXTE PRÉCÉDENT ("STICKINESS") ---
+        // On regarde qui a répondu juste avant (l'avant-dernier message est l'assistant)
+        let lastAgentName = null;
+        if (history.length >= 2) {
+             const lastAssistantMsg = history[history.length - 2];
+             if (lastAssistantMsg.role === 'assistant' && lastAssistantMsg.agent) {
+                 lastAgentName = lastAssistantMsg.agent;
+             }
+        }
+        
+        // Est-ce qu'on était déjà en pleine session de tutorat ?
+        // Si le dernier à avoir parlé est Aïda-Tuteur, on continue avec lui par défaut.
+        const isTutorSessionActive = (lastAgentName === 'Aïda-Tuteur' || lastAgentName === 'Aïda-Visuel');
+
+
+        // --- 2. DÉTECTION DES DÉCLENCHEURS (TRIGGERS) ---
+        
+        // A. Kimi (Priorité absolue pour les documents)
         const keywordsForKimi = ['kimi', 'analyse ce document', 'lis ce texte', 'résume ce fichier'];
-        // Si le texte dépasse 10 000 caractères, c'est pour Kimi
         const isLongText = lastUserMessage.length > 10000; 
 
-        // --- 2. DÉTECTION POUR GEMINI (Pédagogie + Visuel) ---
-        // Mots-clés visuels (Géométrie, Schémas)
+        // B. Gemini (Visuel & Pédagogie)
         const visualKeywords = ['dessine', 'trace', 'figure', 'géométrie', 'triangle', 'cercle', 'carré', 'schéma', 'svg', 'graphique'];
-        
-        // Mots-clés pédagogiques (LearnLM est meilleur ici pour le "Scaffolding") [cite: 7, 24]
         const eduKeywords = [
             'explique', 'comprends pas', 'aide-moi', 'comment faire', 'pourquoi', 
             'maths', 'physique', 'chimie', 'svt', 'anglais', 'arabe', 'quiz', 'exercice'
         ];
         
-        const needsGemini = visualKeywords.some(k => lastUserMessageLow.includes(k)) || 
-                            eduKeywords.some(k => lastUserMessageLow.includes(k));
+        const triggersGemini = visualKeywords.some(k => lastUserMessageLow.includes(k)) || 
+                               eduKeywords.some(k => lastUserMessageLow.includes(k));
         
-        // --- ARBRE DE DÉCISION DU ROUTEUR ---
+
+        // --- 3. ARBRE DE DÉCISION DU ROUTEUR ---
 
         if (preferredAgent === 'kimi' || keywordsForKimi.some(k => lastUserMessageLow.includes(k)) || isLongText) {
             
-            // PRIORITÉ 1 : Documents Longs -> Kimi
+            // PRIORITÉ 1 : Changement explicite pour Kimi
             console.log("Info: Routage vers l'Agent Kimi (Archiviste)...");
             reply = await callKimiCompletion(history);
             agentName = "Aïda-Kimi"; 
 
-        } else if (preferredAgent === 'gemini' || needsGemini) {
+        } else if (preferredAgent === 'gemini' || triggersGemini || isTutorSessionActive) {
 
-            // PRIORITÉ 2 : Pédagogie & Visuel -> Gemini (LearnLM)
-            // C'est ici qu'on profite de la "Learning Science" de Google [cite: 2, 3]
+            // PRIORITÉ 2 : Gemini (LearnLM)
+            // On y va SI : 
+            // - Mots-clés détectés (Triggers)
+            // - OU SI on était DÉJÀ en session tuteur (Sticky)
+            
             console.log("Info: Routage vers l'Agent Gemini (Tuteur LearnLM)...");
             reply = await callGeminiLearnLM(history); 
-            agentName = "Aïda-Tuteur";
+            // On garde le nom spécifique si c'est du visuel, sinon Tuteur générique
+            agentName = visualKeywords.some(k => lastUserMessageLow.includes(k)) ? "Aïda-Visuel" : "Aïda-Tuteur";
 
         } else {
             
-            // PRIORITÉ 3 : Conversation simple / Orchestration -> Deepseek
-            // Pour "Bonjour", "Ça va ?", ou des questions simples, Deepseek suffit et coûte moins cher.
+            // PRIORITÉ 3 : Deepseek (Défaut)
+            // Uniquement pour les nouvelles conversations banales ("Bonjour", "Ça va ?")
             console.log("Info: Routage vers l'Agent Deepseek (Défaut)...");
             reply = await getDeepseekPlaygroundCompletion(history); 
             agentName = "Aïda-Deep";
