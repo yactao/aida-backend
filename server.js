@@ -2,7 +2,7 @@
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
-const axios =require('axios');
+const axios = require('axios');
 const path = require('path');
 const { CosmosClient } = require('@azure/cosmos');
 const { BlobServiceClient } = require('@azure/storage-blob');
@@ -10,9 +10,8 @@ const { DocumentAnalysisClient } = require("@azure/ai-form-recognizer");
 const { AzureKeyCredential } = require('@azure/core-auth');
 const multer = require('multer');
 const { TextToSpeechClient } = require('@google-cloud/text-to-speech');
-const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-// --- 3. Initialisation Express ---
+// --- 2. Initialisation Express ---
 const app = express();
 const allowedOrigins = [
     'https://gray-meadow-0061b3603.1.azurestaticapps.net',
@@ -31,7 +30,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 const upload = multer({ storage: multer.memoryStorage() });
 
-// --- 2. Initialisation des Clients de Services ---
+// --- 3. Initialisation des Clients de Services ---
 let dbClient, blobServiceClient, formRecognizerClient, ttsClient;
 
 try {
@@ -68,32 +67,6 @@ let classesContainer;
 let libraryContainer;
 let scenariosContainer;
 
-// --- FONCTIONS ET DONNÉES PAR DÉFAUT ---
-const defaultScenarios = [
-    { 
-        id: 'scen-0', 
-        title: "Scénario 0 : Répétiteur Vocal (Phrases de Base)", 
-        language: "Arabe Littéraire (Al-Fusha)", 
-        level: "Débutant Absolu", 
-        context: "L'IA joue le rôle d'un tuteur amical et patient...", 
-        characterName: "Le Répétiteur (المُعِيد)", 
-        characterIntro: "أهلاً بك! هيا نتدرب على النطق. كرر هذه الجملة: أنا بخير. <PHONETIQUE>Ahlan bik! Hayyā natadarab 'alā an-nuṭq. Karrir hādhihi al-jumla: Anā bi-khayr.</PHONETIQUE> <TRADUCTION>Bienvenue ! Entraînons-nous à la prononciation. Répète cette phrase : Je vais bien.</TRADUCTION>", 
-        objectives: ["Répéter correctement 'Je vais bien'.", "Répéter correctement 'Merci'.", "Répéter correctement 'Quel est votre nom?'."],
-        voiceCode: 'ar-XA-Wavenet-B'
-    },
-    { 
-        id: 'scen-1', 
-        title: "Scénario 1 : Commander son petit-déjeuner", 
-        language: "Arabe Littéraire (Al-Fusha)", 
-        level: "Débutant", 
-        context: "Vous entrez dans un café moderne au Caire...", 
-        characterName: "Le Serveur (النادِل)", 
-        characterIntro: "صباح الخير، تفضل. ماذا تود أن تطلب اليوم؟ <PHONETIQUE>Sabah al-khayr, tafaddal. Mādhā tawaddu an taṭlub al-yawm?</PHONETIQUE> <TRADUCTION>Bonjour, entrez. Que souhaitez-vous commander aujourd'hui ?</TRADUCTION>", 
-        objectives: ["Demander un thé et un croissant.", "Comprendre le prix total.", "Dire 'Merci' et 'Au revoir'."],
-        voiceCode: 'ar-XA-Wavenet-B'
-    }
-];
-
 // --- INITIALISATION DE LA BASE DE DONNÉES ---
 async function initializeDatabase() {
     if (!dbClient || !database) return console.error("Base de données non initialisée. Les routes DB seront indisponibles.");
@@ -113,20 +86,17 @@ async function initializeDatabase() {
         throw error; 
     }
 }
-// ---------------------------------------------------------------------
 
 app.get('/', (req, res) => {
     res.send('<h1>Serveur AIDA</h1><p>Le serveur est en ligne et fonctionne correctement.</p>');
 });
 
-//
 // =========================================================================
-// === ARCHITECTURE "AGENT-TO-AGENT" (POUR LE PLAYGROUND) ===
+// === ARCHITECTURE IA (DEEPSEEK + KIMI) ===
 // =========================================================================
-//
 
 /**
- * AGENT 1 : Deepseek (Agent par Défaut)
+ * AGENT 1 : Deepseek (Agent Polyvalent : Chat + Visuel Code)
  */
 async function getDeepseekPlaygroundCompletion(history) {
     const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
@@ -138,8 +108,31 @@ async function getDeepseekPlaygroundCompletion(history) {
     }
     const endpoint = `${DEEPSEEK_BASE_URL}/v1/chat/completions`; 
     
+    // NOUVEAU PROMPT SYSTÈME HYBRIDE (Texte + Visuel)
+    const systemContent = `Tu es AIDA, un tuteur IA bienveillant et pédagogue.
+    
+    [MÉTHODE PÉDAGOGIQUE]
+    - Guide l'élève, ne donne pas la réponse tout de suite.
+    - Adapte ton langage à l'âge de l'élève.
+    - Utilise la méthode socratique : questionner d'abord, donner un indice ensuite.
+
+    [CAPACITÉS VISUELLES - IMPORTANT]
+    Si l'élève demande un dessin, un schéma, de la géométrie ou une illustration :
+    
+    1. POUR LA GÉOMÉTRIE (Formes, Triangles, Graphiques simples) :
+       - Génère un code SVG valide.
+       - Commence le bloc par \`\`\`svg et finis par \`\`\`.
+       - Utilise width="300" height="300", fond blanc, traits noirs (stroke="black", fill="none").
+       - Ajoute des lettres (A, B, C) avec <text> si pertinent.
+    
+    2. POUR LES SCHÉMAS (Cycles, Processus, Chronologies) :
+       - Génère un code Mermaid.js valide.
+       - Commence le bloc par \`\`\`mermaid et finis par \`\`\`.
+       - Ex: "graph TD; A[Début]-->B[Fin];"
+    `;
+
     const deepseekHistory = [
-        { role: "system", content: "Tu es AIDA, un tuteur IA bienveillant et pédagogue. Ton objectif est de guider les élèves vers la solution sans jamais donner la réponse directement, sauf en dernier recours. Tu dois adapter ton langage à l'âge de l'élève et suivre une méthode socratique : questionner d'abord, donner un indice ensuite, et valider la compréhension de l'élève." },
+        { role: "system", content: systemContent },
         ...history.filter(msg => msg.role !== 'system')
     ];
 
@@ -157,7 +150,7 @@ async function getDeepseekPlaygroundCompletion(history) {
 }
 
 /**
- * AGENT 2 : Kimi (Moonshot AI) (Agent Spécialiste)
+ * AGENT 2 : Kimi (Moonshot AI) (Spécialiste Documents Longs)
  */
 async function callKimiCompletion(history) {
     const MOONSHOT_API_KEY = process.env.MOONSHOT_API_KEY;
@@ -168,7 +161,6 @@ async function callKimiCompletion(history) {
         throw new Error("Clé API, URL de base ou Modèle Moonshot non configuré.");
     }
     
-    // CORRECTION : Ajout de /v1
     const endpoint = `${MOONSHOT_BASE_URL}/chat/completions`;
 
     const kimiHistory = [
@@ -195,52 +187,7 @@ async function callKimiCompletion(history) {
     }
 }
 
-/**
- * AGENT 3 : Gemini (LearnLM) (Agent Spécialiste)
- */
-// Fonction spécialisée pour Gemini (LearnLM)
-async function callGeminiLearnLM(history) {
-    // Initialisation
-    const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GEN_AI_KEY);
-    // Le modèle "Flash" est très rapide et excellent pour la logique/maths
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-
-    // On prépare l'historique pour Gemini
-    // (Note: Gemini a un format d'historique spécifique, on simplifie ici pour l'intégration rapide)
-    const lastMessage = history[history.length - 1].content;
-
-    const systemPrompt = `Tu es AIDA, un tuteur expert en Mathématiques et Sciences.
-    Si l'élève demande de dessiner une figure géométrique (triangle, cercle, courbe...), TU DOIS générer le code SVG correspondant.
-    
-    Règles pour le SVG :
-    1. Le code doit commencer par <svg ...> et finir par </svg>.
-    2. Utilise width="300" et height="300" par défaut.
-    3. Utilise des traits noirs (stroke="black") et un fond transparent ou blanc (fill="none" ou fill="white").
-    4. Ajoute des étiquettes (A, B, C...) avec la balise <text> si nécessaire.
-    
-    N'explique pas le code SVG, affiche-le simplement au milieu de ton explication.`;
-
-    const chat = model.startChat({
-        history: [
-            {
-                role: "user",
-                parts: [{ text: systemPrompt }],
-            },
-        ],
-    });
-
-    try {
-        const result = await chat.sendMessage(lastMessage);
-        const response = await result.response;
-        return response.text();
-    } catch (error) {
-        console.error("Erreur Gemini:", error);
-        throw new Error("Désolé, je n'ai pas pu générer la réponse visuelle.");
-    }
-}
-
-
-// ROUTE PLAYGROUND CHAT (AGENT MANAGER)
+// ROUTE PLAYGROUND CHAT (AGENT MANAGER SIMPLIFIÉ)
 app.post('/api/ai/playground-chat', async (req, res) => {
     const { history, preferredAgent } = req.body;
 
@@ -252,43 +199,21 @@ app.post('/api/ai/playground-chat', async (req, res) => {
         let reply = "";
         let agentName = "";
         const lastUserMessage = history[history.length - 1].content;
-        const lastUserMessageLow = lastUserMessage.toLowerCase();
         
-        // --- LOGIQUE DU ROUTEUR AMÉLIORÉE (V3 - Avec Visuel) ---
-
-        // 1. Définitions pour Kimi (Documents longs)
+        // --- ROUTAGE : Kimi vs Deepseek ---
         const keywordsForKimi = ['kimi', 'analyse ce document', 'lis ce texte', 'résume'];
         const isLongText = lastUserMessage.length > 10000; 
 
-        // 2. Définitions pour LearnLM/Gemini (Visuel & Géométrie)
-        const keywordsForVisual = [
-            'dessine', 'trace', 'figure', 'géométrie', 'triangle', 'cercle', 
-            'carré', 'rectangle', 'schéma', 'svg', 'graphique', 'visuel'
-        ];
-        // On vérifie si un mot-clé visuel est présent
-        const needsVisual = keywordsForVisual.some(keyword => lastUserMessageLow.includes(keyword));
-        
-        // --- ARBRE DE DÉCISION ---
-
-        if (preferredAgent === 'kimi' || keywordsForKimi.some(k => lastUserMessageLow.includes(k)) || isLongText) {
+        if (preferredAgent === 'kimi' || keywordsForKimi.some(k => lastUserMessage.toLowerCase().includes(k)) || isLongText) {
             
-            // PRIORITÉ 1 : Documents Longs -> Kimi
             console.log("Info: Routage vers l'Agent Kimi (Contexte Long)...");
             reply = await callKimiCompletion(history);
             agentName = "Aïda-Kimi"; 
 
-        } else if (preferredAgent === 'gemini' || needsVisual) {
-
-            // PRIORITÉ 2 : Demandes Visuelles/Maths -> Gemini (LearnLM)
-            console.log("Info: Routage vers l'Agent Gemini (Spécialiste Visuel)...");
-            // Appelle la fonction que nous avons créée à l'étape précédente
-            reply = await callGeminiLearnLM(history); 
-            agentName = "Aïda-Visuel";
-
         } else {
             
-            // PRIORITÉ 3 : Conversation Standard -> Deepseek (Défaut)
-            console.log("Info: Routage vers l'Agent Deepseek (Défaut)...");
+            // Deepseek gère TOUT le reste : Chat, Maths, Dessin SVG, Mermaid
+            console.log("Info: Routage vers l'Agent Deepseek (Standard + Visuel)...");
             reply = await getDeepseekPlaygroundCompletion(history); 
             agentName = "Aïda-Deep";
         }
@@ -300,6 +225,7 @@ app.post('/api/ai/playground-chat', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
 // =========================================================================
 // === FIN DE L'ARCHITECTURE "AGENT-TO-AGENT" ===
 // =========================================================================
