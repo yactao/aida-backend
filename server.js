@@ -195,6 +195,9 @@ async function callKimiCompletion(history) {
     }
 }
 
+/**
+ * AGENT 3 : Gemini (LearnLM) (Agent Spécialiste)
+ */
 // Fonction spécialisée pour Gemini (LearnLM)
 async function callGeminiLearnLM(history) {
     // Initialisation
@@ -234,9 +237,11 @@ async function callGeminiLearnLM(history) {
         console.error("Erreur Gemini:", error);
         throw new Error("Désolé, je n'ai pas pu générer la réponse visuelle.");
     }
+}
+
 
 // ROUTE PLAYGROUND CHAT (AGENT MANAGER)
-    app.post('/api/ai/playground-chat', async (req, res) => {
+app.post('/api/ai/playground-chat', async (req, res) => {
     const { history, preferredAgent } = req.body;
 
     if (!history || history.length === 0) {
@@ -295,7 +300,6 @@ async function callGeminiLearnLM(history) {
         res.status(500).json({ error: error.message });
     }
 });
-
 // =========================================================================
 // === FIN DE L'ARCHITECTURE "AGENT-TO-AGENT" ===
 // =========================================================================
