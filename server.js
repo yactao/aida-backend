@@ -124,75 +124,6 @@ app.get('/', (req, res) => {
 // =========================================================================
 //
 
-/**
- * AGENT 1 : Deepseek (Agent par Défaut)
- */
-async function getDeepseekPlaygroundCompletion(history) {
-    const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
-    const DEEPSEEK_BASE_URL = process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com";
-    const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || "deepseek-chat";
-    
-    if (!DEEPSEEK_API_KEY) {
-        throw new Error("Clé API Deepseek non configurée.");
-    }
-    const endpoint = `${DEEPSEEK_BASE_URL}/v1/chat/completions`; 
-    
-    const deepseekHistory = [
-        { role: "system", content: "Tu es AIDA, un tuteur IA bienveillant et pédagogue. Ton objectif est de guider les élèves vers la solution sans jamais donner la réponse directement, sauf en dernier recours. Tu dois adapter ton langage à l'âge de l'élève et suivre une méthode socratique : questionner d'abord, donner un indice ensuite, et valider la compréhension de l'élève." },
-        ...history.filter(msg => msg.role !== 'system')
-    ];
-
-    try {
-        const response = await axios.post(endpoint, {
-            model: DEEPSEEK_MODEL,
-            messages: deepseekHistory
-        }, { headers: { 'Authorization': `Bearer ${DEEPSEEK_API_KEY}` } });
-        
-        return response.data.choices[0].message.content;
-    } catch (error) {
-        console.error("Erreur lors de l'appel à l'API Deepseek:", error.response?.data || error.message);
-        throw new Error("L'agent Deepseek n'a pas pu répondre.");
-    }
-}
-
-/**
- * AGENT 2 : Kimi (Moonshot AI) (Agent Spécialiste)
- */
-async function callKimiCompletion(history) {
-    const MOONSHOT_API_KEY = process.env.MOONSHOT_API_KEY;
-    const MOONSHOT_BASE_URL = process.env.MOONSHOT_BASE_URL; 
-    const MOONSHOT_MODEL = process.env.MOONSHOT_MODEL;
-
-    if (!MOONSHOT_API_KEY || !MOONSHOT_BASE_URL || !MOONSHOT_MODEL) {
-        throw new Error("Clé API, URL de base ou Modèle Moonshot non configuré.");
-    }
-    
-    // CORRECTION : Ajout de /v1
-    const endpoint = `${MOONSHOT_BASE_URL}/chat/completions`;
-
-    const kimiHistory = [
-        { role: "system", content: "Tu es Kimi, un assistant IA spécialisé dans l'analyse de documents longs et complexes. Réponds en te basant sur les documents fournis dans l'historique. Sois concis et factuel." },
-        ...history.filter(msg => msg.role !== 'system')
-    ];
-
-    try {
-        const response = await axios.post(endpoint, {
-            model: MOONSHOT_MODEL,
-            messages: kimiHistory,
-            temperature: 0.3,
-        }, {
-            headers: {
-                'Authorization': `Bearer ${MOONSHOT_API_KEY}`,
-                'Content-Type': 'application/json'
-            }
-        });
-
-        return response.data.choices[0].message.content;
-    } catch (error) {
-        console.error("Erreur lors de l'appel à l'API Moonshot:", error.response ? error.response.data : error.message);
-        throw new Error("L'agent Kimi n'a pas pu répondre.");
-    }
-}
 
 // ROUTE PLAYGROUND CHAT (AGENT MANAGER)
 app.post('/api/ai/playground-chat', async (req, res) => {
@@ -241,6 +172,103 @@ app.post('/api/ai/playground-chat', async (req, res) => {
 // === FIN DE L'ARCHITECTURE "AGENT-TO-AGENT" ===
 // =========================================================================
 //
+/**
+ * AGENT 1 : Deepseek (Agent par Défaut : Chat + Maths + Schémas)
+ */
+async function getDeepseekPlaygroundCompletion(history) {
+    const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
+    const DEEPSEEK_BASE_URL = process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com";
+    const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || "deepseek-chat";
+    
+    if (!DEEPSEEK_API_KEY) {
+        throw new Error("Clé API Deepseek non configurée.");
+    }
+    const endpoint = `${DEEPSEEK_BASE_URL}/v1/chat/completions`; 
+    
+    // NOUVEAU PROMPT SYSTÈME (Inclut LaTeX & Mermaid, exclut SVG)
+    const systemContent = `Tu es AIDA, un tuteur IA bienveillant et pédagogue.
+    
+    [MÉTHODE PÉDAGOGIQUE]
+    - Guide l'élève, ne donne pas la réponse tout de suite.
+    - Adapte ton langage à l'âge de l'élève.
+    - Utilise la méthode socratique : questionner d'abord, donner un indice ensuite.
+
+    [FORMATAGE VISUEL & MATHS]
+    1. MATHÉMATIQUES (Formules, Équations, Fractions) :
+       - Utilise impérativement le format LaTeX.
+       - Pour une formule dans le texte, entoure-la d'un seul dollar : $E=mc^2$.
+       - Pour une formule centrée importante, entoure-la de deux dollars : $$\\frac{-b \\pm \\sqrt{\\Delta}}{2a}$$.
+    
+    2. SCHÉMAS (Cycles, Chronologies, Logique) :
+       - Utilise Mermaid.js (bloc \`\`\`mermaid ... \`\`\`).
+       - Ex: "graph TD; A-->B;"
+    
+    [INTERDIT]
+    - Ne génère PAS de code SVG ou XML pour le dessin.`;
+
+    const deepseekHistory = [
+        { role: "system", content: systemContent },
+        ...history.filter(msg => msg.role !== 'system')
+    ];
+
+    try {
+        const response = await axios.post(endpoint, {
+            model: DEEPSEEK_MODEL,
+            messages: deepseekHistory
+        }, { headers: { 'Authorization': `Bearer ${DEEPSEEK_API_KEY}` } });
+        
+        return response.data.choices[0].message.content;
+    } catch (error) {
+        console.error("Erreur lors de l'appel à l'API Deepseek:", error.response?.data || error.message);
+        throw new Error("L'agent Deepseek n'a pas pu répondre.");
+    }
+}
+
+/**
+ * AGENT 2 : Kimi (Moonshot AI) (Agent Spécialiste Documents)
+ */
+async function callKimiCompletion(history) {
+    const MOONSHOT_API_KEY = process.env.MOONSHOT_API_KEY;
+    const MOONSHOT_BASE_URL = process.env.MOONSHOT_BASE_URL; 
+    const MOONSHOT_MODEL = process.env.MOONSHOT_MODEL;
+
+    if (!MOONSHOT_API_KEY || !MOONSHOT_BASE_URL || !MOONSHOT_MODEL) {
+        throw new Error("Clé API, URL de base ou Modèle Moonshot non configuré.");
+    }
+    
+    const endpoint = `${MOONSHOT_BASE_URL}/chat/completions`;
+
+    // CORRECTION CRITIQUE : Filtre les messages vides ou null pour éviter l'erreur 400
+    const validHistory = history.filter(msg => 
+        msg.role !== 'system' && 
+        msg.content && 
+        typeof msg.content === 'string' && 
+        msg.content.trim().length > 0
+    );
+
+    const kimiHistory = [
+        { role: "system", content: "Tu es Kimi, un assistant IA spécialisé dans l'analyse de documents longs et complexes. Réponds en te basant sur les documents fournis dans l'historique. Sois concis et factuel." },
+        ...validHistory
+    ];
+
+    try {
+        const response = await axios.post(endpoint, {
+            model: MOONSHOT_MODEL,
+            messages: kimiHistory,
+            temperature: 0.3,
+        }, {
+            headers: {
+                'Authorization': `Bearer ${MOONSHOT_API_KEY}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        return response.data.choices[0].message.content;
+    } catch (error) {
+        console.error("Erreur lors de l'appel à l'API Moonshot:", error.response ? error.response.data : error.message);
+        throw new Error("L'agent Kimi n'a pas pu répondre.");
+    }
+}
 
 
 // --- API Routes (AIDA ÉDUCATION) ---
