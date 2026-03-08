@@ -137,7 +137,7 @@ function requireAuth(req, res, next) {
 }
 
 // Routes publiques (pas de token requis)
-const PUBLIC_API_PATHS = ['/auth/login', '/auth/signup', '/academy/auth/login'];
+const PUBLIC_API_PATHS = ['/auth/login', '/auth/signup', '/academy/auth/login', '/academy/auth/signup'];
 app.use('/api', (req, res, next) => {
     if (PUBLIC_API_PATHS.includes(req.path)) return next();
     requireAuth(req, res, next);
@@ -326,6 +326,10 @@ app.post('/api/auth/login', async (req, res) => {
 app.post('/api/auth/signup', async (req, res) => {
     if (!usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
     const { email, password, role } = req.body;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || !emailRegex.test(email)) return res.status(400).json({ error: "Email invalide." });
+    if (!password || password.length < 6) return res.status(400).json({ error: "Le mot de passe doit contenir au moins 6 caractères." });
+    if (!['student', 'teacher'].includes(role)) return res.status(400).json({ error: "Rôle invalide." });
     const hashedPassword = await bcrypt.hash(password, 10);
     const newUser = { id: email, email, password: hashedPassword, role, firstName: email.split('@')[0], avatar: 'default.png', classOrder: [] };
     try {
@@ -919,6 +923,29 @@ app.post('/api/academy/auth/login', async (req, res) => {
         } else {
             console.error("Erreur de connexion Académie:", error);
             res.status(500).json({ error: "Erreur du serveur." });
+        }
+    }
+});
+
+app.post('/api/academy/auth/signup', async (req, res) => {
+    if (!usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
+    const { email, password, role } = req.body;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || !emailRegex.test(email)) return res.status(400).json({ error: "Email invalide." });
+    if (!password || password.length < 6) return res.status(400).json({ error: "Le mot de passe doit contenir au moins 6 caractères." });
+    if (!['academy_student', 'academy_teacher', 'academy_parent'].includes(role)) return res.status(400).json({ error: "Rôle invalide pour l'Académie." });
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newUser = { id: email, email, password: hashedPassword, role, firstName: email.split('@')[0], avatar: 'default.png' };
+    try {
+        const { resource: createdUser } = await usersContainer.items.create(newUser);
+        delete createdUser.password;
+        const token = jwt.sign({ email: createdUser.email, role: createdUser.role }, JWT_SECRET, { expiresIn: '7d' });
+        res.status(201).json({ user: createdUser, token });
+    } catch (error) {
+        if (error.code === 409) {
+            res.status(409).json({ error: "Cet email est déjà utilisé." });
+        } else {
+            res.status(500).json({ error: "Erreur lors de la création du compte." });
         }
     }
 });
