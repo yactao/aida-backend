@@ -10,6 +10,7 @@ const { DocumentAnalysisClient } = require("@azure/ai-form-recognizer");
 const { AzureKeyCredential } = require('@azure/core-auth');
 const multer = require('multer');
 const { TextToSpeechClient } = require('@google-cloud/text-to-speech');
+const bcrypt = require('bcrypt');
 
 // --- 3. Initialisation Express ---
 const app = express();
@@ -282,7 +283,8 @@ app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
     try {
         const { resource: user } = await usersContainer.item(email, email).read();
-        if (user && !user.role.startsWith('academy_') && user.password === password) { 
+        const passwordMatch = user && !user.role.startsWith('academy_') && await bcrypt.compare(password, user.password);
+        if (passwordMatch) {
             delete user.password;
             res.json({ user });
         } else {
@@ -299,7 +301,8 @@ app.post('/api/auth/login', async (req, res) => {
 app.post('/api/auth/signup', async (req, res) => {
     if (!usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
     const { email, password, role } = req.body;
-    const newUser = { id: email, email, password, role, firstName: email.split('@')[0], avatar: 'default.png', classOrder: [] };
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newUser = { id: email, email, password: hashedPassword, role, firstName: email.split('@')[0], avatar: 'default.png', classOrder: [] };
     try {
         const { resource: createdUser } = await usersContainer.items.create(newUser);
         delete createdUser.password;
@@ -837,7 +840,8 @@ app.post('/api/academy/auth/login', async (req, res) => {
         const { resource: user } = await usersContainer.item(email, email).read();
         const isAcademyRole = user?.role?.startsWith('academy_');
 
-        if (user && isAcademyRole && user.password === password) {
+        const academyPasswordMatch = user && isAcademyRole && await bcrypt.compare(password, user.password);
+        if (academyPasswordMatch) {
             
             // --- ▼▼▼ DÉBUT DE LA LOGIQUE DE STREAK ▼▼▼ ---
             if (user.role === 'academy_student') {
