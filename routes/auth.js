@@ -1,0 +1,121 @@
+const express = require('express');
+
+module.exports = function ({ db, bcrypt, jwt, jwtSecret }) {
+    const router = express.Router();
+
+    // --- AIDA Education login ---
+    router.post('/auth/login', async (req, res) => {
+        if (!db.usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
+        const { email, password } = req.body;
+        try {
+            const { resource: user } = await db.usersContainer.item(email, email).read();
+            const passwordMatch = user && !user.role.startsWith('academy_') && await bcrypt.compare(password, user.password);
+            if (passwordMatch) {
+                delete user.password;
+                const token = jwt.sign({ email: user.email, role: user.role }, jwtSecret, { expiresIn: '7d' });
+                res.json({ user, token });
+            } else {
+                res.status(401).json({ error: "Email ou mot de passe incorrect." });
+            }
+        } catch (error) {
+            if (error.code === 404) {
+                res.status(401).json({ error: "Email ou mot de passe incorrect." });
+            } else {
+                res.status(500).json({ error: "Erreur du serveur." });
+            }
+        }
+    });
+
+    // --- AIDA Education signup ---
+    router.post('/auth/signup', async (req, res) => {
+        if (!db.usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
+        const { email, password, role } = req.body;
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!email || !emailRegex.test(email)) return res.status(400).json({ error: "Email invalide." });
+        if (!password || password.length < 6) return res.status(400).json({ error: "Le mot de passe doit contenir au moins 6 caractères." });
+        if (!['student', 'teacher'].includes(role)) return res.status(400).json({ error: "Rôle invalide." });
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const newUser = { id: email, email, password: hashedPassword, role, firstName: email.split('@')[0], avatar: 'default.png', classOrder: [] };
+        try {
+            const { resource: createdUser } = await db.usersContainer.items.create(newUser);
+            delete createdUser.password;
+            const token = jwt.sign({ email: createdUser.email, role: createdUser.role }, jwtSecret, { expiresIn: '7d' });
+            res.status(201).json({ user: createdUser, token });
+        } catch (error) {
+            if (error.code === 409) {
+                res.status(409).json({ error: "Cet email est déjà utilisé." });
+            } else {
+                res.status(500).json({ error: "Erreur lors de la création du compte." });
+            }
+        }
+    });
+
+    // --- Academy login (with streak logic) ---
+    router.post('/academy/auth/login', async (req, res) => {
+        if (!db.usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
+        const { email, password } = req.body;
+        try {
+            const { resource: user } = await db.usersContainer.item(email, email).read();
+            const isAcademyRole = user?.role?.startsWith('academy_');
+            const academyPasswordMatch = user && isAcademyRole && await bcrypt.compare(password, user.password);
+            if (academyPasswordMatch) {
+                if (user.role === 'academy_student') {
+                    const today = new Date().toISOString().split('T')[0];
+                    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+                    let streak = user.dailyStreak || { count: 0, lastLogin: null };
+                    user.achievements = user.achievements || [];
+                    if (streak.lastLogin === yesterday) {
+                        streak.count++;
+                        streak.lastLogin = today;
+                    } else if (streak.lastLogin !== today) {
+                        streak.count = 1;
+                        streak.lastLogin = today;
+                    }
+                    user.dailyStreak = streak;
+                    if (streak.count >= 3 && !user.achievements.includes('streak_3')) {
+                        user.achievements.push('streak_3');
+                    }
+                    await db.usersContainer.item(user.id).replace(user);
+                }
+                delete user.password;
+                const token = jwt.sign({ email: user.email, role: user.role }, jwtSecret, { expiresIn: '7d' });
+                res.json({ user, token });
+            } else {
+                res.status(401).json({ error: "Email, mot de passe ou rôle incorrect pour l'Académie." });
+            }
+        } catch (error) {
+            if (error.code === 404) {
+                res.status(401).json({ error: "Email, mot de passe ou rôle incorrect pour l'Académie." });
+            } else {
+                console.error("Erreur de connexion Académie:", error);
+                res.status(500).json({ error: "Erreur du serveur." });
+            }
+        }
+    });
+
+    // --- Academy signup ---
+    router.post('/academy/auth/signup', async (req, res) => {
+        if (!db.usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
+        const { email, password, role } = req.body;
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!email || !emailRegex.test(email)) return res.status(400).json({ error: "Email invalide." });
+        if (!password || password.length < 6) return res.status(400).json({ error: "Le mot de passe doit contenir au moins 6 caractères." });
+        if (!['academy_student', 'academy_teacher', 'academy_parent'].includes(role)) return res.status(400).json({ error: "Rôle invalide pour l'Académie." });
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const newUser = { id: email, email, password: hashedPassword, role, firstName: email.split('@')[0], avatar: 'default.png' };
+        try {
+            const { resource: createdUser } = await db.usersContainer.items.create(newUser);
+            delete createdUser.password;
+            const token = jwt.sign({ email: createdUser.email, role: createdUser.role }, jwtSecret, { expiresIn: '7d' });
+            res.status(201).json({ user: createdUser, token });
+        } catch (error) {
+            if (error.code === 409) {
+                res.status(409).json({ error: "Cet email est déjà utilisé." });
+            } else {
+                res.status(500).json({ error: "Erreur lors de la création du compte." });
+            }
+        }
+    });
+
+    return router;
+};
