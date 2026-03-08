@@ -18,7 +18,7 @@ module.exports = function ({ db, ttsClient, defaultScenarios }) {
                 return res.json({ message: "Badge déjà possédé.", user });
             }
             user.achievements.push(badgeId);
-            const { resource: updatedUser } = await db.usersContainer.item(userId).replace(user);
+            const { resource: updatedUser } = await db.usersContainer.item(userId, userId).replace(user);
             delete updatedUser.password;
             res.status(201).json({ message: "Badge débloqué !", badgeId, user: updatedUser });
         } catch (error) {
@@ -135,7 +135,7 @@ module.exports = function ({ db, ttsClient, defaultScenarios }) {
             parameters: [{ name: "@role", value: "academy_student" }]
         };
         try {
-            const { resources: students } = await db.usersContainer.items.query(querySpec).fetchAll();
+            const { resources: students } = await db.usersContainer.items.query(querySpec, { enableCrossPartitionQuery: true }).fetchAll();
             res.json(students);
         } catch (error) {
             console.error("Erreur lors de la récupération des élèves de l'académie:", error.message);

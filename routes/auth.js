@@ -75,7 +75,7 @@ module.exports = function ({ db, bcrypt, jwt, jwtSecret }) {
                     if (streak.count >= 3 && !user.achievements.includes('streak_3')) {
                         user.achievements.push('streak_3');
                     }
-                    await db.usersContainer.item(user.id).replace(user);
+                    await db.usersContainer.item(user.id, user.id).replace(user);
                 }
                 delete user.password;
                 const token = jwt.sign({ email: user.email, role: user.role }, jwtSecret, { expiresIn: '7d' });
