@@ -11,6 +11,7 @@ const { AzureKeyCredential } = require('@azure/core-auth');
 const multer = require('multer');
 const { TextToSpeechClient } = require('@google-cloud/text-to-speech');
 const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 
 // --- 3. Initialisation Express ---
 const app = express();
@@ -117,6 +118,29 @@ async function initializeDatabase() {
 
 app.get('/', (req, res) => {
     res.send('<h1>Serveur AIDA</h1><p>Le serveur est en ligne et fonctionne correctement.</p>');
+});
+
+// --- Middleware d'authentification JWT ---
+const JWT_SECRET = process.env.JWT_SECRET;
+
+function requireAuth(req, res, next) {
+    const auth = req.headers['authorization'];
+    if (!auth || !auth.startsWith('Bearer ')) {
+        return res.status(401).json({ error: "Authentification requise." });
+    }
+    try {
+        req.user = jwt.verify(auth.slice(7), JWT_SECRET);
+        next();
+    } catch {
+        res.status(401).json({ error: "Session expirée ou invalide." });
+    }
+}
+
+// Routes publiques (pas de token requis)
+const PUBLIC_API_PATHS = ['/auth/login', '/auth/signup', '/academy/auth/login'];
+app.use('/api', (req, res, next) => {
+    if (PUBLIC_API_PATHS.includes(req.path)) return next();
+    requireAuth(req, res, next);
 });
 
 //
@@ -286,7 +310,8 @@ app.post('/api/auth/login', async (req, res) => {
         const passwordMatch = user && !user.role.startsWith('academy_') && await bcrypt.compare(password, user.password);
         if (passwordMatch) {
             delete user.password;
-            res.json({ user });
+            const token = jwt.sign({ email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
+            res.json({ user, token });
         } else {
             res.status(401).json({ error: "Email ou mot de passe incorrect." });
         }
@@ -357,7 +382,7 @@ app.post('/api/academy/achievement/unlock', async (req, res) => {
 });
 app.get('/api/teacher/classes', async (req, res) => {
     if (!classesContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
-    const { teacherEmail } = req.query;
+    const teacherEmail = req.user.email;
     const querySpec = { query: "SELECT * FROM c WHERE c.teacherEmail = @teacherEmail", parameters: [{ name: "@teacherEmail", value: teacherEmail }] };
     try {
         const { resources: classes } = await classesContainer.items.query(querySpec).fetchAll();
@@ -366,7 +391,8 @@ app.get('/api/teacher/classes', async (req, res) => {
 });
 app.post('/api/teacher/classes', async (req, res) => {
     if (!classesContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
-    const { className, teacherEmail } = req.body;
+    const { className } = req.body;
+    const teacherEmail = req.user.email;
     const newClass = {
         className, teacherEmail,
         id: `class-${Date.now()}`,
@@ -379,7 +405,7 @@ app.post('/api/teacher/classes', async (req, res) => {
 });
 app.get('/api/teacher/classes/:id', async (req, res) => {
     if (!classesContainer || !usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
-    const { teacherEmail } = req.query;
+    const teacherEmail = req.user.email;
     try {
         const { resource: classData } = await classesContainer.item(req.params.id, teacherEmail).read();
         if (!classData) return res.status(404).json({ error: 'Classe introuvable' });
@@ -401,7 +427,8 @@ app.get('/api/teacher/classes/:id', async (req, res) => {
 });
 app.post('/api/teacher/classes/:id/add-student', async (req, res) => {
     if (!classesContainer || !usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
-    const { studentEmail, teacherEmail } = req.body;
+    const { studentEmail } = req.body;
+    const teacherEmail = req.user.email;
     const { id: classId } = req.params;
     try {
         const { resource: student } = await usersContainer.item(studentEmail, studentEmail).read();
@@ -418,7 +445,8 @@ app.post('/api/teacher/classes/:id/add-student', async (req, res) => {
 });
 app.post('/api/teacher/assign-content', async (req, res) => {
     if (!classesContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
-    const { classId, contentData, teacherEmail } = req.body;
+    const { classId, contentData } = req.body;
+    const teacherEmail = req.user.email;
     const newContent = {
         ...contentData,
         id: `content-${Date.now()}`,
@@ -435,7 +463,8 @@ app.post('/api/teacher/assign-content', async (req, res) => {
 });
 app.post('/api/teacher/classes/reorder', async (req, res) => {
     if (!usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
-    const { teacherEmail, classOrder } = req.body;
+    const { classOrder } = req.body;
+    const teacherEmail = req.user.email;
     try {
         const { resource: teacher } = await usersContainer.item(teacherEmail, teacherEmail).read();
         teacher.classOrder = classOrder;
@@ -446,7 +475,7 @@ app.post('/api/teacher/classes/reorder', async (req, res) => {
 app.delete('/api/teacher/classes/:classId/content/:contentId', async (req, res) => {
     if (!classesContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
     const { classId, contentId } = req.params;
-    const { teacherEmail } = req.query;
+    const teacherEmail = req.user.email;
     try {
         const { resource: classDoc } = await classesContainer.item(classId, teacherEmail).read();
         classDoc.content = classDoc.content.filter(c => c.id !== contentId);
@@ -458,7 +487,8 @@ app.delete('/api/teacher/classes/:classId/content/:contentId', async (req, res) 
 app.post('/api/teacher/classes/:classId/remove-student', async (req, res) => {
     if (!classesContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
     const { classId } = req.params;
-    const { studentEmail, teacherEmail } = req.body;
+    const { studentEmail } = req.body;
+    const teacherEmail = req.user.email;
     try {
         const { resource: classDoc } = await classesContainer.item(classId, teacherEmail).read();
         classDoc.students = classDoc.students.filter(email => email !== studentEmail);
@@ -469,7 +499,8 @@ app.post('/api/teacher/classes/:classId/remove-student', async (req, res) => {
 });
 app.post('/api/teacher/validate-result', async (req, res) => {
     if (!classesContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
-    const { classId, studentEmail, contentId, appreciation, comment, teacherEmail } = req.body;
+    const { classId, studentEmail, contentId, appreciation, comment } = req.body;
+    const teacherEmail = req.user.email;
     try {
         const { resource: classDoc } = await classesContainer.item(classId, teacherEmail).read();
         const resultIndex = classDoc.results.findIndex(r => r.studentEmail === studentEmail && r.contentId === contentId);
@@ -485,7 +516,7 @@ app.post('/api/teacher/validate-result', async (req, res) => {
 app.get('/api/teacher/classes/:classId/competency-report', async (req, res) => {
     if (!classesContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
     const { classId } = req.params;
-    const { teacherEmail } = req.query;
+    const teacherEmail = req.user.email;
     try {
         const { resource: classData } = await classesContainer.item(classId, teacherEmail).read();
         const validatedQuizzes = (classData.results || []).filter(r => r.status === 'validated' && r.totalQuestions > 0);
@@ -512,7 +543,7 @@ app.get('/api/teacher/classes/:classId/competency-report', async (req, res) => {
 });
 app.get('/api/student/dashboard', async (req, res) => {
     if (!classesContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
-    const { studentEmail } = req.query;
+    const studentEmail = req.user.email;
     const querySpec = { query: "SELECT * FROM c WHERE ARRAY_CONTAINS(c.students, @studentEmail)", parameters: [{ name: "@studentEmail", value: studentEmail }] };
     try {
         const { resources: studentClasses } = await classesContainer.items.query(querySpec, { enableCrossPartitionQuery: true }).fetchAll();
@@ -540,7 +571,8 @@ app.get('/api/student/dashboard', async (req, res) => {
 });
 app.post('/api/student/submit-quiz', async (req, res) => {
     if (!classesContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
-    const { studentEmail, classId, contentId, title, score, totalQuestions, answers, helpUsed, teacherEmail } = req.body;
+    const { classId, contentId, title, score, totalQuestions, answers, helpUsed, teacherEmail } = req.body;
+    const studentEmail = req.user.email;
     const newResult = { studentEmail, contentId, title, score, totalQuestions, answers, helpUsed, submittedAt: new Date().toISOString(), status: 'pending_validation' };
     try {
         const { resource: classDoc } = await classesContainer.item(classId, teacherEmail).read();
@@ -876,7 +908,8 @@ app.post('/api/academy/auth/login', async (req, res) => {
             // --- ▲▲▲ FIN DE LA LOGIQUE DE STREAK ▲▲▲ ---
 
             delete user.password;
-            res.json({ user }); // Renvoie l'utilisateur mis à jour
+            const token = jwt.sign({ email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
+            res.json({ user, token }); // Renvoie l'utilisateur mis à jour
         } else {
             res.status(401).json({ error: "Email, mot de passe ou rôle incorrect pour l'Académie." });
         }
@@ -963,7 +996,8 @@ app.post('/api/academy/session/save', async (req, res) => {
         console.error("Erreur 503: Conteneur d'utilisateurs non disponible.");
         return res.status(503).json({ error: "Service de base de données indisponible." }); 
     }
-    const { userId, scenarioId, report, fullHistory } = req.body;
+    const { scenarioId, report, fullHistory } = req.body;
+    const userId = req.user.email;
     if (!userId || !scenarioId || !report) {
         return res.status(400).json({ error: "Données de session incomplètes." });
     }
