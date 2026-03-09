@@ -80,6 +80,47 @@ module.exports = function ({ db }) {
         } catch (error) { res.status(500).json({ error: "Erreur lors de l'assignation." }); }
     });
 
+    router.post('/teacher/classes/:classId/generate-invite', async (req, res) => {
+        if (!db.classesContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
+        const { classId } = req.params;
+        const teacherEmail = req.user.email;
+        try {
+            const { resource: classDoc } = await db.classesContainer.item(classId, teacherEmail).read();
+            if (!classDoc) return res.status(404).json({ error: 'Classe introuvable.' });
+            // Generate a short alphanumeric code (XXX-YYY format)
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            const part = (n) => Array.from({ length: n }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+            classDoc.inviteCode = `${part(3)}-${part(3)}`;
+            await db.classesContainer.items.upsert(classDoc);
+            res.json({ inviteCode: classDoc.inviteCode });
+        } catch (error) {
+            if (error.code === 404) return res.status(404).json({ error: 'Classe introuvable.' });
+            res.status(500).json({ error: "Erreur lors de la génération du code." });
+        }
+    });
+
+    router.post('/student/join-class', async (req, res) => {
+        if (!db.classesContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
+        const { inviteCode } = req.body;
+        const studentEmail = req.user.email;
+        if (!inviteCode) return res.status(400).json({ error: "Code d'invitation requis." });
+        try {
+            const querySpec = {
+                query: "SELECT * FROM c WHERE c.inviteCode = @code",
+                parameters: [{ name: "@code", value: inviteCode.toUpperCase().trim() }]
+            };
+            const { resources } = await db.classesContainer.items.query(querySpec, { enableCrossPartitionQuery: true }).fetchAll();
+            if (!resources.length) return res.status(404).json({ error: "Code invalide ou expiré." });
+            const classDoc = resources[0];
+            if (classDoc.students.includes(studentEmail)) return res.status(409).json({ error: "Vous êtes déjà dans cette classe." });
+            classDoc.students.push(studentEmail);
+            await db.classesContainer.items.upsert(classDoc);
+            res.json({ className: classDoc.className, classId: classDoc.id });
+        } catch (error) {
+            res.status(500).json({ error: "Erreur lors de l'adhésion à la classe." });
+        }
+    });
+
     router.post('/teacher/classes/reorder', async (req, res) => {
         if (!db.usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
         const { classOrder } = req.body;
