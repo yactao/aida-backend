@@ -131,7 +131,7 @@ app.get('/', (req, res) => {
 });
 
 // --- Protection globale /api (sauf routes publiques) ---
-const PUBLIC_API_PATHS = ['/auth/login', '/auth/signup', '/academy/auth/login', '/academy/auth/signup'];
+const PUBLIC_API_PATHS = ['/auth/login', '/auth/signup', '/auth/google', '/academy/auth/login', '/academy/auth/signup', '/academy/auth/google'];
 app.use('/api', (req, res, next) => {
     if (PUBLIC_API_PATHS.includes(req.path)) return next();
     requireAuth(req, res, next);

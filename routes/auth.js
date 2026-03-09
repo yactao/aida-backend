@@ -117,5 +117,71 @@ module.exports = function ({ db, bcrypt, jwt, jwtSecret }) {
         }
     });
 
+    // --- Helper: find or create user (Google OAuth) ---
+    async function findOrCreateGoogleUser(email, name, role, authProvider) {
+        try {
+            const { resource: user } = await db.usersContainer.item(email, email).read();
+            return user;
+        } catch (e) {
+            if (e.code !== 404) throw e;
+            const newUser = {
+                id: email, email, role,
+                firstName: name?.split(' ')[0] || email.split('@')[0],
+                avatar: 'default.png',
+                classOrder: [],
+                authProvider
+            };
+            const { resource: created } = await db.usersContainer.items.create(newUser);
+            return created;
+        }
+    }
+
+    // --- Google Sign-In (AÏDA Éducation) ---
+    router.post('/auth/google', async (req, res) => {
+        if (!db.usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
+        const { idToken, role } = req.body;
+        if (!idToken) return res.status(400).json({ error: "Token Google manquant." });
+        try {
+            const { data } = await axios.get(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`);
+            if (process.env.GOOGLE_CLIENT_ID && data.aud !== process.env.GOOGLE_CLIENT_ID) {
+                return res.status(401).json({ error: "Token Google invalide." });
+            }
+            const { email, name } = data;
+            if (!email) return res.status(400).json({ error: "Impossible de récupérer l'email Google." });
+            const user = await findOrCreateGoogleUser(email, name, role || 'student', 'google');
+            delete user.password;
+            const token = jwt.sign({ email: user.email, role: user.role }, jwtSecret, { expiresIn: '7d' });
+            res.json({ user, token });
+        } catch (error) {
+            console.error("Erreur Google Auth:", error.response?.data || error.message);
+            res.status(500).json({ error: "Erreur lors de l'authentification Google." });
+        }
+    });
+
+    // --- Google Sign-In (Académie MRE) ---
+    router.post('/academy/auth/google', async (req, res) => {
+        if (!db.usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
+        const { idToken, role } = req.body;
+        if (!idToken) return res.status(400).json({ error: "Token Google manquant." });
+        if (!['academy_student', 'academy_teacher', 'academy_parent'].includes(role)) {
+            return res.status(400).json({ error: "Rôle invalide pour l'Académie." });
+        }
+        try {
+            const { data } = await axios.get(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`);
+            if (process.env.GOOGLE_CLIENT_ID && data.aud !== process.env.GOOGLE_CLIENT_ID) {
+                return res.status(401).json({ error: "Token Google invalide." });
+            }
+            const { email, name } = data;
+            if (!email) return res.status(400).json({ error: "Impossible de récupérer l'email Google." });
+            const user = await findOrCreateGoogleUser(email, name, role, 'google');
+            delete user.password;
+            const token = jwt.sign({ email: user.email, role: user.role }, jwtSecret, { expiresIn: '7d' });
+            res.json({ user, token });
+        } catch (error) {
+            console.error("Erreur Google Auth Académie:", error.response?.data || error.message);
+            res.status(500).json({ error: "Erreur lors de l'authentification Google." });
+        }
+    });
+
     return router;
 };
