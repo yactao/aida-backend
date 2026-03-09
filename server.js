@@ -145,6 +145,7 @@ app.use('/api', require('./routes/library')(deps));
 app.use('/api', require('./routes/ai')(deps));
 app.use('/api', require('./routes/academy')(deps));
 app.use('/api', require('./routes/notifications')({ db }));
+app.use('/api', require('./routes/user')({ db, bcrypt }));
 
 // --- Demarrage ---
 const PORT = process.env.PORT || 3000;
