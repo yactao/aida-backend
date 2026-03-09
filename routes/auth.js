@@ -1,4 +1,15 @@
 const express = require('express');
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
+
+function createMailTransporter() {
+    return nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: parseInt(process.env.SMTP_PORT || '587'),
+        secure: process.env.SMTP_SECURE === 'true',
+        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+    });
+}
 
 module.exports = function ({ db, bcrypt, jwt, jwtSecret }) {
     const router = express.Router();
@@ -180,6 +191,76 @@ module.exports = function ({ db, bcrypt, jwt, jwtSecret }) {
         } catch (error) {
             console.error("Erreur Google Auth Académie:", error.response?.data || error.message);
             res.status(500).json({ error: "Erreur lors de l'authentification Google." });
+        }
+    });
+
+    // --- Mot de passe oublié ---
+    router.post('/auth/forgot-password', async (req, res) => {
+        if (!db.usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
+        const { email } = req.body;
+        if (!email) return res.status(400).json({ error: "Email requis." });
+
+        // Always return 200 to avoid user enumeration
+        try {
+            const { resource: user } = await db.usersContainer.item(email, email).read();
+            if (!user || user.authProvider === 'google') {
+                return res.json({ message: "Si cet email existe, un lien de réinitialisation a été envoyé." });
+            }
+            const token = crypto.randomBytes(32).toString('hex');
+            const expiry = new Date(Date.now() + 3600000).toISOString(); // 1h
+            user.resetToken = token;
+            user.resetTokenExpiry = expiry;
+            await db.usersContainer.item(user.id, user.id).replace(user);
+
+            const appUrl = process.env.APP_URL || 'https://gray-meadow-0061b3603.1.azurestaticapps.net';
+            const resetLink = `${appUrl}?action=reset-password&token=${token}&email=${encodeURIComponent(email)}`;
+
+            const transporter = createMailTransporter();
+            await transporter.sendMail({
+                from: process.env.SMTP_FROM || process.env.SMTP_USER,
+                to: email,
+                subject: 'Réinitialisation de votre mot de passe AÏDA',
+                html: `
+                    <div style="font-family:sans-serif;max-width:500px;margin:auto;">
+                        <h2 style="color:#6366F1;">AÏDA Éducation</h2>
+                        <p>Bonjour,</p>
+                        <p>Vous avez demandé la réinitialisation de votre mot de passe. Cliquez sur le bouton ci-dessous :</p>
+                        <a href="${resetLink}" style="display:inline-block;padding:12px 24px;background:#6366F1;color:#fff;border-radius:8px;text-decoration:none;font-weight:bold;">Réinitialiser mon mot de passe</a>
+                        <p style="color:#888;font-size:12px;margin-top:24px;">Ce lien expire dans 1 heure. Si vous n'avez pas demandé cette réinitialisation, ignorez cet email.</p>
+                    </div>`
+            });
+        } catch (e) {
+            if (e.code !== 404) {
+                console.error("Erreur forgot-password:", e.message);
+            }
+        }
+        res.json({ message: "Si cet email existe, un lien de réinitialisation a été envoyé." });
+    });
+
+    // --- Réinitialisation du mot de passe ---
+    router.post('/auth/reset-password', async (req, res) => {
+        if (!db.usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
+        const { email, token, newPassword } = req.body;
+        if (!email || !token || !newPassword) return res.status(400).json({ error: "Données manquantes." });
+        if (newPassword.length < 6) return res.status(400).json({ error: "Le mot de passe doit contenir au moins 6 caractères." });
+
+        try {
+            const { resource: user } = await db.usersContainer.item(email, email).read();
+            if (!user || user.resetToken !== token) {
+                return res.status(400).json({ error: "Lien invalide ou expiré." });
+            }
+            if (!user.resetTokenExpiry || new Date(user.resetTokenExpiry) < new Date()) {
+                return res.status(400).json({ error: "Ce lien a expiré. Veuillez faire une nouvelle demande." });
+            }
+            user.password = await bcrypt.hash(newPassword, 10);
+            delete user.resetToken;
+            delete user.resetTokenExpiry;
+            await db.usersContainer.item(user.id, user.id).replace(user);
+            res.json({ message: "Mot de passe réinitialisé avec succès." });
+        } catch (e) {
+            if (e.code === 404) return res.status(400).json({ error: "Lien invalide ou expiré." });
+            console.error("Erreur reset-password:", e.message);
+            res.status(500).json({ error: "Erreur du serveur." });
         }
     });
 
