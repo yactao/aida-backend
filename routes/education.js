@@ -1,4 +1,14 @@
 const express = require('express');
+const nodemailer = require('nodemailer');
+
+function createMailTransporter() {
+    return nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: parseInt(process.env.SMTP_PORT || '587'),
+        secure: process.env.SMTP_SECURE === 'true',
+        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+    });
+}
 
 async function pushNotification(db, email, notification) {
     try {
@@ -110,6 +120,45 @@ module.exports = function ({ db }) {
         } catch (error) {
             if (error.code === 404) return res.status(404).json({ error: 'Classe introuvable.' });
             res.status(500).json({ error: "Erreur lors de la génération du code." });
+        }
+    });
+
+    router.post('/teacher/classes/:classId/send-invite-email', async (req, res) => {
+        if (!db.classesContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
+        const { classId } = req.params;
+        const { studentEmail } = req.body;
+        const teacherEmail = req.user.email;
+        if (!studentEmail) return res.status(400).json({ error: "Email de l'élève requis." });
+        try {
+            const { resource: classDoc } = await db.classesContainer.item(classId, teacherEmail).read();
+            if (!classDoc) return res.status(404).json({ error: 'Classe introuvable.' });
+            if (!classDoc.inviteCode) return res.status(400).json({ error: "Générez d'abord un code d'invitation." });
+
+            const appUrl = process.env.APP_URL || 'https://gray-meadow-0061b3603.1.azurestaticapps.net';
+            const joinLink = `${appUrl}?action=join-class&code=${classDoc.inviteCode}`;
+
+            const transporter = createMailTransporter();
+            await transporter.sendMail({
+                from: process.env.SMTP_FROM || process.env.SMTP_USER,
+                to: studentEmail,
+                subject: `Invitation à rejoindre la classe "${classDoc.className}" sur AÏDA`,
+                html: `
+                    <div style="font-family:sans-serif;max-width:500px;margin:auto;">
+                        <h2 style="color:#6366F1;">AÏDA Éducation</h2>
+                        <p>Bonjour,</p>
+                        <p>Votre enseignant vous invite à rejoindre la classe <strong>${classDoc.className}</strong>.</p>
+                        <p style="margin:1.5rem 0;">Votre code d'invitation :</p>
+                        <div style="font-size:2rem;font-weight:800;letter-spacing:0.2em;color:#6366F1;background:#F8F7FF;border:2px dashed #6366F1;border-radius:12px;padding:1rem 2rem;display:inline-block;">${classDoc.inviteCode}</div>
+                        <p style="margin-top:1.5rem;">Ou cliquez directement sur ce lien :</p>
+                        <a href="${joinLink}" style="display:inline-block;padding:12px 24px;background:#6366F1;color:#fff;border-radius:8px;text-decoration:none;font-weight:bold;">Rejoindre la classe</a>
+                        <p style="color:#888;font-size:12px;margin-top:24px;">Connectez-vous d'abord à AÏDA Éducation, puis entrez le code dans votre tableau de bord.</p>
+                    </div>`
+            });
+            res.json({ message: "Invitation envoyée avec succès." });
+        } catch (error) {
+            if (error.code === 404) return res.status(404).json({ error: 'Classe introuvable.' });
+            console.error("Erreur envoi invitation:", error.message);
+            res.status(500).json({ error: "Erreur lors de l'envoi de l'email." });
         }
     });
 
