@@ -144,6 +144,7 @@ app.use('/api', require('./routes/education')(deps));
 app.use('/api', require('./routes/library')(deps));
 app.use('/api', require('./routes/ai')(deps));
 app.use('/api', require('./routes/academy')(deps));
+app.use('/api', require('./routes/notifications')({ db }));
 
 // --- Demarrage ---
 const PORT = process.env.PORT || 3000;

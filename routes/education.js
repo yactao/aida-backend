@@ -1,5 +1,15 @@
 const express = require('express');
 
+async function pushNotification(db, email, notification) {
+    try {
+        const { resource: user } = await db.usersContainer.item(email, email).read();
+        user.notifications = user.notifications || [];
+        user.notifications.unshift({ id: `notif-${Date.now()}-${Math.random().toString(36).slice(2,6)}`, ...notification, read: false, createdAt: new Date().toISOString() });
+        if (user.notifications.length > 50) user.notifications = user.notifications.slice(0, 50);
+        await db.usersContainer.items.upsert(user);
+    } catch (e) { /* non-blocking */ }
+}
+
 module.exports = function ({ db }) {
     const router = express.Router();
 
@@ -77,6 +87,10 @@ module.exports = function ({ db }) {
             classDoc.content.push(newContent);
             await db.classesContainer.items.upsert(classDoc);
             res.status(200).json(newContent);
+            // Notify each student (non-blocking)
+            (classDoc.students || []).forEach(email => {
+                pushNotification(db, email, { type: 'new_content', message: `Nouveau devoir dans "${classDoc.className}" : ${newContent.title || newContent.type}` });
+            });
         } catch (error) { res.status(500).json({ error: "Erreur lors de l'assignation." }); }
     });
 
@@ -174,6 +188,9 @@ module.exports = function ({ db }) {
             classDoc.results[resultIndex].validatedAt = new Date().toISOString();
             await db.classesContainer.items.upsert(classDoc);
             res.status(200).json(classDoc.results[resultIndex]);
+            // Notify student (non-blocking)
+            const content = (classDoc.content || []).find(c => c.id === contentId);
+            pushNotification(db, studentEmail, { type: 'validated', message: `Votre devoir "${content?.title || 'devoir'}" a été corrigé dans "${classDoc.className}".` });
         } catch (error) { res.status(500).json({ error: "Erreur lors de la validation." }); }
     });
 
@@ -246,6 +263,8 @@ module.exports = function ({ db }) {
             classDoc.results.push(newResult);
             await db.classesContainer.items.upsert(classDoc);
             res.status(201).json(newResult);
+            // Notify teacher (non-blocking)
+            pushNotification(db, teacherEmail, { type: 'new_submission', message: `${studentEmail} a rendu "${title || 'un devoir'}" dans "${classDoc.className}".` });
         } catch (error) { res.status(500).json({ error: "Erreur lors de la soumission." }); }
     });
 
