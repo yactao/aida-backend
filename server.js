@@ -92,7 +92,8 @@ const db = {
     libraryContainer: null,
     scenariosContainer: null,
     sessionsContainer: null,
-    episodesContainer: null
+    episodesContainer: null,
+    srsContainer: null
 };
 
 async function initializeDatabase() {
@@ -112,6 +113,8 @@ async function initializeDatabase() {
         db.sessionsContainer = result.container;
         result = await database.containers.createIfNotExists({ id: 'Episodes', partitionKey: '/id' });
         db.episodesContainer = result.container;
+        result = await database.containers.createIfNotExists({ id: 'SrsCards', partitionKey: '/userId' });
+        db.srsContainer = result.container;
         console.log("Tous les conteneurs sont initialisés.");
     } catch (error) {
         console.error("Erreur critique lors de l'initialisation des conteneurs:", error.message);
@@ -151,6 +154,7 @@ app.use('/api', require('./routes/library')(deps));
 app.use('/api', require('./routes/ai')(deps));
 app.use('/api', require('./routes/academy')(deps));
 app.use('/api', require('./routes/production')({ db }));
+app.use('/api', require('./routes/srs')({ db }));
 app.use('/api', require('./routes/notifications')({ db }));
 app.use('/api', require('./routes/user')({ db, bcrypt }));
 
