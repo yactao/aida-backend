@@ -244,13 +244,42 @@ module.exports = function ({ db, ttsClient, defaultScenarios }) {
         }
     });
 
+    // POST /api/academy/teacher/add-student — l'enseignant ajoute un élève existant par email
+    router.post('/academy/teacher/add-student', async (req, res) => {
+        if (!db.usersContainer) return res.status(503).json({ error: "Service indisponible." });
+        if (req.user.role !== 'academy_teacher') return res.status(403).json({ error: "Réservé aux enseignants." });
+        const { studentEmail } = req.body;
+        if (!studentEmail) return res.status(400).json({ error: "Email de l'élève requis." });
+
+        try {
+            const { resource: teacher } = await db.usersContainer.item(req.user.email, req.user.email).read();
+            if (!teacher.classCode) {
+                const crypto = require('crypto');
+                teacher.classCode = crypto.randomBytes(3).toString('hex').toUpperCase();
+                await db.usersContainer.items.upsert(teacher);
+            }
+
+            const { resource: student } = await db.usersContainer.item(studentEmail, studentEmail).read();
+            if (!student) return res.status(404).json({ error: "Aucun compte trouvé avec cet email." });
+            if (student.role !== 'academy_student') return res.status(400).json({ error: "Ce compte n'est pas un élève Academy." });
+
+            student.linkedTeacherCode = teacher.classCode;
+            student.linkedTeacherEmail = req.user.email;
+            await db.usersContainer.items.upsert(student);
+
+            res.json({ message: `${student.firstName} a été ajouté à votre classe.`, student: { id: student.id, firstName: student.firstName, email: student.email } });
+        } catch (e) {
+            if (e.code === 404) return res.status(404).json({ error: "Élève introuvable." });
+            res.status(500).json({ error: e.message });
+        }
+    });
+
     // --- Suivi enseignant académie (résumé léger, sans sessions complètes) ---
     router.get('/academy/teacher/students', async (req, res) => {
         if (!db.usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
         if (req.user.role !== 'academy_teacher') return res.status(403).json({ error: "Réservé aux enseignants." });
 
         try {
-            // Récupérer le classCode de l'enseignant connecté
             const { resource: teacher } = await db.usersContainer.item(req.user.email, req.user.email).read();
             if (!teacher.classCode) return res.json([]);
 
