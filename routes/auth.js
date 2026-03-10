@@ -83,10 +83,21 @@ module.exports = function ({ db, bcrypt, jwt, jwtSecret }) {
                         streak.lastLogin = today;
                     }
                     user.dailyStreak = streak;
+                    const beforeBadges = [...user.achievements];
                     if (streak.count >= 3 && !user.achievements.includes('streak_3')) {
                         user.achievements.push('streak_3');
                     }
+                    if (streak.count >= 7 && !user.achievements.includes('streak_7')) {
+                        user.achievements.push('streak_7');
+                    }
+                    if (streak.count >= 30 && !user.achievements.includes('streak_30')) {
+                        user.achievements.push('streak_30');
+                    }
+                    const newAchievements = user.achievements.filter(b => !beforeBadges.includes(b));
                     await db.usersContainer.item(user.id, user.id).replace(user);
+                    delete user.password;
+                    const token = jwt.sign({ email: user.email, role: user.role }, jwtSecret, { expiresIn: '7d' });
+                    return res.json({ user, token, newAchievements });
                 }
                 delete user.password;
                 const token = jwt.sign({ email: user.email, role: user.role }, jwtSecret, { expiresIn: '7d' });
@@ -114,6 +125,7 @@ module.exports = function ({ db, bcrypt, jwt, jwtSecret }) {
         if (!['academy_student', 'academy_teacher', 'academy_parent'].includes(role)) return res.status(400).json({ error: "Rôle invalide pour l'Académie." });
         const hashedPassword = await bcrypt.hash(password, 10);
         const newUser = { id: email, email, password: hashedPassword, role, firstName: email.split('@')[0], avatar: 'default.png' };
+        if (role === 'academy_teacher') newUser.classCode = crypto.randomBytes(3).toString('hex').toUpperCase();
         try {
             const { resource: createdUser } = await db.usersContainer.items.create(newUser);
             delete createdUser.password;

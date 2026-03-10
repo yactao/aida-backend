@@ -66,41 +66,86 @@ module.exports = function ({ db, ttsClient, defaultScenarios }) {
         }
     });
 
-    // --- Sauvegarde session ---
+    // --- Sauvegarde session (Sessions container séparé) ---
     router.post('/academy/session/save', async (req, res) => {
-        if (!db.usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
+        if (!db.sessionsContainer || !db.usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
         const { scenarioId, report, fullHistory } = req.body;
         const userId = req.user.email;
         if (!userId || !scenarioId || !report) return res.status(400).json({ error: "Données de session incomplètes." });
         const newSession = {
-            id: `session-${Date.now()}-${userId}`,
+            id: `session-${Date.now()}-${userId.replace('@', '-').replace('.', '-')}`,
             userId, scenarioId,
             completedAt: new Date().toISOString(),
-            report, fullHistory
+            report, fullHistory: fullHistory || []
         };
         try {
+            // 1. Stocker la session dans le container dédié
+            await db.sessionsContainer.items.create(newSession);
+
+            // 2. Mettre à jour uniquement le résumé léger sur le user (pas de fullHistory)
             const { resource: user } = await db.usersContainer.item(userId, userId).read();
-            if (!user) return res.status(404).json({ error: "Utilisateur non trouvé." });
             user.academyProgress = user.academyProgress || {};
-            user.academyProgress.sessions = user.academyProgress.sessions || [];
-            user.academyProgress.sessions.push(newSession);
+            user.academyProgress.totalSessions = (user.academyProgress.totalSessions || 0) + 1;
+            user.academyProgress.lastActivity = newSession.completedAt;
             await db.usersContainer.items.upsert(user);
-            res.status(201).json({ message: "Session enregistrée avec succès.", sessionId: newSession.id });
+
+            res.status(201).json({ message: "Session enregistrée.", sessionId: newSession.id, totalSessions: user.academyProgress.totalSessions });
         } catch (error) {
             console.error("Erreur lors de la sauvegarde de la session Académie:", error.message);
             res.status(500).json({ error: "Erreur serveur lors de la sauvegarde de la session." });
         }
     });
 
+    // --- Récupérer les sessions de l'utilisateur connecté ---
+    router.get('/academy/sessions', async (req, res) => {
+        if (!db.sessionsContainer) return res.status(503).json({ error: "Service indisponible." });
+        const userId = req.user.email;
+        try {
+            const { resources } = await db.sessionsContainer.items.query(
+                { query: "SELECT * FROM c WHERE c.userId = @userId ORDER BY c.completedAt DESC", parameters: [{ name: "@userId", value: userId }] },
+                { partitionKey: userId }
+            ).fetchAll();
+            res.json(resources);
+        } catch (error) {
+            console.error("Erreur lors de la récupération des sessions:", error.message);
+            res.status(500).json({ error: "Erreur serveur." });
+        }
+    });
+
+    // --- Sessions d'un élève (pour enseignant/parent) ---
+    router.get('/academy/sessions/:studentId', async (req, res) => {
+        if (!db.sessionsContainer || !db.usersContainer) return res.status(503).json({ error: "Service indisponible." });
+        const requestorRole = req.user.role;
+        if (!['academy_teacher', 'academy_parent'].includes(requestorRole)) return res.status(403).json({ error: "Accès refusé." });
+        const studentId = decodeURIComponent(req.params.studentId);
+        try {
+            const { resources } = await db.sessionsContainer.items.query(
+                { query: "SELECT * FROM c WHERE c.userId = @userId ORDER BY c.completedAt DESC", parameters: [{ name: "@userId", value: studentId }] },
+                { partitionKey: studentId }
+            ).fetchAll();
+            res.json(resources);
+        } catch (error) {
+            console.error("Erreur lors de la récupération des sessions élève:", error.message);
+            res.status(500).json({ error: "Erreur serveur." });
+        }
+    });
+
     // --- Scenarios ---
     router.get('/academy/scenarios', async (req, res) => {
         if (!db.scenariosContainer) return res.json(defaultScenarios);
+        const isStudent = req.user?.role === 'academy_student';
         try {
             const { resources: dbScenarios } = await db.scenariosContainer.items.readAll().fetchAll();
             if (dbScenarios.length === 0) return res.json(defaultScenarios);
             const allScenariosMap = new Map();
             defaultScenarios.forEach(s => allScenariosMap.set(s.id, s));
-            dbScenarios.forEach(s => allScenariosMap.set(s.id, s));
+            // Students only see scenarios explicitly marked public or created by any teacher
+            // Teachers/parents see all scenarios (including their own)
+            dbScenarios.forEach(s => {
+                if (!isStudent || s.isPublic || s.createdBy) {
+                    allScenariosMap.set(s.id, s);
+                }
+            });
             res.json(Array.from(allScenariosMap.values()));
         } catch (error) {
             console.error("Erreur lors de la lecture des scénarios:", error.message);
@@ -116,6 +161,8 @@ module.exports = function ({ db, ttsClient, defaultScenarios }) {
             id: `scen-${Date.now()}`,
             voiceCode: newScenario.voiceCode || 'ar-XA-Wavenet-B',
             createdAt: new Date().toISOString(),
+            createdBy: req.user.email,
+            isPublic: true,
             ...newScenario
         };
         try {
@@ -127,18 +174,93 @@ module.exports = function ({ db, ttsClient, defaultScenarios }) {
         }
     });
 
-    // --- Suivi enseignant academie ---
+    // --- Code de classe enseignant ---
+
+    // GET /api/academy/teacher/class-code — retourne (ou génère) le code de classe
+    router.get('/academy/teacher/class-code', async (req, res) => {
+        if (!db.usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
+        if (req.user.role !== 'academy_teacher') return res.status(403).json({ error: "Réservé aux enseignants." });
+        try {
+            const { resource: teacher } = await db.usersContainer.item(req.user.email, req.user.email).read();
+            if (!teacher.classCode) {
+                const crypto = require('crypto');
+                teacher.classCode = crypto.randomBytes(3).toString('hex').toUpperCase();
+                await db.usersContainer.items.upsert(teacher);
+            }
+            res.json({ classCode: teacher.classCode });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
+
+    // POST /api/academy/join-class — l'élève rejoint une classe via le code
+    router.post('/academy/join-class', async (req, res) => {
+        if (!db.usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
+        if (req.user.role !== 'academy_student') return res.status(403).json({ error: "Réservé aux élèves." });
+        const { classCode } = req.body;
+        if (!classCode) return res.status(400).json({ error: "Code de classe requis." });
+
+        try {
+            // Chercher l'enseignant avec ce code
+            const { resources: teachers } = await db.usersContainer.items.query(
+                {
+                    query: "SELECT c.id, c.email, c.firstName FROM c WHERE c.role = 'academy_teacher' AND c.classCode = @code",
+                    parameters: [{ name: "@code", value: classCode.toUpperCase() }]
+                },
+                { enableCrossPartitionQuery: true }
+            ).fetchAll();
+
+            if (teachers.length === 0) return res.status(404).json({ error: "Code de classe invalide ou introuvable." });
+
+            const teacher = teachers[0];
+
+            // Lier l'élève à ce teacher
+            const { resource: student } = await db.usersContainer.item(req.user.email, req.user.email).read();
+            if (student.linkedTeacherCode === classCode.toUpperCase()) {
+                return res.json({ message: "Vous êtes déjà dans cette classe.", teacherName: teacher.firstName });
+            }
+            student.linkedTeacherCode = classCode.toUpperCase();
+            student.linkedTeacherEmail = teacher.email;
+            await db.usersContainer.items.upsert(student);
+
+            res.json({ message: `Vous avez rejoint la classe de ${teacher.firstName} !`, teacherName: teacher.firstName });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
+
+    // POST /api/academy/leave-class — l'élève quitte sa classe
+    router.post('/academy/leave-class', async (req, res) => {
+        if (!db.usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
+        if (req.user.role !== 'academy_student') return res.status(403).json({ error: "Réservé aux élèves." });
+        try {
+            const { resource: student } = await db.usersContainer.item(req.user.email, req.user.email).read();
+            delete student.linkedTeacherCode;
+            delete student.linkedTeacherEmail;
+            await db.usersContainer.items.upsert(student);
+            res.json({ message: "Vous avez quitté la classe." });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
+
+    // --- Suivi enseignant académie (résumé léger, sans sessions complètes) ---
     router.get('/academy/teacher/students', async (req, res) => {
         if (!db.usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
-        const querySpec = {
-            query: "SELECT c.id, c.firstName, c.academyProgress FROM c WHERE c.role = @role",
-            parameters: [{ name: "@role", value: "academy_student" }]
-        };
+        if (req.user.role !== 'academy_teacher') return res.status(403).json({ error: "Réservé aux enseignants." });
+
         try {
+            // Récupérer le classCode de l'enseignant connecté
+            const { resource: teacher } = await db.usersContainer.item(req.user.email, req.user.email).read();
+            if (!teacher.classCode) return res.json([]);
+
+            const querySpec = {
+                query: "SELECT c.id, c.firstName, c.email, c.avatar, c.achievements, c.academyProgress FROM c WHERE c.role = 'academy_student' AND c.linkedTeacherCode = @code",
+                parameters: [{ name: "@code", value: teacher.classCode }]
+            };
             const { resources: students } = await db.usersContainer.items.query(querySpec, { enableCrossPartitionQuery: true }).fetchAll();
             res.json(students);
         } catch (error) {
-            console.error("Erreur lors de la récupération des élèves de l'académie:", error.message);
             res.status(500).json({ error: "Erreur serveur lors de la récupération des élèves." });
         }
     });

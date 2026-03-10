@@ -90,7 +90,9 @@ const db = {
     usersContainer: null,
     classesContainer: null,
     libraryContainer: null,
-    scenariosContainer: null
+    scenariosContainer: null,
+    sessionsContainer: null,
+    episodesContainer: null
 };
 
 async function initializeDatabase() {
@@ -106,6 +108,10 @@ async function initializeDatabase() {
         db.libraryContainer = result.container;
         result = await database.containers.createIfNotExists({ id: 'Scenarios', partitionKey: '/id' });
         db.scenariosContainer = result.container;
+        result = await database.containers.createIfNotExists({ id: 'Sessions', partitionKey: '/userId' });
+        db.sessionsContainer = result.container;
+        result = await database.containers.createIfNotExists({ id: 'Episodes', partitionKey: '/id' });
+        db.episodesContainer = result.container;
         console.log("Tous les conteneurs sont initialisés.");
     } catch (error) {
         console.error("Erreur critique lors de l'initialisation des conteneurs:", error.message);
@@ -144,13 +150,18 @@ app.use('/api', require('./routes/education')(deps));
 app.use('/api', require('./routes/library')(deps));
 app.use('/api', require('./routes/ai')(deps));
 app.use('/api', require('./routes/academy')(deps));
+app.use('/api', require('./routes/production')({ db }));
 app.use('/api', require('./routes/notifications')({ db }));
 app.use('/api', require('./routes/user')({ db, bcrypt }));
+
+// --- Jobs planifiés ---
+const { startStreakReminderJob } = require('./jobs/streakReminder');
 
 // --- Demarrage ---
 const PORT = process.env.PORT || 3000;
 initializeDatabase().then(() => {
     app.listen(PORT, () => console.log(`Server AIDA démarré sur le port ${PORT}`));
+    startStreakReminderJob(db);
 }).catch((error) => {
     console.error("Le serveur ne peut pas démarrer:", error.message);
     process.exit(1);
