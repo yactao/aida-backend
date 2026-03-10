@@ -72,7 +72,7 @@ module.exports = function ({ db, bcrypt }) {
         }
     });
 
-    router.delete('/parent/unlink-child/:childEmail', async (req, res) => {
+    router.delete('/parent/unlink-child/:childEmail([^/]+)', async (req, res) => {
         if (!db.usersContainer) return res.status(503).json({ error: "Service indisponible." });
         if (req.user.role !== 'academy_parent') return res.status(403).json({ error: "Réservé aux comptes parents." });
         const childEmail = decodeURIComponent(req.params.childEmail);

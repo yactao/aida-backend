@@ -113,11 +113,11 @@ module.exports = function ({ db, ttsClient, defaultScenarios }) {
     });
 
     // --- Sessions d'un élève (pour enseignant/parent) ---
-    router.get('/academy/sessions/:studentId', async (req, res) => {
+    router.get('/academy/student-sessions', async (req, res) => {
         if (!db.sessionsContainer || !db.usersContainer) return res.status(503).json({ error: "Service indisponible." });
         const requestorRole = req.user.role;
         if (!['academy_teacher', 'academy_parent'].includes(requestorRole)) return res.status(403).json({ error: "Accès refusé." });
-        const studentId = decodeURIComponent(req.params.studentId);
+        const studentId = req.query.studentId;
         try {
             const { resources } = await db.sessionsContainer.items.query(
                 { query: "SELECT * FROM c WHERE c.userId = @userId ORDER BY c.completedAt DESC", parameters: [{ name: "@userId", value: studentId }] },
