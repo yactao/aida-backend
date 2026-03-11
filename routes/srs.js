@@ -97,15 +97,17 @@ module.exports = function ({ db }) {
         try {
             const { resources } = await db.srsContainer.items.query(
                 {
-                    query: 'SELECT * FROM c WHERE c.userId = @userId AND c.nextReviewDate <= @today ORDER BY c.repetitions ASC, c.nextReviewDate ASC',
+                    query: 'SELECT * FROM c WHERE c.userId = @userId AND c.nextReviewDate <= @today',
                     parameters: [{ name: '@userId', value: userId }, { name: '@today', value: today }]
                 },
                 { partitionKey: userId }
             ).fetchAll();
 
+            // Trier en JS (évite l'index composite Cosmos DB)
+            resources.sort((a, b) => a.repetitions - b.repetitions || a.nextReviewDate.localeCompare(b.nextReviewDate));
             // Limiter les nouvelles cartes (jamais vues) à 20 par session
-            const newCards     = resources.filter(c => c.repetitions === 0).slice(0, 20);
-            const reviewCards  = resources.filter(c => c.repetitions > 0);
+            const newCards    = resources.filter(c => c.repetitions === 0).slice(0, 20);
+            const reviewCards = resources.filter(c => c.repetitions > 0);
             const due = [...reviewCards, ...newCards];
 
             res.json(due);
