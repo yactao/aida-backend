@@ -118,13 +118,21 @@ module.exports = function ({ db, bcrypt, jwt, jwtSecret }) {
     // --- Academy signup ---
     router.post('/academy/auth/signup', async (req, res) => {
         if (!db.usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
-        const { email, password, role } = req.body;
+        const { email, password, role, firstName, lastName, age, school } = req.body;
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!email || !emailRegex.test(email)) return res.status(400).json({ error: "Email invalide." });
         if (!password || password.length < 6) return res.status(400).json({ error: "Le mot de passe doit contenir au moins 6 caractères." });
         if (!['academy_student', 'academy_teacher', 'academy_parent'].includes(role)) return res.status(400).json({ error: "Rôle invalide pour l'Académie." });
+        if (!firstName || firstName.trim().length < 2) return res.status(400).json({ error: "Le prénom est requis." });
         const hashedPassword = await bcrypt.hash(password, 10);
-        const newUser = { id: email, email, password: hashedPassword, role, firstName: email.split('@')[0], avatar: 'default.png' };
+        const newUser = {
+            id: email, email, password: hashedPassword, role,
+            firstName: firstName.trim(),
+            avatar: 'default.png'
+        };
+        if (lastName)  newUser.lastName = lastName.trim();
+        if (age)       newUser.age = parseInt(age);
+        if (school)    newUser.school = school.trim();
         if (role === 'academy_teacher') newUser.classCode = crypto.randomBytes(3).toString('hex').toUpperCase();
         try {
             const { resource: createdUser } = await db.usersContainer.items.create(newUser);
