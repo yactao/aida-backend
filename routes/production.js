@@ -45,6 +45,9 @@ Génère le script complet, prêt à copier-coller dans Magiclight.ai.`;
     return response.data.choices[0].message.content;
 }
 
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'taoufik@aida-academie.com';
+const isAdmin = (req) => req.user?.email === ADMIN_EMAIL;
+
 module.exports = function ({ db }) {
     const router = express.Router();
 
@@ -68,7 +71,7 @@ module.exports = function ({ db }) {
 
     // GET /api/production/episodes — liste tous les épisodes avec leur statut
     router.get('/production/episodes', async (req, res) => {
-        if (req.user.role !== 'academy_teacher') return res.status(403).json({ error: 'Réservé aux enseignants.' });
+        if (!isAdmin(req)) return res.status(403).json({ error: 'Accès réservé à l\'administrateur.' });
         if (!db.episodesContainer) return res.json([]);
         try {
             const { resources } = await db.episodesContainer.items.query(
@@ -83,7 +86,7 @@ module.exports = function ({ db }) {
 
     // GET /api/production/episode-full/:episodeId — détail complet (script inclus)
     router.get('/production/episode-full/:episodeId', async (req, res) => {
-        if (req.user.role !== 'academy_teacher') return res.status(403).json({ error: 'Réservé aux enseignants.' });
+        if (!isAdmin(req)) return res.status(403).json({ error: 'Accès réservé à l\'administrateur.' });
         const { episodeId } = req.params;
         if (!db.episodesContainer) return res.json({ id: episodeId, status: 'pending' });
         try {
@@ -99,7 +102,7 @@ module.exports = function ({ db }) {
 
     // POST /api/production/generate-script — génère un script via IA
     router.post('/production/generate-script', async (req, res) => {
-        if (req.user.role !== 'academy_teacher') return res.status(403).json({ error: 'Réservé aux enseignants.' });
+        if (!isAdmin(req)) return res.status(403).json({ error: 'Accès réservé à l\'administrateur.' });
         const { episodeId, title, narratorIntro, vocabulary, objectives } = req.body;
         if (!episodeId || !title) return res.status(400).json({ error: 'episodeId et title requis.' });
 
@@ -127,7 +130,7 @@ module.exports = function ({ db }) {
 
     // PATCH /api/production/episode/:episodeId — met à jour l'URL Vimeo et/ou les notes
     router.patch('/production/episode/:episodeId', async (req, res) => {
-        if (req.user.role !== 'academy_teacher') return res.status(403).json({ error: 'Réservé aux enseignants.' });
+        if (!isAdmin(req)) return res.status(403).json({ error: 'Accès réservé à l\'administrateur.' });
         const { episodeId } = req.params;
         const { vimeoUrl, notes } = req.body;
 
@@ -153,7 +156,7 @@ module.exports = function ({ db }) {
 
     // POST /api/production/publish/:episodeId — publie l'épisode (visible pour les élèves)
     router.post('/production/publish/:episodeId', async (req, res) => {
-        if (req.user.role !== 'academy_teacher') return res.status(403).json({ error: 'Réservé aux enseignants.' });
+        if (!isAdmin(req)) return res.status(403).json({ error: 'Accès réservé à l\'administrateur.' });
         const { episodeId } = req.params;
 
         if (!db.episodesContainer) return res.status(503).json({ error: 'DB indisponible.' });
@@ -179,7 +182,7 @@ module.exports = function ({ db }) {
 
     // POST /api/production/unpublish/:episodeId — dépublie (remet en video_ready)
     router.post('/production/unpublish/:episodeId', async (req, res) => {
-        if (req.user.role !== 'academy_teacher') return res.status(403).json({ error: 'Réservé aux enseignants.' });
+        if (!isAdmin(req)) return res.status(403).json({ error: 'Accès réservé à l\'administrateur.' });
         const { episodeId } = req.params;
 
         if (!db.episodesContainer) return res.status(503).json({ error: 'DB indisponible.' });
