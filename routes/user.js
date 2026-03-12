@@ -13,14 +13,16 @@ module.exports = function ({ db, bcrypt }) {
 
     router.patch('/user/profile', async (req, res) => {
         if (!db.usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
-        const { firstName, avatar } = req.body;
+        const { firstName, avatar, interests } = req.body;
         const email = req.user.email;
         if (!firstName || firstName.trim().length < 1) return res.status(400).json({ error: "Le prénom est requis." });
         if (avatar && !AVAILABLE_AVATARS.includes(avatar)) return res.status(400).json({ error: "Avatar invalide." });
+        if (interests && (!Array.isArray(interests) || interests.length > 5)) return res.status(400).json({ error: "Intérêts invalides (max 5)." });
         try {
             const { resource: user } = await db.usersContainer.item(email, email).read();
             user.firstName = firstName.trim();
             if (avatar) user.avatar = avatar;
+            if (interests !== undefined) user.interests = interests;
             await db.usersContainer.items.upsert(user);
             delete user.password;
             res.json(user);

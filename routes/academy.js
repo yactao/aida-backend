@@ -294,5 +294,63 @@ module.exports = function ({ db, ttsClient, defaultScenarios }) {
         }
     });
 
+    // --- Leçon personnalisée par intérêt ---
+    router.post('/academy/interest-lesson', async (req, res) => {
+        const { interest, level } = req.body;
+        if (!interest) return res.status(400).json({ error: "Intérêt requis." });
+
+        const levelDescriptions = {
+            alif:   'débutant absolu (alphabet + mots très simples)',
+            racine: 'débutant (phrases courtes, présent)',
+            oasis:  'intermédiaire (phrases complexes, passé/futur)',
+            heros:  'avancé (texte riche, nuances culturelles)',
+        };
+        const levelDesc = levelDescriptions[level] || levelDescriptions.racine;
+
+        const systemPrompt = `Tu es AÏDA, tuteur expert en arabe littéraire. Tu génères des leçons structurées en JSON strict. Réponds UNIQUEMENT avec un objet JSON valide, sans markdown, sans texte avant ou après.`;
+
+        const userPrompt = `Génère une leçon d'arabe littéraire sur le thème "${interest}" pour un apprenant de niveau ${levelDesc}.
+
+La réponse DOIT être un JSON avec exactement cette structure :
+{
+  "theme": "${interest}",
+  "titre": "titre accrocheur de la leçon en français",
+  "vocab": [
+    { "arabe": "...", "phonetique": "...", "francais": "..." }
+  ],
+  "dialogue": {
+    "titre": "titre de la scène en français",
+    "echanges": [
+      { "locuteur": "A", "arabe": "...", "phonetique": "...", "francais": "..." },
+      { "locuteur": "B", "arabe": "...", "phonetique": "...", "francais": "..." }
+    ]
+  },
+  "astuce": "astuce culturelle ou grammaticale liée au thème (1-2 phrases)"
+}
+
+Règles :
+- vocab : exactement 6 mots/expressions, du plus simple au plus complexe
+- dialogue : 4 à 6 échanges naturels, contexte lié au thème
+- L'arabe doit être en script arabe avec les voyelles (تشكيل) pour le niveau ${levelDesc}
+- La phonétique doit utiliser la translittération française (ex: "marhaban" pas "mar7aban")`;
+
+        try {
+            const response = await axios.post('https://api.deepseek.com/chat/completions', {
+                model: 'deepseek-chat',
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: userPrompt }
+                ],
+                response_format: { type: 'json_object' }
+            }, { headers: { Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}` } });
+
+            const lesson = JSON.parse(response.data.choices[0].message.content);
+            res.json(lesson);
+        } catch (err) {
+            console.error('Erreur interest-lesson:', err.response?.data || err.message);
+            res.status(500).json({ error: 'Erreur lors de la génération de la leçon.' });
+        }
+    });
+
     return router;
 };
