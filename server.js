@@ -145,7 +145,7 @@ app.get('/', (req, res) => {
 });
 
 // --- Protection globale /api (sauf routes publiques) ---
-const PUBLIC_API_PATHS = ['/auth/login', '/auth/signup', '/auth/google', '/auth/forgot-password', '/auth/reset-password', '/academy/auth/login', '/academy/auth/signup', '/academy/auth/google'];
+const PUBLIC_API_PATHS = ['/auth/login', '/auth/signup', '/auth/google', '/auth/forgot-password', '/auth/reset-password', '/academy/auth/login', '/academy/auth/signup', '/academy/auth/google', '/parcours/auth/login', '/parcours/auth/signup'];
 app.use('/api', (req, res, next) => {
     if (PUBLIC_API_PATHS.includes(req.path)) return next();
     requireAuth(req, res, next);
@@ -162,7 +162,7 @@ app.use('/api', require('./routes/production')({ db }));
 app.use('/api', require('./routes/srs')({ db }));
 app.use('/api', require('./routes/notifications')({ db }));
 app.use('/api', require('./routes/user')({ db, bcrypt }));
-app.use('/api', require('./routes/parcours')({ db }));
+app.use('/api', require('./routes/parcours')({ db, bcrypt, jwt, jwtSecret: JWT_SECRET }));
 
 // --- Jobs planifiés ---
 const { startStreakReminderJob } = require('./jobs/streakReminder');
