@@ -89,6 +89,75 @@ module.exports = function ({ upload, formRecognizerClient }) {
         }
     });
 
+    // --- Playground chat streaming ---
+    router.post('/ai/playground-chat-stream', async (req, res) => {
+        const { history, preferredAgent } = req.body;
+        if (!history || history.length === 0) return res.status(400).json({ error: "L'historique est vide." });
+
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.flushHeaders();
+
+        const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
+        const DEEPSEEK_BASE_URL = process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com";
+        const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || "deepseek-chat";
+
+        const systemContent = `Tu es AIDA, un tuteur IA bienveillant et pédagogue.
+
+    [MÉTHODE PÉDAGOGIQUE]
+    - Guide l'élève, méthode socratique, ne donne pas la réponse.
+    - Adapte ton langage à l'âge de l'élève.
+
+    [FORMATAGE VISUEL & MATHS]
+    1. MATHÉMATIQUES (LaTeX) : $...$ pour inline et $$...$$ pour centré.
+    2. SCHÉMAS (Mermaid) : entoure le code de triple backticks + mot clé mermaid.
+
+    [INTERDIT]
+    - Pas de SVG.`;
+
+        const deepseekHistory = [
+            { role: "system", content: systemContent },
+            ...history.filter(msg => msg.role !== 'system')
+        ];
+
+        try {
+            const response = await axios.post(`${DEEPSEEK_BASE_URL}/v1/chat/completions`, {
+                model: DEEPSEEK_MODEL,
+                messages: deepseekHistory,
+                stream: true
+            }, {
+                headers: { 'Authorization': `Bearer ${DEEPSEEK_API_KEY}` },
+                responseType: 'stream'
+            });
+
+            let buffer = '';
+            response.data.on('data', (chunk) => {
+                buffer += chunk.toString();
+                const lines = buffer.split('\n');
+                buffer = lines.pop();
+                for (const line of lines) {
+                    const trimmed = line.trim();
+                    if (!trimmed.startsWith('data: ')) continue;
+                    const data = trimmed.slice(6);
+                    if (data === '[DONE]') { res.write('data: [DONE]\n\n'); return; }
+                    try {
+                        const parsed = JSON.parse(data);
+                        const content = parsed.choices?.[0]?.delta?.content;
+                        if (content) res.write(`data: ${JSON.stringify({ content })}\n\n`);
+                    } catch (e) {}
+                }
+            });
+
+            response.data.on('end', () => { res.write('data: [DONE]\n\n'); res.end(); });
+            response.data.on('error', (err) => { res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`); res.end(); });
+
+        } catch (error) {
+            res.write(`data: ${JSON.stringify({ error: error.message })}\n\n`);
+            res.end();
+        }
+    });
+
     // --- Generation de contenu ---
     router.post('/ai/generate-content', async (req, res) => {
         const { competences, contentType, exerciseCount, language } = req.body;
