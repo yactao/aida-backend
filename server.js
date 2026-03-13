@@ -97,7 +97,8 @@ const db = {
     episodesContainer: null,
     srsContainer: null,
     parcoursContainer: null,
-    messagesContainer: null
+    messagesContainer: null,
+    eduMessagesContainer: null
 };
 
 async function initializeDatabase() {
@@ -123,6 +124,8 @@ async function initializeDatabase() {
         db.parcoursContainer = result.container;
         result = await database.containers.createIfNotExists({ id: 'ParcoursMessages', partitionKey: '/studentEmail' });
         db.messagesContainer = result.container;
+        result = await database.containers.createIfNotExists({ id: 'EduMessages', partitionKey: '/threadId' });
+        db.eduMessagesContainer = result.container;
         console.log("Tous les conteneurs sont initialisés.");
     } catch (error) {
         console.error("Erreur critique lors de l'initialisation des conteneurs:", error.message);

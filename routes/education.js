@@ -301,6 +301,66 @@ module.exports = function ({ db }) {
         }
     });
 
+    // ── MESSAGING ────────────────────────────────────────────────────────────
+    async function canMessageEdu(emailA, roleA, emailB, roleB) {
+        const teacherEmail = roleA === 'teacher' ? emailA : (roleB === 'teacher' ? emailB : null);
+        const studentEmail = roleA === 'student' ? emailA : (roleB === 'student' ? emailB : null);
+        if (!teacherEmail || !studentEmail) return false;
+        try {
+            const { resources } = await db.classesContainer.items.query({
+                query: 'SELECT c.students FROM c WHERE c.teacherEmail = @email',
+                parameters: [{ name: '@email', value: teacherEmail }]
+            }, { enableCrossPartitionQuery: true }).fetchAll();
+            return resources.some(c => (c.students || []).includes(studentEmail));
+        } catch { return false; }
+    }
+
+    router.get('/messages/thread/:otherEmail', async (req, res) => {
+        if (!db.eduMessagesContainer) return res.status(503).json({ error: "Service indisponible." });
+        const me = req.user;
+        const otherEmail = decodeURIComponent(req.params.otherEmail);
+        try {
+            const { resource: other } = await db.usersContainer.item(otherEmail, otherEmail).read();
+            if (!await canMessageEdu(me.email, me.role, otherEmail, other.role))
+                return res.status(403).json({ error: "Accès refusé." });
+            const threadId = [me.email, otherEmail].sort().join(':');
+            const { resources } = await db.eduMessagesContainer.items.query({
+                query: 'SELECT * FROM c WHERE c.threadId = @tid ORDER BY c.timestamp ASC',
+                parameters: [{ name: '@tid', value: threadId }]
+            }, { enableCrossPartitionQuery: true }).fetchAll();
+            res.json({ messages: resources });
+        } catch (e) {
+            if (e.code === 404) return res.status(404).json({ error: "Utilisateur introuvable." });
+            res.status(500).json({ error: "Erreur serveur." });
+        }
+    });
+
+    router.post('/messages/thread/:otherEmail', async (req, res) => {
+        if (!db.eduMessagesContainer) return res.status(503).json({ error: "Service indisponible." });
+        const me = req.user;
+        const otherEmail = decodeURIComponent(req.params.otherEmail);
+        const { content } = req.body;
+        if (!content?.trim()) return res.status(400).json({ error: "Message vide." });
+        try {
+            const { resource: other } = await db.usersContainer.item(otherEmail, otherEmail).read();
+            if (!await canMessageEdu(me.email, me.role, otherEmail, other.role))
+                return res.status(403).json({ error: "Accès refusé." });
+            const threadId = [me.email, otherEmail].sort().join(':');
+            const msg = {
+                id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                threadId, context: 'education',
+                fromEmail: me.email, fromName: me.firstName || me.email, fromRole: me.role,
+                content: content.trim(), timestamp: new Date().toISOString()
+            };
+            await db.eduMessagesContainer.items.create(msg);
+            pushNotification(db, otherEmail, { type: 'new_message', message: `Nouveau message de ${me.firstName || me.email}.` });
+            res.status(201).json({ message: msg });
+        } catch (e) {
+            if (e.code === 404) return res.status(404).json({ error: "Utilisateur introuvable." });
+            res.status(500).json({ error: "Erreur lors de l'envoi." });
+        }
+    });
+
     router.post('/student/submit-quiz', async (req, res) => {
         if (!db.classesContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
         const { classId, contentId, title, score, totalQuestions, answers, helpUsed, teacherEmail } = req.body;
