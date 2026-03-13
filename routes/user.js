@@ -11,18 +11,22 @@ const AVAILABLE_AVATARS = [
 module.exports = function ({ db, bcrypt }) {
     const router = express.Router();
 
+    const VALID_GRADE_LEVELS = ['CE1','CE2','CM1','CM2','6ème','5ème','4ème','3ème','2nde','1ère','Terminale','Autre'];
+
     router.patch('/user/profile', async (req, res) => {
         if (!db.usersContainer) return res.status(503).json({ error: "Service de base de données indisponible." });
-        const { firstName, avatar, interests } = req.body;
+        const { firstName, avatar, interests, gradeLevel } = req.body;
         const email = req.user.email;
         if (!firstName || firstName.trim().length < 1) return res.status(400).json({ error: "Le prénom est requis." });
         if (avatar && !AVAILABLE_AVATARS.includes(avatar)) return res.status(400).json({ error: "Avatar invalide." });
         if (interests && (!Array.isArray(interests) || interests.length > 5)) return res.status(400).json({ error: "Intérêts invalides (max 5)." });
+        if (gradeLevel && !VALID_GRADE_LEVELS.includes(gradeLevel)) return res.status(400).json({ error: "Niveau scolaire invalide." });
         try {
             const { resource: user } = await db.usersContainer.item(email, email).read();
             user.firstName = firstName.trim();
             if (avatar) user.avatar = avatar;
             if (interests !== undefined) user.interests = interests;
+            if (gradeLevel !== undefined) user.gradeLevel = gradeLevel;
             await db.usersContainer.items.upsert(user);
             delete user.password;
             res.json(user);
