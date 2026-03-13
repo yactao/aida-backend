@@ -95,7 +95,8 @@ const db = {
     scenariosContainer: null,
     sessionsContainer: null,
     episodesContainer: null,
-    srsContainer: null
+    srsContainer: null,
+    parcoursContainer: null
 };
 
 async function initializeDatabase() {
@@ -117,6 +118,8 @@ async function initializeDatabase() {
         db.episodesContainer = result.container;
         result = await database.containers.createIfNotExists({ id: 'SrsCards', partitionKey: '/userId' });
         db.srsContainer = result.container;
+        result = await database.containers.createIfNotExists({ id: 'Parcours', partitionKey: '/userId' });
+        db.parcoursContainer = result.container;
         console.log("Tous les conteneurs sont initialisés.");
     } catch (error) {
         console.error("Erreur critique lors de l'initialisation des conteneurs:", error.message);
@@ -159,6 +162,7 @@ app.use('/api', require('./routes/production')({ db }));
 app.use('/api', require('./routes/srs')({ db }));
 app.use('/api', require('./routes/notifications')({ db }));
 app.use('/api', require('./routes/user')({ db, bcrypt }));
+app.use('/api', require('./routes/parcours')({ db }));
 
 // --- Jobs planifiés ---
 const { startStreakReminderJob } = require('./jobs/streakReminder');
