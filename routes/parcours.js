@@ -376,5 +376,179 @@ JSON attendu :
         res.json({ ok: true });
     });
 
+    // ── GET /parcours/weekly-summary/:email ─── AUTH (tutor/parent)
+    router.get('/parcours/weekly-summary/:email', async (req, res) => {
+        if (!db.usersContainer || !db.parcoursContainer) return res.status(503).json({ error: "Service indisponible." });
+        if (!['parcours_tutor', 'parcours_parent'].includes(req.user.role)) return res.status(403).json({ error: "Accès refusé." });
+        const studentEmail = decodeURIComponent(req.params.email);
+        try {
+            const { resource: viewer } = await db.usersContainer.item(req.user.email, req.user.email).read();
+            if (!viewer.linkedStudents?.includes(studentEmail)) return res.status(403).json({ error: "Cet élève n'est pas lié à votre compte." });
+            const { resource: doc } = await db.parcoursContainer.item(studentEmail, studentEmail).read().catch(() => ({ resource: null }));
+            const plan = doc?.plan || null;
+            if (!plan) return res.json({ hasPlan: false });
+
+            const now = new Date();
+            const mondayOffset = (now.getDay() + 6) % 7;
+            const monday = new Date(now);
+            monday.setDate(now.getDate() - mondayOffset);
+            monday.setHours(0, 0, 0, 0);
+
+            const allCompleted = (plan.sessions || []).filter(s => s.status === 'completed');
+            const weekCompleted = allCompleted.filter(s => s.date && new Date(s.date) >= monday);
+            const avgScore = weekCompleted.length > 0
+                ? Math.round(weekCompleted.reduce((sum, s) => sum + (s.score || 0), 0) / weekCompleted.length)
+                : null;
+
+            const lastSession = allCompleted.length > 0 ? allCompleted[allCompleted.length - 1] : null;
+            const daysSinceLast = lastSession?.date
+                ? Math.floor((now - new Date(lastSession.date)) / (1000 * 60 * 60 * 24))
+                : null;
+
+            const subjectStats = (plan.subjects || []).map(s => {
+                const weekDone = weekCompleted.filter(w => w.subject === s.name).length;
+                const weekPlanned = s.weeklySessionCount || 2;
+                const allDone = allCompleted.filter(w => w.subject === s.name).length;
+                const total = s.totalSessions || (s.weeklySessionCount * 4) || 8;
+                const pct = Math.min(100, Math.round((allDone / total) * 100));
+                return { name: s.name, weekDone, weekPlanned, pct };
+            });
+
+            const dailyHistory = Array.from({ length: 7 }, (_, i) => {
+                const d = new Date(now);
+                d.setDate(now.getDate() - (6 - i));
+                const dayLabel = d.toLocaleDateString('fr-FR', { weekday: 'short' });
+                const daySessions = allCompleted.filter(s => s.date && new Date(s.date).toDateString() === d.toDateString());
+                const avgDay = daySessions.length > 0
+                    ? Math.round(daySessions.reduce((sum, s) => sum + (s.score || 0), 0) / daySessions.length)
+                    : null;
+                return { day: dayLabel, score: avgDay, count: daySessions.length };
+            });
+
+            res.json({ hasPlan: true, weekSessions: weekCompleted.length, avgScore, daysSinceLast, subjectStats, dailyHistory, totalCompleted: allCompleted.length });
+        } catch (e) {
+            if (e.code === 404) return res.status(404).json({ error: "Données introuvables." });
+            res.status(500).json({ error: "Erreur serveur." });
+        }
+    });
+
+    // ── POST /parcours/ai-report/:email ─── AUTH (tutor/parent)
+    router.post('/parcours/ai-report/:email', async (req, res) => {
+        if (!db.usersContainer || !db.parcoursContainer) return res.status(503).json({ error: "Service indisponible." });
+        if (!['parcours_tutor', 'parcours_parent'].includes(req.user.role)) return res.status(403).json({ error: "Accès refusé." });
+        const studentEmail = decodeURIComponent(req.params.email);
+        try {
+            const { resource: viewer } = await db.usersContainer.item(req.user.email, req.user.email).read();
+            if (!viewer.linkedStudents?.includes(studentEmail)) return res.status(403).json({ error: "Cet élève n'est pas lié à votre compte." });
+
+            const { resource: student } = await db.usersContainer.item(studentEmail, studentEmail).read();
+            const { resource: doc } = await db.parcoursContainer.item(studentEmail, studentEmail).read().catch(() => ({ resource: null }));
+            const plan = doc?.plan;
+            if (!plan) return res.status(400).json({ error: "L'élève n'a pas encore de plan." });
+
+            const now = new Date();
+            const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            const allCompleted = (plan.sessions || []).filter(s => s.status === 'completed');
+            const weekSessions = allCompleted.filter(s => s.date && new Date(s.date) >= weekAgo);
+            const avgScore = weekSessions.length > 0
+                ? Math.round(weekSessions.reduce((sum, s) => sum + (s.score || 0), 0) / weekSessions.length)
+                : 0;
+
+            const subjectStats = (plan.subjects || []).map(s => {
+                const weekDone = weekSessions.filter(x => x.subject === s.name).length;
+                const allDone = allCompleted.filter(x => x.subject === s.name).length;
+                const total = s.totalSessions || 8;
+                const weekScores = weekSessions.filter(x => x.subject === s.name).map(x => x.score || 0);
+                const subAvg = weekScores.length > 0 ? Math.round(weekScores.reduce((a, b) => a + b, 0) / weekScores.length) : null;
+                return `${s.name} : ${weekDone} séance(s) cette semaine, score moyen ${subAvg !== null ? subAvg + '%' : 'N/A'}, progression globale ${allDone}/${total} séances`;
+            }).join('\n');
+
+            const prompt = `Tu es un conseiller pédagogique bienveillant. Rédige un rapport hebdomadaire en français pour les parents/tuteur de ${student.firstName} (élève en ${plan.gradeLevel}).
+
+Données de la semaine :
+- Séances complétées cette semaine : ${weekSessions.length}
+- Score moyen global : ${avgScore}%
+- Détail par matière :
+${subjectStats}
+
+Le rapport doit comporter exactement 4 sections :
+1. **Bilan de la semaine** (2-3 phrases d'appréciation générale, ton chaleureux)
+2. **Points forts** (1-2 matières bien travaillées, préciser les compétences)
+3. **Axes de progression** (1-2 matières à renforcer, avec conseils pratiques concrets)
+4. **Objectifs pour la semaine prochaine** (3 objectifs mesurables et atteignables)
+
+Termine par une phrase d'encouragement personnalisée pour ${student.firstName}.
+Ton : professionnel, chaleureux, motivant. Longueur : environ 250-350 mots.`;
+
+            const response = await axios.post('https://api.deepseek.com/chat/completions', {
+                model: 'deepseek-chat',
+                messages: [
+                    { role: 'system', content: 'Tu es un conseiller pédagogique expert. Réponds en français avec un texte bien structuré.' },
+                    { role: 'user', content: prompt }
+                ],
+                temperature: 0.7,
+                max_tokens: 1000
+            }, { headers: { Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}` } });
+
+            const report = response.data.choices[0].message.content;
+            res.json({ report, studentName: student.firstName, gradeLevel: plan.gradeLevel, generatedAt: new Date().toISOString() });
+        } catch (e) {
+            console.error('ai-report error:', e.response?.data || e.message);
+            res.status(500).json({ error: "Erreur lors de la génération du rapport." });
+        }
+    });
+
+    // ── GET /parcours/messages/:studentEmail ─── AUTH
+    router.get('/parcours/messages/:studentEmail', async (req, res) => {
+        if (!db.messagesContainer) return res.status(503).json({ error: "Service indisponible." });
+        const studentEmail = decodeURIComponent(req.params.studentEmail);
+        const viewer = req.user;
+        if (viewer.email !== studentEmail) {
+            try {
+                const { resource: me } = await db.usersContainer.item(viewer.email, viewer.email).read();
+                if (!me.linkedStudents?.includes(studentEmail)) return res.status(403).json({ error: "Accès refusé." });
+            } catch { return res.status(403).json({ error: "Accès refusé." }); }
+        }
+        try {
+            const { resources } = await db.messagesContainer.items.query({
+                query: 'SELECT * FROM c WHERE c.studentEmail = @email ORDER BY c.timestamp ASC',
+                parameters: [{ name: '@email', value: studentEmail }]
+            }, { enableCrossPartitionQuery: true }).fetchAll();
+            res.json({ messages: resources });
+        } catch (e) {
+            res.status(500).json({ error: "Erreur serveur." });
+        }
+    });
+
+    // ── POST /parcours/messages/:studentEmail ─── AUTH
+    router.post('/parcours/messages/:studentEmail', async (req, res) => {
+        if (!db.messagesContainer) return res.status(503).json({ error: "Service indisponible." });
+        const studentEmail = decodeURIComponent(req.params.studentEmail);
+        const viewer = req.user;
+        const { content } = req.body;
+        if (!content?.trim()) return res.status(400).json({ error: "Message vide." });
+        if (viewer.email !== studentEmail) {
+            try {
+                const { resource: me } = await db.usersContainer.item(viewer.email, viewer.email).read();
+                if (!me.linkedStudents?.includes(studentEmail)) return res.status(403).json({ error: "Accès refusé." });
+            } catch { return res.status(403).json({ error: "Accès refusé." }); }
+        }
+        try {
+            const msg = {
+                id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                studentEmail,
+                fromEmail: viewer.email,
+                fromName: viewer.firstName,
+                fromRole: viewer.role,
+                content: content.trim(),
+                timestamp: new Date().toISOString()
+            };
+            await db.messagesContainer.items.create(msg);
+            res.status(201).json({ message: msg });
+        } catch (e) {
+            res.status(500).json({ error: "Erreur lors de l'envoi." });
+        }
+    });
+
     return router;
 };
