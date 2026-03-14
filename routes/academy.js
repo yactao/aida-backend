@@ -1,6 +1,16 @@
 const express = require('express');
 const axios = require('axios');
 
+async function pushNotification(db, email, notification) {
+    try {
+        const { resource: user } = await db.usersContainer.item(email, email).read();
+        user.notifications = user.notifications || [];
+        user.notifications.unshift({ id: `notif-${Date.now()}-${Math.random().toString(36).slice(2,6)}`, ...notification, read: false, createdAt: new Date().toISOString() });
+        if (user.notifications.length > 50) user.notifications = user.notifications.slice(0, 50);
+        await db.usersContainer.items.upsert(user);
+    } catch (e) { /* non-blocking */ }
+}
+
 module.exports = function ({ db, ttsClient, defaultScenarios }) {
     const router = express.Router();
 
@@ -390,6 +400,26 @@ Règles :
         } catch { return false; }
     }
 
+    router.get('/academy/messages/threads', async (req, res) => {
+        if (!db.eduMessagesContainer) return res.status(503).json({ error: "Service indisponible." });
+        const myEmail = req.user.email;
+        try {
+            const { resources } = await db.eduMessagesContainer.items.query({
+                query: 'SELECT * FROM c WHERE CONTAINS(c.threadId, @email) AND c.context = "academy" ORDER BY c.timestamp DESC',
+                parameters: [{ name: '@email', value: myEmail }]
+            }, { enableCrossPartitionQuery: true }).fetchAll();
+
+            const threadMap = new Map();
+            for (const msg of resources) {
+                if (!threadMap.has(msg.threadId)) {
+                    const otherEmail = msg.threadId.split(':').find(e => e !== myEmail);
+                    threadMap.set(msg.threadId, { threadId: msg.threadId, otherEmail, lastMessage: msg.content, timestamp: msg.timestamp, fromName: msg.fromName, fromEmail: msg.fromEmail });
+                }
+            }
+            res.json({ threads: [...threadMap.values()].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)) });
+        } catch (e) { res.status(500).json({ error: "Erreur serveur." }); }
+    });
+
     router.get('/academy/messages/thread/:otherEmail', async (req, res) => {
         if (!db.eduMessagesContainer) return res.status(503).json({ error: "Service indisponible." });
         const me = req.user;
@@ -428,6 +458,7 @@ Règles :
                 content: content.trim(), timestamp: new Date().toISOString()
             };
             await db.eduMessagesContainer.items.create(msg);
+            pushNotification(db, otherEmail, { type: 'new_message', message: `Nouveau message de ${me.firstName || me.email}.` });
             res.status(201).json({ message: msg });
         } catch (e) {
             if (e.code === 404) return res.status(404).json({ error: "Utilisateur introuvable." });

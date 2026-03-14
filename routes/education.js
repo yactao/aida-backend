@@ -315,6 +315,27 @@ module.exports = function ({ db }) {
         } catch { return false; }
     }
 
+    router.get('/messages/threads', async (req, res) => {
+        if (!db.eduMessagesContainer) return res.status(503).json({ error: "Service indisponible." });
+        const myEmail = req.user.email;
+        try {
+            const { resources } = await db.eduMessagesContainer.items.query({
+                query: 'SELECT * FROM c WHERE CONTAINS(c.threadId, @email) AND c.context = "education" ORDER BY c.timestamp DESC',
+                parameters: [{ name: '@email', value: myEmail }]
+            }, { enableCrossPartitionQuery: true }).fetchAll();
+
+            // Group by threadId, keep last message per thread
+            const threadMap = new Map();
+            for (const msg of resources) {
+                if (!threadMap.has(msg.threadId)) {
+                    const otherEmail = msg.threadId.split(':').find(e => e !== myEmail);
+                    threadMap.set(msg.threadId, { threadId: msg.threadId, otherEmail, lastMessage: msg.content, timestamp: msg.timestamp, fromName: msg.fromName, fromEmail: msg.fromEmail });
+                }
+            }
+            res.json({ threads: [...threadMap.values()].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)) });
+        } catch (e) { res.status(500).json({ error: "Erreur serveur." }); }
+    });
+
     router.get('/messages/thread/:otherEmail', async (req, res) => {
         if (!db.eduMessagesContainer) return res.status(503).json({ error: "Service indisponible." });
         const me = req.user;
